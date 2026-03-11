@@ -79,6 +79,8 @@ async def get_plan(id: str, db: AsyncSession = Depends(get_db)):
 
 Route handlers in `app/api/v1/` do three things only: validate input (Pydantic does this automatically), call a service or agent, return a response. No business logic, no direct DB queries, no LLM calls.
 
+> **Skills:** Run `/fastapi` before writing or refactoring any route handler or service file. Run `/review-api-route` on your output before marking the task complete.
+
 ```python
 # CORRECT
 @router.post("/chat")
@@ -145,6 +147,8 @@ def find_missing_prerequisites(plan: list[str], completed: set[str]) -> list[str
 ---
 
 ## Data Models — What Matters Most
+
+> **Skills:** Run `/review-schema` after writing or modifying any file in `app/schemas/`.
 
 ### PersonalData (the carry-forward contract)
 
@@ -250,6 +254,8 @@ def route_after_classification(state: AgentState) -> str:
 
 **Graph assembly** (`app/agents/graph.py`) is the only place that imports all nodes and wires them together. It is not imported anywhere else except the FastAPI dependency.
 
+> **Skills:** Before implementing or modifying any node, read its `.claude/agents/` spec. Run `/review-agent-node` on the finished node before marking the task complete.
+
 ---
 
 ## .claude/ Directory
@@ -271,18 +277,29 @@ Hooks in `.claude/hooks/` run automatically before and after every tool use. The
 
 If you need to run a legitimately blocked command (e.g., `DROP TABLE` during a manual environment reset), run it directly in your terminal outside Claude Code. Never modify hooks to permit a one-off operation — add a targeted exemption with a comment if the pattern is genuinely needed.
 
-### Skills — Reusable Review Workflows
+### Skills — Development and Review Workflows
 
-Skills in `.claude/skills/code-review/` are review prompt templates. Run the relevant skill on your own output before considering any implementation complete.
+Skills live in `.claude/skills/` (code-review checklists) and `.agents/skills/` (development guides). Invoke any skill with `/skill-name` in the chat.
 
-To invoke: say "Review this using `.claude/skills/code-review/<skill>.md`" then paste the code.
+#### Development Skills — invoke before starting a feature area
 
-| Skill | Use For |
-|---|---|
-| `review-agent-node.md` | Any file in `app/agents/nodes/` |
-| `review-schema.md` | Any file in `app/schemas/` |
-| `review-migration.md` | Any new Alembic migration before committing |
-| `review-api-route.md` | Any file in `app/api/v1/` |
+| Skill | Invoke | Use When |
+|---|---|---|
+| FastAPI best practices | `/fastapi` | Writing or refactoring any file in `app/api/v1/` or `app/services/` |
+| FastAPI Best Architecture | `/fba` | Designing service/repository layers or plugin patterns |
+| Next.js App Router | `/nextjs-app-router-fundamentals` | Adding pages, layouts, or routing in `frontend/src/app/` |
+| React Hook Form + Zod | `/react-hook-form-zod` | Building or modifying any validated form in the frontend |
+| UI Components | `/building-components` | Creating new reusable components in `frontend/src/components/` |
+| Tailwind design system | `/tailwind-design-system` | Extending or standardising Tailwind tokens and patterns |
+
+#### Code Review Skills — run on your own output before marking a task complete
+
+| Skill | Invoke | Use For |
+|---|---|---|
+| Review agent node | `/review-agent-node` | Any file in `app/agents/nodes/` |
+| Review schema | `/review-schema` | Any file in `app/schemas/` |
+| Review migration | `/review-migration` | Any new Alembic migration before committing |
+| Review API route | `/review-api-route` | Any file in `app/api/v1/` |
 
 ### Agents — Behavioural Specifications
 
@@ -299,6 +316,19 @@ Files in `.claude/agents/` define the complete behavioural contract for each Lan
 | `procedure-planner-agent.md` | `procedure_planner_node` — dependency resolution |
 | `form-filler-agent.md` | `form_filler_node` — semantic field mapping and PDF fill |
 | `synthesizer-agent.md` | `synthesizer_node` — final response assembly |
+
+---
+
+## Frontend Development
+
+The frontend is secondary to the backend, but the following skills keep it consistent:
+
+| Task | Skill |
+|---|---|
+| New page or layout in `frontend/src/app/` | `/nextjs-app-router-fundamentals` |
+| New reusable component in `frontend/src/components/` | `/building-components` |
+| Any form with validation | `/react-hook-form-zod` |
+| Tailwind tokens, spacing, or colour system changes | `/tailwind-design-system` |
 
 ---
 
