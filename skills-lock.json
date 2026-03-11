@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "skills": {
+    "building-components": {
+      "source": "vercel/components.build",
+      "sourceType": "github",
+      "computedHash": "cb71f9b5e9cf87c2e0a69384347818ddbbf50dd372cf7e7f90877b397de87e83"
+    },
+    "fastapi": {
+      "source": "fastapi/fastapi",
+      "sourceType": "github",
+      "computedHash": "9feb517089c269af4fdab5031dea1100a92fd50081e906ccfaf8a971858e39f9"
+    },
+    "fba": {
+      "source": "fastapi-practices/skills",
+      "sourceType": "github",
+      "computedHash": "e0e4996c72b3479582b6f65979950c4ccccbb849978908ded31024444b5b8491"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "computedHash": "25872a21881a950edc3db1f3329664d60405d539660ce05b3265db2de06a7dfd"
+    },
+    "nextjs-app-router-fundamentals": {
+      "source": "wsimmonds/claude-nextjs-skills",
+      "sourceType": "github",
+      "computedHash": "7db69d3b4cdc7e880b667b7173146f3ff8b8fb096aace7f2e7f47ec4bac3ee79"
+    },
+    "react-hook-form-zod": {
+      "source": "ovachiever/droid-tings",
+      "sourceType": "github",
+      "computedHash": "ae74aa8ed25ec6e82aa30d00b4865fa5cff76c65f1b43ff1169eb2a222740e01"
+    },
+    "tailwind-design-system": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "computedHash": "0fc7b79d08ee5168d46c6887014cbe5bd02f2c5e458858470e20fc8ecedefb46"
+    }
+  }
+}
