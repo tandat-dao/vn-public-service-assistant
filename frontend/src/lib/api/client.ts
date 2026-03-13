@@ -68,4 +68,19 @@ export const api = {
       return apiFetch<any>('/api/v1/documents/upload', { method: 'POST', body: fd, headers: {} })
     },
   },
+  forms: {
+    submit: (body: {
+      form_type: 'thuong-tru' | 'tam-tru' | 'xac-nhan'
+      session_id: string
+      submission_mode: 'manual' | 'ai'
+      form_data: Record<string, string | undefined>
+    }) =>
+      apiFetch<{
+        ma_ho_so: string
+        form_type: string
+        submitted_at: string
+        status: string
+        message: string
+      }>('/api/v1/forms/submit', { method: 'POST', body: JSON.stringify(body) }),
+  },
 }

@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { RefreshCw } from 'lucide-react'
 import { TabBar } from '@/components/ui/TabBar'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
@@ -14,11 +15,18 @@ const TABS = [
 // Simple deterministic CAPTCHA-like display
 const CAPTCHA_CHARS = 'AB2K7MX9'
 
-export default function TraCuuHoSoPage() {
+function TraCuuHoSoContent() {
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState('ma-ho-so')
   const [maHoSo, setMaHoSo] = useState('')
   const [captcha, setCaptcha] = useState('')
   const [captchaKey, setCaptchaKey] = useState(0)
+
+  // Pre-fill tracking code when redirected from a form submission
+  useEffect(() => {
+    const ma = searchParams.get('ma')
+    if (ma) setMaHoSo(ma)
+  }, [searchParams])
 
   function refreshCaptcha() { setCaptchaKey((k) => k + 1) }
 
@@ -99,5 +107,13 @@ export default function TraCuuHoSoPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function TraCuuHoSoPage() {
+  return (
+    <Suspense>
+      <TraCuuHoSoContent />
+    </Suspense>
   )
 }

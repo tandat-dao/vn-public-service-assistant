@@ -38,6 +38,12 @@ const TABS = [
   { id: 'khac',   label: 'Cơ quan khác' },
 ]
 
+const CU_TRU_PROCEDURES = [
+  { href: '/thu-tuc/dang-ky-thuong-tru',  label: 'Đăng ký thường trú',               time: '5 ngày', fee: 'Miễn phí' },
+  { href: '/thu-tuc/dang-ky-tam-tru',     label: 'Đăng ký tạm trú',                  time: '3 ngày', fee: 'Miễn phí' },
+  { href: '/thu-tuc/xac-nhan-cu-tru',     label: 'Xác nhận thông tin về cư trú',     time: '1–2 ngày', fee: 'Miễn phí' },
+]
+
 const MOCK_ROWS = [
   { stt: 1,  organ: 'Bộ Công an',                    total: 342, full: 198, partial: 144, target: 300, remain: 0 },
   { stt: 2,  organ: 'Bộ Tư pháp',                    total: 285, full: 175, partial: 110, target: 250, remain: 0 },
@@ -105,6 +111,25 @@ export default function DichVuCongPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Cư trú procedures — direct links */}
+      <div className="mb-6">
+        <h2 className="text-sm font-bold text-[#CE7A58] uppercase tracking-wide mb-3">
+          Thủ tục cư trú trực tuyến
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {CU_TRU_PROCEDURES.map((p) => (
+            <a
+              key={p.href}
+              href={p.href}
+              className="border border-[#DDDDDD] rounded p-4 hover:border-[#CE7A58] transition-colors block"
+            >
+              <p className="text-sm font-semibold text-[#2A6EBB] hover:underline mb-1">{p.label}</p>
+              <p className="text-[11px] text-[#555]">Thời gian: {p.time} · Lệ phí: {p.fee}</p>
+            </a>
+          ))}
+        </div>
       </div>
 
       {/* Tabs + Table */}

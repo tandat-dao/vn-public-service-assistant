@@ -88,3 +88,47 @@ export interface UploadedFile {
   previewUrl?: string
   documentType?: string
 }
+
+// ── Residence Form Types ──────────────────────────────────────────────────────
+
+export type FormType = 'thuong-tru' | 'tam-tru' | 'xac-nhan'
+export type FieldSource = 'manual' | 'ai'
+
+export interface FieldState {
+  value: string
+  source: FieldSource
+  confidence: number    // 1.0 for manual; 0.0–1.0 for AI
+  aiHighlight: boolean  // true when source === 'ai'
+}
+
+/** Mirrors backend ResidenceFormData — field names match PersonalData keys where shared */
+export interface ResidenceFormData {
+  ho_ten?: string
+  ngay_sinh?: string
+  gioi_tinh?: 'Nam' | 'Nữ' | ''
+  so_cccd?: string
+  // thuong-tru
+  noi_thuong_tru_cu?: string
+  dia_chi_thuong_tru_moi?: string
+  quan_he_chu_ho?: string
+  ten_chu_ho?: string
+  cccd_chu_ho?: string
+  // tam-tru
+  dia_chi_thuong_tru?: string
+  dia_chi_tam_tru?: string
+  tu_ngay?: string
+  den_ngay?: string
+  muc_dich?: string
+  // xac-nhan
+  dia_chi_can_xac_nhan?: string
+  loai_xac_nhan?: 'Thường trú' | 'Tạm trú' | ''
+  muc_dich_xac_nhan?: string
+}
+
+export interface FormSubmissionResponse {
+  ma_ho_so: string
+  form_type: FormType
+  submitted_at: string
+  status: 'received' | 'processing' | 'completed'
+  message: string
+}
