@@ -6,6 +6,72 @@ A mock Vietnamese government public administration portal (dichvucong.gov.vn) wi
 
 ---
 
+## Current Implementation Status
+
+> Last updated: 2026-03-26. Update this section whenever a phase completes.
+
+### ✅ Done
+
+**Infrastructure**
+- Docker Compose up (PostgreSQL 5432, Redis 6379 with `requirepass` auth, Qdrant 6333, MinIO 9000)
+- Alembic migrations applied: `0001_initial_schema.py` (7 tables) + `0002_legal_doc_versioning.py` (`superseded_by` FK on `legal_documents`)
+- Redis password auth (`REDIS_PASSWORD` env var, `--requirepass` in docker-compose.yml)
+- CORS locked to explicit origin list (`CORS_ALLOW_ORIGINS` env var, no `*`)
+- MinIO bucket auto-init with private policy on FastAPI startup (lifespan)
+- `slowapi` rate limiting: 10 req/min per `session_id` on `POST /api/v1/chat`
+
+**Backend — Implemented**
+- `procedure_graph.py` — Kahn's topological sort + `resolve_execution_plan()` — 8 unit tests passing
+- `get_db()` async session factory with explicit rollback on exception (`app/dependencies.py`)
+- `app/rate_limit.py` — shared `Limiter` module (avoids circular import with `main.py`)
+- `app/core/file_validator.py` — MIME whitelist, 5 MB size limit, extension whitelist
+- All 4 ORM models — fully implemented (UUID PKs, TIMESTAMPTZ, JSONB, ARRAY)
+- `ingest_procedures.py` — 3 residence procedures + 2 dependency edges (TTDN-003 → TTDN-001 mandatory, TTDN-003 → TTDN-002 conditional)
+- `qdrant_service.py` — `_active_filter()`, `scroll_by_document_number()`, `batch_set_status()` stubs
+- `ingest_legal_docs.py` — re-ingestion outline with supersede-before-upsert flow
+
+**Phase 2 — AI Core (TASK-01 complete)**
+- `app/services/llm.py` — `LLMService` wrapping `anthropic.AsyncAnthropic`; `async_invoke()` + `stream()`; LangSmith tracing wired in `__init__`
+- `app/agents/node_registry.py` — `VALID_PLAN_STEPS`, `NODE_DEPENDENCIES`, `NODE_REGISTRY` (rag_fn / ocr_fn / form_filler_fn only)
+- `app/agents/prompts/router_prompt.py` — `RouterOutput` Pydantic model, Vietnamese system prompt with 8 few-shot examples, `build_router_messages()`
+- `app/agents/nodes/router.py` — `async router_node()` with JSON fallback + ordering enforcement + ValueError on invalid steps
+- `app/agents/state.py` — updated: `execution_plan`, `plan_cursor`, `conversation_history` added; old `intent` field removed
+- `.claude/agents/router-agent.md` — fully rewritten for plan_executor topology
+- `config.py` / `.env` — `LLM_MODEL=claude-sonnet-4-20250514` added
+
+**Legal Documents — downloaded to `backend/data/legal_documents/`**
+- `68_2020_QH14_435315.doc` — Luật Cư trú 2020 (Luật số 68/2020/QH14)
+- `62_2021_ND-CP_473325.doc` — Nghị định 62/2021/NĐ-CP
+- `104_2022_ND-CP_544177.doc` — Nghị định 104/2022/NĐ-CP
+- `55_2021_TT-BCA_466836.doc` — Thông tư 55/2021/TT-BCA
+- ⚠️ Files are `.doc` (Word) format — ingestion script expects PDF. Convert to PDF before running TASK-05.
+
+**Tests — 89 unit tests passing**
+- `test_procedure_graph.py` (8) | `test_dependencies.py` (4) | `test_orm_models.py` (21)
+- `test_rate_limiting.py` (5) | `test_file_validator.py` (10) | `test_legal_doc_versioning.py` (8)
+- `test_router_node.py` (31) | `test_form_mapper.py` (1 placeholder) | `test_session_accumulator.py` (1 placeholder)
+
+**Frontend** — 10 pages (7 portal + 3 residence forms), ChatWidget (SSE-ready), all Zustand stores, TypeScript types
+
+### 🔄 Next Up (Phase 2 — AI Core, continued)
+TASK-01 complete. Remaining Group A tasks can now proceed.
+
+**Group A — remaining (start simultaneously):**
+`TASK-02` Embedder + Qdrant service (real search) | `TASK-03` Redis service (TTL + Fernet encryption) | `TASK-07` PDF + storage service | `TASK-13` Mock CCCD image generation
+
+**Group B (after Group A):**
+`TASK-04` OCR service (prompt-injection hardened) | `TASK-05` Legal doc ingestion ⚠️ convert .doc → PDF first | `TASK-06` RAG node (hybrid + `verify_citations()`)
+
+**Group C (after Group B):**
+`TASK-08` Form filler worker fn | `TASK-09` Procedure planner worker fn | `TASK-10` Synthesizer node
+
+**Group D (all nodes done):**
+`TASK-11` Graph assembly (`plan_executor` loop topology) + functional chat SSE | `TASK-12` Document upload + OCR endpoint | `TASK-14` Integration tests
+
+See `docs/PROJECT_STATUS_v1.1.md` for full task cards with inputs/outputs/DoD checklists.
+
+---
+
 ## Stack at a Glance
 
 | Layer | Technology |
@@ -30,21 +96,37 @@ dichvucong/
 │   │   ├── api/v1/          # Route handlers (thin — no business logic here)
 │   │   ├── agents/          # LangGraph graph, state, nodes/, prompts/
 │   │   ├── core/            # Pure domain logic (no FastAPI imports)
+│   │   │   └── file_validator.py  # ✅ MIME/size/extension validation
+│   │   ├── rate_limit.py    # ✅ shared slowapi Limiter (avoids circular import)
 │   │   ├── services/        # Infrastructure wrappers (LLM, Qdrant, OCR, PDF, Redis)
-│   │   ├── models/          # SQLAlchemy ORM models
-│   │   ├── schemas/         # Pydantic v2 request/response schemas
-│   │   └── ingestion/       # Offline scripts (ingest legal docs, seed procedures, mock data gen)
+│   │   ├── models/          # SQLAlchemy ORM models (all 4 fully implemented ✅)
+│   │   └── schemas/         # Pydantic v2 request/response schemas
+│   ├── ingestion/           # Offline scripts (ingest legal docs, seed procedures, mock data gen)
+│   │   ├── ingest_procedures.py   # ✅ 3 procedures + 2 dependency edges seeded
+│   │   ├── ingest_legal_docs.py   # ✅ re-ingestion outline (real impl in TASK-05)
+│   │   └── generate_mock_data.py  # 📋 not yet implemented
 │   ├── data/
-│   │   ├── legal_documents/ # Raw Vietnamese legal PDFs
-│   │   ├── form_templates/  # Blank government PDF forms
-│   │   └── mock_documents/  # Synthetic CCCD images etc.
+│   │   ├── legal_documents/ # Raw Vietnamese legal PDFs (empty — collect before Phase 2)
+│   │   ├── form_templates/  # Blank government PDF forms (empty — collect before Phase 3)
+│   │   └── mock_documents/  # Synthetic CCCD images (empty — generate in TASK-13)
+│   ├── alembic/             # Migrations — never modify a committed version
+│   │   └── versions/
+│   │       ├── 0001_initial_schema.py          # ✅ applied — 7 tables
+│   │       └── 0002_legal_doc_versioning.py    # ✅ superseded_by FK on legal_documents
 │   └── tests/
-│       ├── unit/
-│       └── integration/
+│       └── unit/            # 58 tests passing ✅
+│           ├── conftest.py  # stubs python-magic DLL for Windows unit tests
+│           ├── test_procedure_graph.py     # 8 tests
+│           ├── test_dependencies.py        # 4 tests
+│           ├── test_orm_models.py          # 21 tests
+│           ├── test_rate_limiting.py       # 5 tests
+│           ├── test_file_validator.py      # 10 tests
+│           └── test_legal_doc_versioning.py # 8 tests
 └── frontend/
-    ├── app/                 # Next.js App Router pages
-    ├── components/          # chat/, forms/, documents/, ui/
-    └── lib/                 # api/, stores/, types/
+    └── src/
+        ├── app/             # Next.js App Router pages (10 pages ✅)
+        ├── components/      # chat/ (ChatWidget ✅), forms/, documents/, ui/ (all ✅)
+        └── lib/             # api/, stores/ (all 3 stores ✅), types/ (✅)
 ```
 
 ---
@@ -186,9 +268,9 @@ class AgentState(TypedDict):
     uploaded_image_path: str | None
     session_id: str
 
-    # --- Routing ---
-    intent: Literal["procedure_inquiry", "document_ocr", "form_fill",
-                    "legal_question", "dependency_check"]
+    # --- Routing (plan_executor topology) ---
+    execution_plan: list[str]    # e.g. ["ocr_fn", "form_filler_fn"] — set by Router
+    plan_cursor: int             # current index — incremented by plan_executor only
     entities: dict[str, Any]
 
     # --- RAG ---
@@ -222,39 +304,59 @@ class AgentState(TypedDict):
 
 ## LangGraph Node Conventions
 
-All nodes live in `app/agents/nodes/`. Each file exports exactly one function named after the node.
+The graph topology is a **linear loop** — not a conditional fan-out. The Router decomposes the user message into an ordered `execution_plan: list[str]`, and `plan_executor` drives all worker functions as plain function calls via `NODE_REGISTRY`.
 
+**Graph topology:**
+```
+Entry → router_node → plan_executor (loops) → synthesizer_node → END
+```
+
+**True graph nodes (only 3):**
 ```
 nodes/
-├── router.py           → router_node(state) + route_after_classification(state) -> str
-├── rag.py              → rag_node(state)
-├── ocr.py              → ocr_node(state)
-├── procedure_planner.py → procedure_planner_node(state)
-├── form_filler.py      → form_filler_node(state)
-└── synthesizer.py      → synthesizer_node(state)
+├── router.py           → router_node(state): sets execution_plan + plan_cursor=0
+├── plan_executor.py    → plan_executor_node(state): calls NODE_REGISTRY[plan[cursor]](state)
+└── synthesizer.py      → synthesizer_node(state): assembles final_response
 ```
 
-**Routing:** Conditional edges use a dedicated function (not a lambda) so they are testable.
+**Worker functions (called by plan_executor — never graph nodes):**
+```
+nodes/
+├── rag.py              → rag_fn(state) -> dict
+├── ocr.py              → ocr_fn(state) -> dict
+├── procedure_planner.py → procedure_planner_fn(state) -> dict
+└── form_filler.py      → form_filler_fn(state) -> dict
+```
+
+**NODE_REGISTRY** (`app/agents/node_registry.py`) is the ONLY file that imports all worker functions. `plan_executor` calls workers through it — never directly.
 
 ```python
-# app/agents/nodes/router.py
-def route_after_classification(state: AgentState) -> str:
-    """Returns the name of the next node. Must be pure — no side effects."""
-    intent = state["intent"]
-    has_image = state["uploaded_image_path"] is not None
+# app/agents/node_registry.py
+NODE_REGISTRY: dict[str, Callable[[AgentState], dict]] = {
+    "rag_fn": rag_fn,
+    "ocr_fn": ocr_fn,
+    "procedure_planner_fn": procedure_planner_fn,
+    "form_filler_fn": form_filler_fn,
+}
 
-    if has_image and intent in ("document_ocr", "form_fill"):
-        return "ocr_node"
-    if intent in ("procedure_inquiry", "dependency_check"):
-        return "procedure_planner_node"
-    if intent == "legal_question":
-        return "rag_node"
-    return "rag_node"  # safe default
+# app/agents/nodes/plan_executor.py
+MAX_PLAN_STEPS = 8  # circuit-breaker
+
+def plan_executor_node(state: AgentState) -> dict:
+    cursor = state["plan_cursor"]
+    plan = state["execution_plan"]
+    if cursor >= len(plan) or cursor >= MAX_PLAN_STEPS:
+        return {}  # signals synthesizer to take over
+    worker = NODE_REGISTRY[plan[cursor]]
+    update = worker(state)
+    return {**update, "plan_cursor": cursor + 1}
 ```
 
-**Graph assembly** (`app/agents/graph.py`) is the only place that imports all nodes and wires them together. It is not imported anywhere else except the FastAPI dependency.
+**Graph assembly** (`app/agents/graph.py`) is compiled with `recursion_limit=10`. `GraphRecursionError` must be caught in the chat endpoint.
 
 > **Skills:** Before implementing or modifying any node, read its `.claude/agents/` spec. Run `/review-agent-node` on the finished node before marking the task complete.
+
+> ⚠️ `router-agent.md` must be updated before TASK-01 begins — the spec predates the `plan_executor` topology and still documents the old fan-out routing.
 
 ---
 
@@ -308,14 +410,14 @@ Files in `.claude/agents/` define the complete behavioural contract for each Lan
 **Read the spec file before implementing or modifying any node.**
 **If the implementation needs to diverge from the spec, update the spec first and explain why in the commit.**
 
-| Spec File | Node |
+| Spec File | Node / Function |
 |---|---|
-| `router-agent.md` | `router_node` — intent classification and routing |
-| `rag-agent.md` | `rag_node` — hybrid retrieval and citation generation |
-| `ocr-agent.md` | `ocr_node` — document image extraction pipeline |
-| `procedure-planner-agent.md` | `procedure_planner_node` — dependency resolution |
-| `form-filler-agent.md` | `form_filler_node` — semantic field mapping and PDF fill |
-| `synthesizer-agent.md` | `synthesizer_node` — final response assembly |
+| `router-agent.md` | `router_node` — produces `execution_plan: list[str]`, sets `plan_cursor=0` ⚠️ needs update for plan_executor topology |
+| `rag-agent.md` | `rag_fn` — hybrid retrieval + cited generation + `verify_citations()` |
+| `ocr-agent.md` | `ocr_fn` — image → PersonalData pipeline (prompt-injection hardened) |
+| `procedure-planner-agent.md` | `procedure_planner_fn` — DB query + topo sort → ExecutionPlan |
+| `form-filler-agent.md` | `form_filler_fn` — field mapping + PDF fill to `tmp/` + promote on completion |
+| `synthesizer-agent.md` | `synthesizer_node` — final response assembly from accumulated state |
 
 ---
 
@@ -330,13 +432,22 @@ The frontend is secondary to the backend, but the following skills keep it consi
 | Any form with validation | `/react-hook-form-zod` |
 | Tailwind tokens, spacing, or colour system changes | `/tailwind-design-system` |
 
+**Existing pages (do not recreate):**
+- `/` home, `/chat`, `/dich-vu-cong`, `/tra-cuu-ho-so`, `/cau-hoi-thuong-gap`, `/danh-gia-chat-luong`, `/thanh-toan`
+- `/thu-tuc/dang-ky-thuong-tru`, `/thu-tuc/dang-ky-tam-tru`, `/thu-tuc/xac-nhan-cu-tru`
+
+**Zustand store API (do not change field names — backend contracts depend on these):**
+- `chatStore`: `sessionId`, `messages`, `isStreaming`, `uploadedFile`, `procedurePlan`
+- `formStore`: `setFieldValue(field, value, source, confidence)`, `getFieldState(field)`
+- `procedureStore`: `selectedProcedureId`, `executionPlan`, `completedProcedureIds`
+
 ---
 
 ## RAG — Implementation Notes
 
 ### Chunking (do not change this without a good reason)
 
-Legal documents must be chunked at **article boundaries**. A chunk never spans two articles. This is enforced in `app/ingestion/ingest_legal_docs.py`. The article number and decree reference are stored as Qdrant payload — they are what make citations possible.
+Legal documents must be chunked at **article boundaries**. A chunk never spans two articles. This is enforced in `backend/ingestion/ingest_legal_docs.py`. The article number and decree reference are stored as Qdrant payload — they are what make citations possible.
 
 ### Hybrid Search (always use both stages)
 
@@ -349,14 +460,29 @@ async def search(
     procedure_id: str | None = None,
     top_k: int = 8
 ) -> list[DocumentChunk]:
-    semantic = await self._dense_search(query, procedure_id, top_k * 2)
-    lexical = self._bm25_search(query, top_k * 2)
-    return self._rrf_merge(semantic, lexical, top_k)
+    # BOTH search stages MUST include _active_filter() — never skip it
+    active = self._active_filter()
+    semantic = await self._dense_search(query, procedure_id, top_k * 2, filter=active)
+    lexical = self._bm25_search(query, top_k * 2, filter=active)
+    results = self._rrf_merge(semantic, lexical, top_k)
+    # Token budget: cap combined retrieved text at 6,000 tokens (truncate lowest-ranked first)
+    return self._apply_token_budget(results, max_tokens=6000)
 ```
+
+### Active Status Filter — Never Skip
+
+Every Qdrant search MUST filter on `status = "active"`. Use `QdrantService._active_filter()` to get the filter object. Do not inline the filter condition. Superseded chunks must never reach the LLM or appear in citations.
+
+### Legal Document Versioning
+
+When re-ingesting a legal document, ALWAYS supersede old chunks before upserting new ones:
+1. `scroll_by_document_number(document_number)` → get existing point IDs
+2. `batch_set_status(existing_ids, "superseded")` → soft-delete
+3. Upsert new chunks with `"status": "active"` in payload
 
 ### Citation Format
 
-Every legal claim in an LLM response must map to a chunk that was actually retrieved. The citation format is: `[Điều X, Nghị định/Thông tư YYY/YYYY/NĐ-CP]`. The LLM prompt enforces this — see `app/agents/prompts/rag_prompt.py`. Do not change the prompt without updating the citation parser in `app/core/citation_formatter.py`.
+Every legal claim in an LLM response must map to a chunk that was actually retrieved. The citation format is: `[Điều X, Nghị định/Thông tư YYY/YYYY/NĐ-CP]`. The LLM prompt enforces this — see `app/agents/prompts/rag_prompt.py`. After generation, `verify_citations(response_text, retrieved_chunks)` must cross-check every citation against retrieved chunk payloads — unverified citations are flagged as `[unverified: ...]`, never passed silently.
 
 ---
 
@@ -435,35 +561,49 @@ LLM calls in unit tests must always be mocked. Never make real API calls in `tes
 
 ## Environment Variables
 
+The `.env` file lives at the project root. The following values are already configured for local dev:
+
 ```bash
-# LLM
+# LLM — ⚠️ ANTHROPIC_API_KEY must be filled before any agent node will work
 ANTHROPIC_API_KEY=
 
-# Databases
-POSTGRES_URL=postgresql+asyncpg://user:pass@localhost:5432/dichvucong
-REDIS_URL=redis://localhost:6379/0
+# Databases (all running via Docker Compose)
+POSTGRES_URL=postgresql+asyncpg://dichvucong:dichvucong@localhost:5432/dichvucong
+REDIS_URL=redis://:dichvucong_redis_secret@localhost:6379/0   # password included
 QDRANT_URL=http://localhost:6333
 
-# Storage
+# Security (added in Phase 0 gap tasks)
+REDIS_PASSWORD=dichvucong_redis_secret
+CORS_ALLOW_ORIGINS=http://localhost:3000
+CHAT_RATE_LIMIT=10/minute
+
+# Storage (MinIO default dev credentials — fine for local)
 MINIO_ENDPOINT=localhost:9000
-MINIO_ACCESS_KEY=
-MINIO_SECRET_KEY=
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
 MINIO_BUCKET=dichvucong
 
-# Embeddings (choose one)
-EMBEDDING_BACKEND=bge-m3          # or "openai"
+# Embeddings
+EMBEDDING_BACKEND=bge-m3          # bge-m3 preferred; set to "openai" + add key if local model too slow
 OPENAI_API_KEY=                    # only needed if EMBEDDING_BACKEND=openai
 
-# Observability
+# Observability — wired in TASK-01 (Phase 2), not Phase 4
 LANGSMITH_API_KEY=
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_PROJECT=dichvucong
+
+# App
+ENVIRONMENT=development
+LOG_LEVEL=INFO
 ```
 
 ---
 
 ## Common Mistakes to Avoid
 
+- **Do not implement worker functions as LangGraph graph nodes.** `rag_fn`, `ocr_fn`, `procedure_planner_fn`, and `form_filler_fn` are plain Python functions called by `plan_executor` via `NODE_REGISTRY`. Only `router_node`, `plan_executor_node`, and `synthesizer_node` are wired into the graph.
+- **Do not skip `_active_filter()` in any Qdrant search call.** Both the dense and BM25 search stages must filter on `status = "active"`. Superseded chunks must never reach the LLM.
+- **Do not call `verify_citations()` — never skip it.** After every RAG generation, cross-check cited articles against retrieved chunk payloads. Unverified citations get flagged `[unverified: ...]`.
 - **Do not stream raw LangGraph state to the frontend.** The synthesizer node produces the final user-facing string. Only that string (and structured metadata) goes over SSE.
 - **Do not call `topological_sort` inside an async route.** It is CPU-bound. If it becomes slow, offload to a thread pool via `asyncio.run_in_executor`.
 - **Do not store images in PostgreSQL.** All uploaded files go to MinIO. PostgreSQL stores the MinIO path only.

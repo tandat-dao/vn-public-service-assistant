@@ -14,11 +14,14 @@ _redis_pool = aioredis.ConnectionPool.from_url(settings.REDIS_URL, decode_respon
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with _async_session_factory() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+    session = _async_session_factory()
+    try:
+        yield session
+    except Exception:
+        await session.rollback()
+        raise
+    finally:
+        await session.close()
 
 
 async def get_redis() -> AsyncGenerator[aioredis.Redis, None]:

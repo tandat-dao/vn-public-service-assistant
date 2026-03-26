@@ -1,15 +1,17 @@
 """Documents API routes."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, File, UploadFile
 
+from app.core.file_validator import validate_upload
 from app.schemas.document import DocumentUploadResponse, OCRResponse
 
 router = APIRouter()
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
-async def upload_document() -> DocumentUploadResponse:
+async def upload_document(file: UploadFile = File(...)) -> DocumentUploadResponse:
     """Upload a document image to MinIO."""
+    await validate_upload(file)
     raise NotImplementedError
 
 

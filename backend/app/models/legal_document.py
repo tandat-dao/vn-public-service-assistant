@@ -5,7 +5,7 @@ from datetime import date, datetime
 
 from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, Text
 from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
 
@@ -40,3 +40,6 @@ class LegalDocument(Base, TimestampMixin):
         TIMESTAMP(timezone=True), nullable=True
     )
     chunk_count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    superseded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("legal_documents.id"), nullable=True
+    )

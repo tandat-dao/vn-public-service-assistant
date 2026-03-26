@@ -1,12 +1,12 @@
 """LangGraph agent state definition — the single source of truth per invocation."""
 
-from typing import Any, Literal
+from typing import Any
 
 from typing_extensions import Required, TypedDict
 
 from app.schemas.chat import Citation
 from app.schemas.personal_data import PersonalData
-from app.schemas.procedure import ProcedureExecutionPlan, ProcedureStep
+from app.schemas.procedure import ProcedureStep
 
 
 class DocumentChunk(TypedDict, total=False):
@@ -27,11 +27,16 @@ class AgentState(TypedDict, total=False):
     # Input
     uploaded_image_path: str | None
 
-    # Routing
-    intent: Literal[
-        "procedure_inquiry", "document_ocr", "form_fill", "legal_question", "dependency_check"
-    ]
+    # Routing (plan_executor topology)
+    execution_plan: list[str]    # Valid entries: "rag_fn", "ocr_fn", "form_filler_fn" ONLY.
+                                 # "procedure_planner_fn" is NOT valid — handled by enrichment_node.
+    plan_cursor: int             # current index into execution_plan — incremented by plan_executor only
     entities: dict[str, Any]
+
+    # Conversation history — last 6 turns only.
+    # Trimmed by RedisService.save_session() before write.
+    # Each entry: {"role": "user" | "assistant", "content": str}
+    conversation_history: list[dict]
 
     # RAG
     retrieved_chunks: list[DocumentChunk]

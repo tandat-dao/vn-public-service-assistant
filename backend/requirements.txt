@@ -44,6 +44,13 @@ docling==2.5.0
 # Storage
 minio==7.2.8
 
+# Rate limiting
+slowapi==0.1.9
+
+# File validation
+python-magic==0.4.27
+python-magic-bin==0.4.14
+
 # Validation / Utilities
 pydantic==2.9.2
 pydantic-settings==2.5.2

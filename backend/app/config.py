@@ -9,6 +9,7 @@ class Settings(BaseSettings):
 
     # LLM
     ANTHROPIC_API_KEY: str = ""
+    LLM_MODEL: str = "claude-sonnet-4-20250514"
 
     # Databases
     POSTGRES_URL: str = "postgresql+asyncpg://dichvucong:dichvucong@localhost:5432/dichvucong"
@@ -29,6 +30,11 @@ class Settings(BaseSettings):
     LANGSMITH_API_KEY: str = ""
     LANGCHAIN_TRACING_V2: bool = True
     LANGCHAIN_PROJECT: str = "dichvucong"
+
+    # Security
+    CORS_ALLOW_ORIGINS: str = "http://localhost:3000"
+    REDIS_PASSWORD: str = ""
+    CHAT_RATE_LIMIT: str = "10/minute"
 
     # App
     ENVIRONMENT: str = "development"
