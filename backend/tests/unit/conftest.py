@@ -18,3 +18,16 @@ if "magic" not in sys.modules:
     _magic_stub = MagicMock()
     _magic_stub.from_buffer = MagicMock(return_value="application/octet-stream")
     sys.modules["magic"] = _magic_stub
+
+# ---------------------------------------------------------------------------
+# Stub out pyzbar before any test module imports it.
+# pyzbar requires the libzbar0 native library which may not be installed in CI
+# or on developer machines that haven't run the project setup script yet.
+# Tests that need specific pyzbar results patch app.services.ocr_service.pyzbar_decode
+# directly via unittest.mock.patch.
+# ---------------------------------------------------------------------------
+if "pyzbar" not in sys.modules:
+    _pyzbar_stub = MagicMock()
+    _pyzbar_stub.decode = MagicMock(return_value=[])
+    sys.modules["pyzbar"] = _pyzbar_stub
+    sys.modules["pyzbar.pyzbar"] = _pyzbar_stub

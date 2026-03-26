@@ -45,6 +45,18 @@ class Settings(BaseSettings):
     REDIS_ENCRYPTION_KEY: str = ""  # 32-byte base64 Fernet key; raise RuntimeError if empty
     MINIO_SECURE: bool = False
 
+    # OCR
+    PADDLEOCR_USE_GPU: bool = False
+    PADDLEOCR_LANG: str = "vi"
+    OCR_QR_MAX_ATTEMPTS: int = 5
+    OCR_CONFIDENCE_THRESHOLD: float = 0.7
+    OCR_MIN_TEXT_LENGTH: int = 2
+    OCR_RAW_TOKEN_CAP: int = 8000
+    OCR_CLAHE_CLIP_LIMIT: float = 2.0
+    OCR_DESKEW_MAX_DEGREES: float = 15.0
+    OCR_DENOISE_H: int = 10
+    CCCD_PROVINCE_CODE_MAX: int = 96
+
     # App
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"

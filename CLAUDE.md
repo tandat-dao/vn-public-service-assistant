@@ -8,7 +8,7 @@ A mock Vietnamese government public administration portal (dichvucong.gov.vn) wi
 
 ## Current Implementation Status
 
-> Last updated: 2026-03-26. Update this section whenever a phase completes.
+> Last updated: 2026-03-27. Update this section whenever a phase completes.
 
 ### ✅ Done
 
@@ -61,31 +61,38 @@ A mock Vietnamese government public administration portal (dichvucong.gov.vn) wi
 - `app/services/storage_service.py` — `StorageService`: MinIO PRIVATE bucket (`Statement: []`), synchronous MinIO SDK calls wrapped in `run_in_executor(None, ...)`, `upload()`, `download()`, `get_presigned_url()`, `promote_tmp()` (copy_object + remove_object; delete failure → warning only, no raise)
 - `app/services/pdf_service.py` — `PDFService`: AcroForm detection via pdfplumber `catalog.get("/AcroForm")`, `_fill_acroform()` via pdfrw (sets `/NeedAppearances=True`), `_fill_overlay()` via reportlab canvas. Constructor injection: `__init__(self, storage_service: StorageService)` — never self-instantiates.
 
-**Tests — 113 unit tests passing**
+**Phase 2 — TASK-04 complete**
+- `app/services/ocr_service.py` — `OCRService`: two-path pipeline. Path A: pyzbar QR decode with 5 OpenCV preprocessing attempts (~200ms, zero LLM tokens, confidence=1.0 per field). Path B: OpenCV preprocessing (CLAHE + deskew + denoise) → PaddleOCR (wrapped in `run_in_executor`) → confidence/length/IoU pre-filter → LLM field extraction. Prompt-injection hardened via `<ocr_text>` XML tags.
+- `app/agents/nodes/ocr.py` — `ocr_fn`: module-level lazy singleton `_ocr_svc` via `_get_svc()` factory for testability. QR-first strategy: returns `{"document_type": "cccd"}` on QR success, skips PaddleOCR entirely.
+- `app/agents/prompts/document_classifier_prompt.py` — vision LLM classifier; 5 categories: `cccd`, `birth_certificate`, `land_certificate`, `household_book`, `other`. Returns single word.
+- `app/agents/prompts/ocr_extraction_prompt.py` — `SCHEMA_BLOCK` ≤150 estimated tokens (module-level `assert`). `build_extraction_messages()` wraps OCR text in `<ocr_text>` tags.
+- `pyzbar==0.1.9` added to `requirements.txt`; `conftest.py` stubs pyzbar at `sys.modules` level.
+
+**Tests — 137 unit tests passing**
 - `test_procedure_graph.py` (8) | `test_dependencies.py` (4) | `test_orm_models.py` (21)
 - `test_rate_limiting.py` (5) | `test_file_validator.py` (10) | `test_legal_doc_versioning.py` (8)
 - `test_router_node.py` (31) | `test_embedder_service.py` (5) | `test_qdrant_service.py` (9)
 - `test_redis_service.py` (9) | `test_storage_service.py` (5) | `test_pdf_service.py` (5)
-- `test_form_mapper.py` (1 placeholder) | `test_session_accumulator.py` (1 placeholder)
+- `test_ocr_extraction.py` (15) | `test_form_mapper.py` (1 placeholder) | `test_session_accumulator.py` (1 placeholder)
 
 **Frontend** — 10 pages (7 portal + 3 residence forms), ChatWidget (SSE-ready), all Zustand stores, TypeScript types
 
-### 🔄 Next Up (Phase 2 — AI Core, Group B)
-All Group A tasks complete. Proceed to Group B (all can start simultaneously).
+### 🔄 Next Up (Phase 2 — AI Core, Group B remaining)
+Group A all complete. TASK-04 complete. Start the following simultaneously:
 
-**Group A — ✅ All complete:**
-~~`TASK-01`~~ | ~~`TASK-02`~~ | ~~`TASK-03`~~ | ~~`TASK-07`~~ | ~~`TASK-13`~~
-
-**Group B (start simultaneously):**
-`TASK-04` OCR service (prompt-injection hardened) | `TASK-05` Legal doc ingestion ⚠️ convert .doc → PDF first | `TASK-06` RAG node (hybrid + `verify_citations()`)
+**Group B remaining (all can start now):**
+- `TASK-05` Legal doc ingestion — requires TASK-02 ✅ + PDF conversion ✅ (`libreoffice --headless --convert-to pdf`)
+- `TASK-06` RAG worker function — requires TASK-01 ✅ + TASK-02 ✅ + TASK-05
+- `TASK-09` enrichment_node + procedure_planner_fn — no TASK-05/06 dependency; start now
+- `TASK-13` Mock CCCD image generation — ⚠️ generate **both** QR-encoded and non-QR images (both decode paths must be covered)
 
 **Group C (after Group B):**
-`TASK-08` Form filler worker fn | `TASK-09` Procedure planner worker fn | `TASK-10` Synthesizer node
+`TASK-08` Form filler worker fn | `TASK-10` Synthesizer node
 
 **Group D (all nodes done):**
 `TASK-11` Graph assembly (`plan_executor` loop topology) + functional chat SSE | `TASK-12` Document upload + OCR endpoint | `TASK-14` Integration tests
 
-See `docs/PROJECT_STATUS_v1.1.md` for full task cards with inputs/outputs/DoD checklists.
+See `docs/PROJECT_STATUS.md` for full task cards with inputs/outputs/DoD checklists.
 
 ---
 
@@ -635,3 +642,8 @@ LOG_LEVEL=INFO
 - **Do not return an empty `SessionData` on Redis miss or decrypt failure.** `RedisService.get_session()` must return `None` — not an empty `SessionData()`. Returning an empty object silently discards the user's prior session data if Redis evicts a key; returning `None` forces the caller to handle the miss explicitly and create a fresh session.
 - **Do not pass a file path to `StorageService.upload()`.** The signature is `upload(object_path: str, data: bytes, content_type: str)` — it takes bytes directly, not a file path. Read the file into bytes first. Passing a path string will silently write the string representation instead of the file content.
 - **Do not self-instantiate `StorageService` inside `PDFService`.** `PDFService.__init__` receives a `StorageService` via constructor injection. Never call `StorageService()` inside `PDFService` — this breaks testability (the storage mock won't be used) and violates the DI contract.
+- **Do not call PaddleOCR directly inside an async function.** PaddleOCR is synchronous and CPU-bound. Always wrap it: `await loop.run_in_executor(None, self._run_paddle_ocr, image_path)`. Calling it directly blocks the entire event loop for the duration of inference (~1–5 seconds), which will time out other concurrent requests.
+- **Do not merge the document classification and field extraction into a single LLM call.** They have different input types (image vs text) and different output contracts. The classifier call passes a base64 image; the extraction call passes OCR text wrapped in `<ocr_text>` XML tags. Combining them adds injection risk and makes the prompt impossible to harden cleanly.
+- **Do not skip the QR decode path for CCCD uploads.** `OCRService.decode_qr()` must always be attempted first. It is ~10× faster than full OCR (200ms vs 2s+), uses zero LLM tokens, and produces confidence=1.0 per field. Calling `extract()` directly on a QR-encoded CCCD bypasses the highest-quality extraction path.
+- **Do not overwrite a QR-derived PersonalData with OCR-derived data.** QR extraction has confidence=1.0 per field. If `OCRService.decode_qr()` returns a non-None result, it is stored in state as the canonical source. OCR extraction (`extract()`) is only called when QR returns None — never after a QR success.
+- **Do not treat the empty second element in QR data as a field.** CCCD QR format splits on `|` into 7 elements: `[id_number, "", full_name, dob, gender, address, issue_date]`. Index 1 is always an empty string — it is structural, not a data field. `_parse_qr_data()` skips it explicitly; never try to map it to a PersonalData field.

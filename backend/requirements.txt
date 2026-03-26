@@ -35,6 +35,8 @@ qdrant-client[fastembed]==1.11.1
 paddlepaddle==2.6.1
 paddleocr==2.8.1
 opencv-python-headless==4.10.0.84
+# pyzbar requires libzbar0 system library: sudo apt-get install libzbar0
+pyzbar==0.1.9
 
 # PDF
 pdfplumber==0.11.4
