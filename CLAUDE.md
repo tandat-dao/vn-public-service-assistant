@@ -51,21 +51,32 @@ A mock Vietnamese government public administration portal (dichvucong.gov.vn) wi
 - `55_2021_TT-BCA_466836.doc` — Thông tư 55/2021/TT-BCA
 - ⚠️ Files are `.doc` (Word) format — ingestion script expects PDF. Convert to PDF before running TASK-05.
 
-**Tests — 103 unit tests passing**
+**Phase 2 — AI Core (TASK-03 complete)**
+- `app/services/redis_service.py` — `RedisService`: Fernet-encrypted session storage, 3600s TTL, 6-turn history trim in `save_session()`, response cache (unencrypted). Uses `structlog` not stdlib `logging`.
+- `app/schemas/session.py` — `SessionData` Pydantic model — `personal_data`, `completed_procedure_ids`, `form_fill_state`, `conversation_history`, `session_id`, `created_at`, `updated_at`
+- `REDIS_ENCRYPTION_KEY` added to `app/config.py` and `.env`; `cryptography==43.0.1` added to `requirements.txt`
+- `get_session()` returns `None` (not empty `SessionData`) on miss or decryption failure — critical distinction
+
+**Phase 2 — TASK-07 complete**
+- `app/services/storage_service.py` — `StorageService`: MinIO PRIVATE bucket (`Statement: []`), synchronous MinIO SDK calls wrapped in `run_in_executor(None, ...)`, `upload()`, `download()`, `get_presigned_url()`, `promote_tmp()` (copy_object + remove_object; delete failure → warning only, no raise)
+- `app/services/pdf_service.py` — `PDFService`: AcroForm detection via pdfplumber `catalog.get("/AcroForm")`, `_fill_acroform()` via pdfrw (sets `/NeedAppearances=True`), `_fill_overlay()` via reportlab canvas. Constructor injection: `__init__(self, storage_service: StorageService)` — never self-instantiates.
+
+**Tests — 113 unit tests passing**
 - `test_procedure_graph.py` (8) | `test_dependencies.py` (4) | `test_orm_models.py` (21)
 - `test_rate_limiting.py` (5) | `test_file_validator.py` (10) | `test_legal_doc_versioning.py` (8)
 - `test_router_node.py` (31) | `test_embedder_service.py` (5) | `test_qdrant_service.py` (9)
+- `test_redis_service.py` (9) | `test_storage_service.py` (5) | `test_pdf_service.py` (5)
 - `test_form_mapper.py` (1 placeholder) | `test_session_accumulator.py` (1 placeholder)
 
 **Frontend** — 10 pages (7 portal + 3 residence forms), ChatWidget (SSE-ready), all Zustand stores, TypeScript types
 
-### 🔄 Next Up (Phase 2 — AI Core, continued)
-TASK-01 complete. Remaining Group A tasks can now proceed.
+### 🔄 Next Up (Phase 2 — AI Core, Group B)
+All Group A tasks complete. Proceed to Group B (all can start simultaneously).
 
-**Group A — remaining (start simultaneously):**
-~~`TASK-02`~~ ✅ Complete | `TASK-03` Redis service (TTL + Fernet encryption) | `TASK-07` PDF + storage service | `TASK-13` Mock CCCD image generation
+**Group A — ✅ All complete:**
+~~`TASK-01`~~ | ~~`TASK-02`~~ | ~~`TASK-03`~~ | ~~`TASK-07`~~ | ~~`TASK-13`~~
 
-**Group B (after Group A):**
+**Group B (start simultaneously):**
 `TASK-04` OCR service (prompt-injection hardened) | `TASK-05` Legal doc ingestion ⚠️ convert .doc → PDF first | `TASK-06` RAG node (hybrid + `verify_citations()`)
 
 **Group C (after Group B):**
@@ -621,3 +632,6 @@ LOG_LEVEL=INFO
 - **Do not skip code-review skills before marking a task complete.** Running the relevant skill on your own output takes under a minute and catches structural violations before they propagate into other phases.
 - **Do not call `QdrantService.search()` without a status filter.** The `status="active"` filter is applied inside `QdrantService` automatically — never add it at the call site. If you see `status` filter logic outside `qdrant_service.py`, move it inside.
 - **Do not hard-code `vector_size=1024` at call sites.** Always use `settings.QDRANT_VECTOR_SIZE`. The OpenAI backend uses `dimensions=1024` truncation to stay consistent — never create the collection with 3072 dimensions even when `EMBEDDING_BACKEND=openai`.
+- **Do not return an empty `SessionData` on Redis miss or decrypt failure.** `RedisService.get_session()` must return `None` — not an empty `SessionData()`. Returning an empty object silently discards the user's prior session data if Redis evicts a key; returning `None` forces the caller to handle the miss explicitly and create a fresh session.
+- **Do not pass a file path to `StorageService.upload()`.** The signature is `upload(object_path: str, data: bytes, content_type: str)` — it takes bytes directly, not a file path. Read the file into bytes first. Passing a path string will silently write the string representation instead of the file content.
+- **Do not self-instantiate `StorageService` inside `PDFService`.** `PDFService.__init__` receives a `StorageService` via constructor injection. Never call `StorageService()` inside `PDFService` — this breaks testability (the storage mock won't be used) and violates the DI contract.

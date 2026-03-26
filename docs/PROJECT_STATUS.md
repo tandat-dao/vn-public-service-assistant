@@ -1,5 +1,7 @@
 # DichVuCong AI Assistant — System Overview & Project Status
-**Version 1.4 | Updated 2026-03-26**
+**Version 1.5 | Updated 2026-03-26**
+
+> **What changed in v1.5:** TASK-03 and TASK-07 complete — RedisService (Fernet-encrypted session storage, 3600s TTL, 6-turn history trim, response cache), SessionData schema, StorageService (MinIO PRIVATE bucket, upload/download/promote_tmp), and PDFService (AcroForm+pdfrw, flat overlay+reportlab, pdfplumber-based type detection) all implemented and tested. `REDIS_ENCRYPTION_KEY` and `MINIO_SECURE` added to config. `cryptography==43.0.1` added to requirements. 19 new unit tests (113 total).
 
 > **What changed in v1.4:** TASK-02 complete — EmbedderService (bge-m3 primary, OpenAI text-embedding-3-large fallback, auto-fallback on load failure) and QdrantService (hybrid dense+BM25 RRF, status="active" filter, 6,000-token budget, update_status for soft-deprecation) implemented and tested. DocumentChunk schema added to app/schemas/rag.py. rank-bm25 and openai added to requirements.txt.
 
@@ -491,7 +493,7 @@ Nothing is currently mid-implementation (all work is either complete or not yet 
 
 ## 7. Task Delegation Board
 
-### Phase 0 Gaps — Complete Before Any Phase 2 Work
+### Phase 0 Gaps — Complete Before Any Phase 2 Work ✅ COMPLETE
 
 ---
 ### TASK-0A: Async DB Session Factory + Security Baseline Fixes
@@ -781,12 +783,13 @@ Implement the embedding service supporting two backends — bge-m3 (local, prima
 ---
 
 ---
-### TASK-03: Redis Service + Session Management
+### TASK-03: Redis Service + Session Management ✅ COMPLETE
 **Phase:** 2
 **Priority:** High
 **Estimated effort:** S (1 day)
 **Depends on:** TASK-0A (Redis auth configured in Docker Compose)
 **Can be parallelized with:** TASK-01, TASK-02, TASK-04, TASK-07
+**Completed:** 2026-03-26
 
 #### Goal
 Implement the Redis session service with 1-hour TTL and Fernet encryption of all PII values at rest.
@@ -807,12 +810,12 @@ Implement the Redis session service with 1-hour TTL and Fernet encryption of all
 - `tests/unit/test_redis_service.py` — mocked Redis; verify TTL argument, verify raw stored value is ciphertext not plaintext JSON
 
 #### Definition of Done
-- [ ] `save_session` + `get_session` round-trips `SessionData` correctly
-- [ ] `PersonalData` serializes/deserializes without data loss (dates, confidence scores)
-- [ ] Session TTL is exactly 3600 seconds — unit test inspects the `ex` argument passed to `redis.set()`
-- [ ] Raw `redis.get()` on a saved session returns ciphertext, not plaintext JSON
-- [ ] Unit tests pass with mocked Redis
-- [ ] `save_session()` trims `conversation_history` to the last 6 entries before serialising — verified by unit test with a 10-turn history input
+- [x] `save_session` + `get_session` round-trips `SessionData` correctly
+- [x] `PersonalData` serializes/deserializes without data loss (dates, confidence scores)
+- [x] Session TTL is exactly 3600 seconds — unit test inspects the `ex` argument passed to `redis.set()`
+- [x] Raw `redis.get()` on a saved session returns ciphertext, not plaintext JSON
+- [x] Unit tests pass with mocked Redis
+- [x] `save_session()` trims `conversation_history` to the last 6 entries before serialising — verified by unit test with a 10-turn history input
 
 #### Notes / Constraints
 - `REDIS_ENCRYPTION_KEY` env var — 32-byte base64 Fernet key; add to `.env`
@@ -940,12 +943,13 @@ Implement `rag_fn` as a worker function (not a graph node) and implement `verify
 ---
 
 ---
-### TASK-07: PDF Service + Storage Service + MinIO Bucket Init
+### TASK-07: PDF Service + Storage Service + MinIO Bucket Init ✅ COMPLETE
 **Phase:** 2
 **Priority:** High
 **Estimated effort:** S (1 day)
 **Depends on:** TASK-0A (PRIVATE bucket policy pattern established)
 **Can be parallelized with:** TASK-01, TASK-02, TASK-03, TASK-04, TASK-05, TASK-06
+**Completed:** 2026-03-26
 
 #### Goal
 Implement MinIO file storage with PRIVATE bucket policy and the PDF form fill service. Partially filled PDFs must be written to a `tmp/` prefix and only moved to the final path when all required fields are confirmed.
@@ -965,14 +969,14 @@ Implement MinIO file storage with PRIVATE bucket policy and the PDF form fill se
   - `fill(template_path, field_values, session_id, form_id) -> str` — returns `tmp/{session_id}/{form_id}.pdf` MinIO path
   - `_fill_acroform(...)` using pdfrw
   - `_fill_overlay(...)` using reportlab
-  - PDF type detection via `reader.get_fields()` check
+  - PDF type detection via pdfplumber `catalog.get("/AcroForm")` check
 
 #### Definition of Done
-- [ ] `StorageService.upload()` + `download()` round-trip a file through MinIO
-- [ ] MinIO bucket has explicit PRIVATE policy — anonymous `get_object` returns 403
-- [ ] `PDFService.fill()` writes to `tmp/` prefix, not final path
-- [ ] `PDFService.fill()` correctly detects AcroForm vs flat PDF
-- [ ] `_fill_acroform` fills at least one test field and produces a readable PDF
+- [x] `StorageService.upload()` + `download()` round-trip a file through MinIO
+- [x] MinIO bucket has explicit PRIVATE policy — anonymous `get_object` returns 403
+- [x] `PDFService.fill()` writes to `tmp/` prefix, not final path
+- [x] `PDFService.fill()` correctly detects AcroForm vs flat PDF
+- [x] `_fill_acroform` fills at least one test field and produces a readable PDF
 
 #### Notes / Constraints
 - Using pdfrw on a flat PDF will silently produce unfilled output — the type detection check is mandatory (CLAUDE.md rule)
@@ -1330,24 +1334,19 @@ Parallelizable from day 1 (no dependencies):
 
 ~~**5. TASK-01 — LLM Service + Router Node + LangSmith**~~ ✅ Complete (2026-03-26) — 31 unit tests passing
 
-**1. Convert `.doc` source documents to PDF — today, non-code prerequisite**
-The 4 downloaded legal documents are `.doc` format. Docling works best with PDF. Run:
-```
-libreoffice --headless --convert-to pdf backend/data/legal_documents/*.doc --outdir backend/data/legal_documents/
-```
-This unblocks TASK-05 once TASK-02 is ready.
+~~**1. Convert `.doc` source documents to PDF**~~ ✅ Complete (2026-03-26)
 
-**2. TASK-02 + TASK-03 + TASK-07 + TASK-13 — start simultaneously (Group A)**
-All four are independent of each other and have no remaining blockers. **Start TASK-02 first** — the bge-m3 model download (~2.2 GB) is the longest-latency operation and should be initiated immediately.
-- `TASK-02` Embedder + Qdrant service (real search, status filter, 6k token budget)
-- `TASK-03` Redis service (1-hour TTL, Fernet encryption, 6-turn history trim)
-- `TASK-07` PDF service + MinIO storage service
-- `TASK-13` Mock CCCD image generation (synthetic test data)
+~~**2. TASK-02 + TASK-03 + TASK-07 + TASK-13 — start simultaneously (Group A)**~~ ✅ TASK-02 complete (2026-03-26) | ✅ TASK-03 complete (2026-03-26) | ✅ TASK-07 complete (2026-03-26) | TASK-13 pending
+- ~~`TASK-02`~~ ✅ Embedder + Qdrant service
+- ~~`TASK-03`~~ ✅ Redis service (1-hour TTL, Fernet encryption, 6-turn history trim)
+- ~~`TASK-07`~~ ✅ PDF service + MinIO storage service
+- `TASK-13` Mock CCCD image generation (synthetic test data) — **remaining Group A task**
 
-**3. TASK-04 + TASK-05 + TASK-06 — start after Group A completes (Group B)**
+**3. TASK-04 + TASK-05 + TASK-06 — start now (Group B, all Group A blockers satisfied)**
+Group A is effectively complete (TASK-13 is non-blocking for Group B). All three Group B tasks can start simultaneously.
 - `TASK-04` OCR service (OpenCV pre-processing → PaddleOCR → LLM extraction, prompt-injection hardened)
-- `TASK-05` Legal doc ingestion (requires TASK-02 + converted PDFs)
-- `TASK-06` RAG worker function (requires TASK-01 ✅ + TASK-02 + TASK-05)
+- `TASK-05` Legal doc ingestion (requires TASK-02 ✅ + converted PDFs)
+- `TASK-06` RAG worker function (requires TASK-01 ✅ + TASK-02 ✅ + TASK-05)
 
 **4. TASK-08 + TASK-09 + TASK-10 — start after Group B (Group C)**
 - `TASK-09` enrichment_node + procedure_planner_fn (pre-flight, no LLM call)
