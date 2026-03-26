@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     # Embeddings
     EMBEDDING_BACKEND: str = "bge-m3"
     OPENAI_API_KEY: str = ""
+    SENTENCE_TRANSFORMERS_HOME: str = ".cache/"
+
+    # Qdrant / RAG
+    QDRANT_COLLECTION: str = "legal_documents"
+    QDRANT_VECTOR_SIZE: int = 1024
+    RAG_TOP_K: int = 8
+    RAG_TOKEN_BUDGET: int = 6000
 
     # Observability
     LANGSMITH_API_KEY: str = ""

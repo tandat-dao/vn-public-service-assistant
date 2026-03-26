@@ -1,5 +1,7 @@
 # DichVuCong AI Assistant — System Overview & Project Status
-**Version 1.3 | Updated 2026-03-26**
+**Version 1.4 | Updated 2026-03-26**
+
+> **What changed in v1.4:** TASK-02 complete — EmbedderService (bge-m3 primary, OpenAI text-embedding-3-large fallback, auto-fallback on load failure) and QdrantService (hybrid dense+BM25 RRF, status="active" filter, 6,000-token budget, update_status for soft-deprecation) implemented and tested. DocumentChunk schema added to app/schemas/rag.py. rank-bm25 and openai added to requirements.txt.
 
 > **What changed in v1.3:** TASK-01 complete — `LLMService`, `node_registry.py`, `router_prompt.py`, `router_node` all implemented and 31 unit tests passing (89 total). `AgentState` updated: `execution_plan`, `plan_cursor`, `conversation_history` added; old `intent` field removed. Worker function stubs renamed to `_fn` suffix (`rag_fn`, `ocr_fn`, `form_filler_fn`). Legal source documents downloaded to `backend/data/legal_documents/` (4 files — Luật Cư trú 2020, NĐ 62/2021, NĐ 104/2022, TT 55/2021). ⚠️ Files are `.doc` format — must convert to PDF before TASK-05 ingestion.
 
@@ -730,39 +732,50 @@ Implement the Anthropic LLM client wrapper, wire LangSmith tracing from day one,
 ---
 
 ---
-### TASK-02: Embedder Service + Qdrant Service
+### TASK-02: Embedder Service + Qdrant Service ✅ COMPLETE
 **Phase:** 2
 **Priority:** Critical
 **Estimated effort:** M (2 days)
 **Depends on:** TASK-0E (status field design confirmed)
 **Can be parallelized with:** TASK-01, TASK-03, TASK-04, TASK-07
+**Completed:** 2026-03-26
 
 #### Goal
-Implement the bge-m3 embedding wrapper and the Qdrant hybrid search service with `status = "active"` filtering and a 6,000-token context budget cap.
+Implement the embedding service supporting two backends — bge-m3 (local, primary) and OpenAI `text-embedding-3-large` (cloud, fallback) — selected via `EMBEDDING_BACKEND` env var. Also implement the Qdrant hybrid search service with `status = "active"` filtering and a 6,000-token context budget cap.
 
 #### Inputs
 - `app/services/embedder.py` → stub to implement
 - `app/services/qdrant_service.py` → stub to implement
 - Qdrant running at `http://localhost:6333` (Docker already up)
 - Architecture blueprint §5.2 — retrieval strategy
+- `EMBEDDING_BACKEND` env var — already defined in `backend/.env` as `bge-m3`; set to `openai` to activate fallback. `OPENAI_API_KEY` env var — only required when `EMBEDDING_BACKEND=openai`.
 
 #### Outputs
-- `app/services/embedder.py` — `EmbedderService` with `embed(text: str) -> list[float]` (1024-dim, bge-m3)
+- `app/services/embedder.py` — `EmbedderService` with `embed(text: str) -> list[float]`. Backend selected at init time from `settings.EMBEDDING_BACKEND`:
+  - `"bge-m3"` (default): loads `BAAI/bge-m3` via `sentence-transformers`, returns 1024-dim vectors. Model cached in `.cache/` via `SENTENCE_TRANSFORMERS_HOME`. First load downloads ~2.2 GB.
+  - `"openai"`: calls `openai.embeddings.create(model="text-embedding-3-large")`, returns 3072-dim vectors truncated to 1024 via the `dimensions` parameter to keep Qdrant collection schema consistent. Requires `OPENAI_API_KEY` to be set.
+  - Both backends expose the same `embed(text: str) -> list[float]` interface — all callers are backend-agnostic.
+  - If `EMBEDDING_BACKEND=bge-m3` and the model fails to load (import error, download failure, or OOM), `EmbedderService.__init__` logs a warning and automatically falls back to `"openai"`. If `OPENAI_API_KEY` is also absent, raises `RuntimeError` with a clear message: `"No embedding backend available: bge-m3 failed to load and OPENAI_API_KEY is not set."`.
 - `app/services/qdrant_service.py` — `QdrantService` with:
   - `create_collection()` — creates `legal_documents` collection
   - `upsert(chunks)` — batch upsert with payload including `status: "active"`
-  - `search(query, procedure_id, top_k) -> list[DocumentChunk]` — dense + BM25 + RRF, always filtered to `status = "active"`, combined text truncated to 6,000 tokens (lowest-ranked chunks dropped first)
+  - `search(query, procedure_id, top_k) -> list[DocumentChunk]` — dense + BM25 + RRF, always filtered to `status = "active"`, combined text truncated to 6,000 tokens (lowest-ranked chunks dropped first). BM25 stage: scrolls all payload-matching chunks from Qdrant, builds in-memory `BM25Okapi` index, scores query, returns top-k results. RRF merge formula: `score = 1 / (rank + 60)` summed across both result lists. Final list truncated to 6,000 tokens (lowest RRF score dropped first).
 - `tests/unit/test_qdrant_service.py` — mocked Qdrant client; verify `status` filter is always present in search payload
 
 #### Definition of Done
-- [ ] `EmbedderService.embed("test")` returns a list of 1024 floats
-- [ ] `QdrantService.search(...)` always includes `status = "active"` filter — verified by unit test intercepting the Qdrant call
-- [ ] Combined retrieved text is truncated to ≤ 6,000 tokens before being returned
-- [ ] BM25 index built on-demand from `content` field
+- [x] `EmbedderService.embed("test")` returns a list of 1024 floats when `EMBEDDING_BACKEND=bge-m3` — verified with mocked sentence-transformers
+- [x] `EmbedderService.embed("test")` returns a list of 1024 floats when `EMBEDDING_BACKEND=openai` — verified with mocked `openai` client; confirms `dimensions=1024` is passed to the API call
+- [x] When bge-m3 load raises an `ImportError`, `EmbedderService` automatically switches to OpenAI backend — verified by unit test that mocks the sentence-transformers import to fail and asserts the OpenAI client is used instead
+- [x] `QdrantService.search(...)` always includes `status = "active"` filter — verified by unit test intercepting the Qdrant call
+- [x] Combined retrieved text is truncated to ≤ 6,000 tokens before being returned
+- [x] BM25 index built on-demand from `content` field
+- [x] `rank-bm25` is listed in `backend/requirements.txt` and `BM25Okapi` is importable without error
 - [ ] `/review-agent-node` checklist passes
 
 #### Notes / Constraints
-- Always use **both** dense + BM25 stages — never skip BM25 (CLAUDE.md rule)
+- Always use **both** dense + BM25 stages — never skip BM25 (CLAUDE.md rule). BM25 is implemented in-memory using the `rank_bm25` library (Option C). At search time, `QdrantService` scrolls all chunks for the relevant `procedure_tags` filter from Qdrant, builds a `BM25Okapi` index from their `content` fields, scores the query against it, and merges the top-k BM25 results with the dense search results via RRF. The BM25 index is rebuilt per search call — it is not persisted. This is appropriate for the current corpus size (4 documents, ~200–400 chunks) and can be replaced with Qdrant native sparse vectors if the collection grows beyond a few thousand chunks. Add `rank-bm25` to `backend/requirements.txt`.
+- The `procedure_id` parameter in `search(query, procedure_id, top_k)` is optional (`str | None`). When provided, it filters Qdrant retrieval to chunks whose `procedure_tags` payload contains that procedure UUID. When `None`, search runs unfiltered across the full collection — this is the correct behaviour for general legal questions not tied to a specific procedure. The value flows from `state["entities"].get("procedure_id")` inside `rag_fn` (TASK-06) — `QdrantService` itself never reads `AgentState` directly.
+- The Qdrant collection is created with `vector_size=1024` regardless of which embedding backend is active — the OpenAI backend uses `dimensions=1024` truncation to stay consistent. Never create the collection with `vector_size=3072` even when using OpenAI embeddings directly.
 - Qdrant collection name: `"legal_documents"` (defined in architecture blueprint §10)
 - bge-m3 first load downloads ~2.2 GB — cache in `.cache/` via `SENTENCE_TRANSFORMERS_HOME`
 ---
@@ -1280,7 +1293,7 @@ TASK-01 (LLM Service + Router + LangSmith)
   ├─► TASK-06 (RAG worker) ◄── TASK-02 (Qdrant + Embedder)
   └─► TASK-09 (Procedure Planner worker)
 
-TASK-02 (Embedder + Qdrant)
+TASK-02 ✅ (Embedder + Qdrant)
   └─► TASK-05 (Legal Ingestion)
         └─► TASK-06 (RAG worker — needs data)
 

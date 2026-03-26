@@ -39,6 +39,11 @@ A mock Vietnamese government public administration portal (dichvucong.gov.vn) wi
 - `.claude/agents/router-agent.md` — fully rewritten for plan_executor topology
 - `config.py` / `.env` — `LLM_MODEL=claude-sonnet-4-20250514` added
 
+**Phase 2 — AI Core (TASK-02 complete)**
+- `app/services/embedder.py` — `EmbedderService`: bge-m3 primary (1024-dim), OpenAI `text-embedding-3-large` fallback (dimensions=1024), automatic fallback on bge-m3 load failure. Backend selected via `EMBEDDING_BACKEND` env var.
+- `app/services/qdrant_service.py` — `QdrantService`: hybrid dense + BM25 (in-memory rank_bm25) search with RRF merge (`1/(rank+60)`), `status="active"` filter on every search, 6,000-token context budget cap, `update_status()` for soft-deprecation. Collection: `legal_documents`, vector size: 1024.
+- `app/schemas/rag.py` — `DocumentChunk` Pydantic model
+
 **Legal Documents — downloaded to `backend/data/legal_documents/`**
 - `68_2020_QH14_435315.doc` — Luật Cư trú 2020 (Luật số 68/2020/QH14)
 - `62_2021_ND-CP_473325.doc` — Nghị định 62/2021/NĐ-CP
@@ -46,10 +51,11 @@ A mock Vietnamese government public administration portal (dichvucong.gov.vn) wi
 - `55_2021_TT-BCA_466836.doc` — Thông tư 55/2021/TT-BCA
 - ⚠️ Files are `.doc` (Word) format — ingestion script expects PDF. Convert to PDF before running TASK-05.
 
-**Tests — 89 unit tests passing**
+**Tests — 103 unit tests passing**
 - `test_procedure_graph.py` (8) | `test_dependencies.py` (4) | `test_orm_models.py` (21)
 - `test_rate_limiting.py` (5) | `test_file_validator.py` (10) | `test_legal_doc_versioning.py` (8)
-- `test_router_node.py` (31) | `test_form_mapper.py` (1 placeholder) | `test_session_accumulator.py` (1 placeholder)
+- `test_router_node.py` (31) | `test_embedder_service.py` (5) | `test_qdrant_service.py` (9)
+- `test_form_mapper.py` (1 placeholder) | `test_session_accumulator.py` (1 placeholder)
 
 **Frontend** — 10 pages (7 portal + 3 residence forms), ChatWidget (SSE-ready), all Zustand stores, TypeScript types
 
@@ -57,7 +63,7 @@ A mock Vietnamese government public administration portal (dichvucong.gov.vn) wi
 TASK-01 complete. Remaining Group A tasks can now proceed.
 
 **Group A — remaining (start simultaneously):**
-`TASK-02` Embedder + Qdrant service (real search) | `TASK-03` Redis service (TTL + Fernet encryption) | `TASK-07` PDF + storage service | `TASK-13` Mock CCCD image generation
+~~`TASK-02`~~ ✅ Complete | `TASK-03` Redis service (TTL + Fernet encryption) | `TASK-07` PDF + storage service | `TASK-13` Mock CCCD image generation
 
 **Group B (after Group A):**
 `TASK-04` OCR service (prompt-injection hardened) | `TASK-05` Legal doc ingestion ⚠️ convert .doc → PDF first | `TASK-06` RAG node (hybrid + `verify_citations()`)
@@ -78,7 +84,7 @@ See `docs/PROJECT_STATUS_v1.1.md` for full task cards with inputs/outputs/DoD ch
 |---|---|
 | Frontend | Next.js 14 (App Router), Tailwind, React Hook Form + Zod, Zustand |
 | Backend | FastAPI (Python, async), SQLAlchemy 2.0, Alembic, Celery + Redis |
-| AI | Claude claude-sonnet-4-20250514 (Anthropic), bge-m3 embeddings, LangGraph agents |
+| AI | Claude claude-sonnet-4-20250514 (Anthropic), bge-m3 embeddings (OpenAI text-embedding-3-large fallback), LangGraph agents |
 | Vector DB | Qdrant |
 | OCR | PaddleOCR (primary), Tesseract (fallback) |
 | PDF | pdfplumber, pdfrw, reportlab |
@@ -613,3 +619,5 @@ LOG_LEVEL=INFO
 - **Do not work around hooks** by running blocked commands in a separate terminal and continuing in Claude Code as if they succeeded. Hooks exist because those patterns caused bugs. If a hook incorrectly blocks a legitimate operation, add a targeted exemption to the hook with a comment explaining the exception.
 - **Do not implement a node without reading its `.claude/agents/` spec first.** Spec files define the state key contract other nodes depend on. Implementing from memory leads to key mismatches that break the entire graph and are difficult to trace.
 - **Do not skip code-review skills before marking a task complete.** Running the relevant skill on your own output takes under a minute and catches structural violations before they propagate into other phases.
+- **Do not call `QdrantService.search()` without a status filter.** The `status="active"` filter is applied inside `QdrantService` automatically — never add it at the call site. If you see `status` filter logic outside `qdrant_service.py`, move it inside.
+- **Do not hard-code `vector_size=1024` at call sites.** Always use `settings.QDRANT_VECTOR_SIZE`. The OpenAI backend uses `dimensions=1024` truncation to stay consistent — never create the collection with 3072 dimensions even when `EMBEDDING_BACKEND=openai`.

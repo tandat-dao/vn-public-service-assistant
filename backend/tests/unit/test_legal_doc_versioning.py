@@ -11,14 +11,20 @@ from app.services.qdrant_service import QdrantService
 
 
 class TestActiveFilter:
-    def test_active_filter_raises_not_implemented(self):
-        """_active_filter() is a stub — verify it raises NotImplementedError.
+    def test_active_filter_returns_status_active_filter(self):
+        """_active_filter() must return a Filter with status='active' condition.
 
-        When TASK-02 implements it, this test should be updated to assert the
+        Updated in TASK-02: the stub is now implemented, so we verify the
         returned Filter contains FieldCondition(key="status", match="active").
         """
-        with pytest.raises(NotImplementedError):
-            QdrantService._active_filter()
+        f = QdrantService._active_filter()
+        assert f is not None
+        must_conditions = f.must
+        status_conditions = [
+            c for c in must_conditions if getattr(c, "key", None) == "status"
+        ]
+        assert len(status_conditions) == 1
+        assert status_conditions[0].match.value == "active"
 
     def test_active_filter_is_static_method(self):
         """_active_filter must be callable without an instance."""
