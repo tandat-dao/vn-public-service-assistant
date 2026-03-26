@@ -1,7 +1,7 @@
 """Storage service — MinIO (S3-compatible) object storage wrapper.
 
 Bucket policy is PRIVATE: anonymous get_object returns 403.
-All blocking MinIO SDK calls are wrapped in asyncio.get_event_loop().run_in_executor()
+All blocking MinIO SDK calls are wrapped in asyncio.get_running_loop().run_in_executor()
 so they do not block the async event loop.
 
 Partial form-fill PDFs are written to a ``tmp/{session_id}/`` prefix and
@@ -40,7 +40,6 @@ class StorageService:
             secure=settings.MINIO_SECURE,
         )
         self._bucket = settings.MINIO_BUCKET
-        self._loop = asyncio.get_event_loop
         self._ensure_bucket()
 
     def _ensure_bucket(self) -> None:
@@ -54,9 +53,6 @@ class StorageService:
             logger.info("MinIO bucket ready with PRIVATE policy", bucket=self._bucket)
         except S3Error as exc:
             logger.warning("MinIO bucket init failed", error=str(exc))
-
-    def _executor(self):
-        return asyncio.get_event_loop()
 
     async def upload(
         self,
@@ -75,7 +71,8 @@ class StorageService:
             )
 
         try:
-            await self._executor().run_in_executor(None, _put)
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, _put)
             logger.info("Uploaded object to MinIO", path=object_path, size=len(data))
             return object_path
         except S3Error as exc:
@@ -92,7 +89,8 @@ class StorageService:
                 response.release_conn()
 
         try:
-            return await self._executor().run_in_executor(None, _get)
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(None, _get)
         except S3Error as exc:
             raise StorageError(f"Download failed for {object_path}: {exc}") from exc
 
@@ -108,7 +106,8 @@ class StorageService:
             )
 
         try:
-            return await self._executor().run_in_executor(None, _presign)
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(None, _presign)
         except S3Error as exc:
             raise StorageError(f"Presign failed for {object_path}: {exc}") from exc
 
@@ -134,12 +133,13 @@ class StorageService:
             self._client.remove_object(self._bucket, tmp_path)
 
         try:
-            await self._executor().run_in_executor(None, _copy)
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, _copy)
         except S3Error as exc:
             raise StorageError(f"Copy failed {tmp_path} -> {final_path}: {exc}") from exc
 
         try:
-            await self._executor().run_in_executor(None, _delete)
+            await loop.run_in_executor(None, _delete)
             logger.info("Promoted tmp PDF", tmp=tmp_path, final=final_path)
         except S3Error as exc:
             logger.warning(

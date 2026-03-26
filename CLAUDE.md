@@ -61,19 +61,20 @@ A mock Vietnamese government public administration portal (dichvucong.gov.vn) wi
 - `app/services/storage_service.py` — `StorageService`: MinIO PRIVATE bucket (`Statement: []`), synchronous MinIO SDK calls wrapped in `run_in_executor(None, ...)`, `upload()`, `download()`, `get_presigned_url()`, `promote_tmp()` (copy_object + remove_object; delete failure → warning only, no raise)
 - `app/services/pdf_service.py` — `PDFService`: AcroForm detection via pdfplumber `catalog.get("/AcroForm")`, `_fill_acroform()` via pdfrw (sets `/NeedAppearances=True`), `_fill_overlay()` via reportlab canvas. Constructor injection: `__init__(self, storage_service: StorageService)` — never self-instantiates.
 
-**Phase 2 — TASK-04 complete**
-- `app/services/ocr_service.py` — `OCRService`: two-path pipeline. Path A: pyzbar QR decode with 5 OpenCV preprocessing attempts (~200ms, zero LLM tokens, confidence=1.0 per field). Path B: OpenCV preprocessing (CLAHE + deskew + denoise) → PaddleOCR (wrapped in `run_in_executor`) → confidence/length/IoU pre-filter → LLM field extraction. Prompt-injection hardened via `<ocr_text>` XML tags.
+**Phase 2 — TASK-04 complete (+ post-review fixes)**
+- `app/services/ocr_service.py` — `OCRService`: two-path pipeline. Path A: pyzbar QR decode with 5 OpenCV preprocessing attempts (~200ms, zero LLM tokens, confidence=1.0 per field). Path B: OpenCV preprocessing (CLAHE + deskew + denoise) → PaddleOCR (wrapped in `run_in_executor`) → confidence/length/IoU pre-filter → LLM field extraction. Prompt-injection hardened via `<ocr_text>` XML tags. All `asyncio.get_event_loop()` replaced with `get_running_loop()`. QR address parsed into `street/ward/district/city` components; original string preserved in `raw_address`.
 - `app/agents/nodes/ocr.py` — `ocr_fn`: module-level lazy singleton `_ocr_svc` via `_get_svc()` factory for testability. QR-first strategy: returns `{"document_type": "cccd"}` on QR success, skips PaddleOCR entirely.
 - `app/agents/prompts/document_classifier_prompt.py` — vision LLM classifier; 5 categories: `cccd`, `birth_certificate`, `land_certificate`, `household_book`, `other`. Returns single word.
 - `app/agents/prompts/ocr_extraction_prompt.py` — `SCHEMA_BLOCK` ≤150 estimated tokens (module-level `assert`). `build_extraction_messages()` wraps OCR text in `<ocr_text>` tags.
-- `pyzbar==0.1.9` added to `requirements.txt`; `conftest.py` stubs pyzbar at `sys.modules` level.
+- `app/schemas/personal_data.py` — `Address.city` field added; `PersonalData.raw_address: str | None` added.
+- `pyzbar==0.1.9` added to `requirements.txt`; `conftest.py` stubs pyzbar at `sys.modules` level; `minimal_image_path` fixture added pointing to committed `tests/fixtures/minimal_cccd.jpg`.
 
-**Tests — 137 unit tests passing**
+**Tests — 143 unit tests passing**
 - `test_procedure_graph.py` (8) | `test_dependencies.py` (4) | `test_orm_models.py` (21)
 - `test_rate_limiting.py` (5) | `test_file_validator.py` (10) | `test_legal_doc_versioning.py` (8)
 - `test_router_node.py` (31) | `test_embedder_service.py` (5) | `test_qdrant_service.py` (9)
-- `test_redis_service.py` (9) | `test_storage_service.py` (5) | `test_pdf_service.py` (5)
-- `test_ocr_extraction.py` (15) | `test_form_mapper.py` (1 placeholder) | `test_session_accumulator.py` (1 placeholder)
+- `test_redis_service.py` (9) | `test_storage_service.py` (6) | `test_pdf_service.py` (5)
+- `test_ocr_extraction.py` (20) | `test_form_mapper.py` (1 placeholder) | `test_session_accumulator.py` (1 placeholder)
 
 **Frontend** — 10 pages (7 portal + 3 residence forms), ChatWidget (SSE-ready), all Zustand stores, TypeScript types
 
@@ -620,6 +621,28 @@ LANGCHAIN_PROJECT=dichvucong
 ENVIRONMENT=development
 LOG_LEVEL=INFO
 ```
+
+---
+
+## Reasoning and Self-Verification Rules
+
+These rules govern how Claude reasons before writing code or marking a task complete. They are not style preferences — they are hard constraints that prevent the most common class of implementation errors on this project.
+
+1. **Never settle for a pattern because another file uses it.** Before copying an import style, mock target, or API call from an existing file, verify it is still correct. The codebase evolves; a pattern that was correct in a file written two weeks ago may have been superseded. Verify the current source before replicating.
+
+2. **Patch decorator must match the import target exactly.** If the module under test does `from foo.bar import baz`, the patch target is `"module_under_test.baz"` — not `"foo.bar.baz"`. Before writing any `@patch` or `with patch(...)`, read the import statement in the file being tested and derive the target from it mechanically.
+
+3. **Never pass an invalid or non-existent file path to `cv2.imread()`.** `cv2.imread()` returns `None` silently on a bad path, causing confusing downstream failures. Any test that exercises an image-processing code path must use either the committed `tests/fixtures/minimal_cccd.jpg` fixture (via `minimal_image_path`) or a path that has been explicitly written to disk with real image bytes in the same test.
+
+4. **Never use `.decode()` without an explicit encoding when processing Vietnamese text.** Vietnamese diacritical characters (ữ, ề, ồ, etc.) require UTF-8. Always call `.decode("utf-8")`, never `.decode()` alone. Apply this rule to every byte-string decode in `ocr_service.py` and any ingestion script that reads Vietnamese text from disk or QR payloads.
+
+5. **Never stuff a structured string into a single model field.** When the data has a known internal structure (e.g. a Vietnamese address with street / ward / district / city components separated by `", "`), parse it into the corresponding structured fields. Storing the whole string in `street` is not a valid fallback — it is a data modelling bug. Only fall back to the raw string in `street` when the string has fewer segments than the expected structure requires, and always preserve the original in `raw_address`.
+
+6. **Never mark a DoD checkbox complete without running — and naming — the specific test that covers it.** A DoD item is only checkable when: (a) a named test in `tests/unit/` exercises exactly that behaviour, and (b) `pytest` reports that test as `PASSED`. "The logic is covered implicitly" is not acceptable. If no test covers a DoD item, write one before checking the box.
+
+7. **Never second-guess a spec constraint and implement something simpler.** If the spec says "attempt exactly 5 preprocessing variants", do not implement 3 and assume the spec is aspirational. If the spec says "return `None` on miss", do not return an empty object. Implement the spec as written. If you believe the spec is wrong, flag it explicitly before diverging — do not silently substitute a simpler design.
+
+8. **Do not propagate implementation uncertainty through to completion claims.** If you are not sure whether a change is correct (e.g. "this test probably covers it" or "I think this path is exercised"), do not mark the task complete. Run the test, read the output, verify the assertion. Uncertainty must be resolved by evidence, not assumption.
 
 ---
 

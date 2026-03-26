@@ -40,6 +40,24 @@ class TestUpload:
         assert result == "images/test.jpg"
         mock_minio.put_object.assert_called_once()
 
+    async def test_minio_upload_uses_get_running_loop(self):
+        """upload() must use asyncio.get_running_loop(), not the deprecated get_event_loop()."""
+        svc, mock_minio = _make_service()
+        mock_minio.put_object.return_value = None
+
+        with patch("asyncio.get_running_loop") as mock_get_loop:
+            mock_loop = MagicMock()
+
+            async def fake_executor(executor, fn):
+                return fn()
+
+            mock_loop.run_in_executor = fake_executor
+            mock_get_loop.return_value = mock_loop
+
+            await svc.upload("images/test.jpg", b"fake-image-data", "image/jpeg")
+
+        mock_get_loop.assert_called()
+
 
 class TestEnsureBucket:
     def test_ensure_bucket_creates_if_not_exists(self):

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
+import os
 from datetime import date, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -86,6 +86,7 @@ class TestDecodeQR:
         assert result.date_of_birth == date(1990, 1, 1)
         assert result.gender == "Nam"
         assert result.permanent_address is not None
+        # Address has no ", " separators → falls back to street-only
         assert result.permanent_address.street == "123 Le Loi Q1 TPHCM"
         assert result.id_issue_date == date(2021, 3, 15)
         assert result.extraction_confidence == 1.0
@@ -128,13 +129,12 @@ class TestDecodeQR:
         )
 
     @pytest.mark.asyncio
-    async def test_decode_qr_attempts_exactly_5_variants(self, tmp_path):
+    async def test_decode_qr_attempts_exactly_5_variants(self, minimal_image_path):
         """pyzbar_decode is called exactly 5 times when all attempts return []."""
         svc = _make_svc()
-        img_path = _make_blank_jpg(tmp_path)
 
         with patch("app.services.ocr_service.pyzbar_decode", return_value=[]) as mock_decode:
-            await svc.decode_qr(img_path)
+            await svc.decode_qr(minimal_image_path)
 
         assert mock_decode.call_count == 5
 
@@ -148,6 +148,46 @@ class TestDecodeQR:
             result = await svc.decode_qr(img_path)
 
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_parse_qr_address_splits_correctly(self, tmp_path):
+        """QR address with 4 comma-space-separated segments is split into components."""
+        svc = _make_svc()
+        img_path = _make_blank_jpg(tmp_path)
+        structured_addr = "123 Đường Lê Lợi, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh"
+        qr_data = (
+            f"079304012345||NGUYEN VAN AN|01011990|Nam|{structured_addr}|15032021"
+        ).encode("utf-8")
+
+        with patch("app.services.ocr_service.pyzbar_decode", return_value=[_make_decoded(qr_data)]):
+            result = await svc.decode_qr(img_path)
+
+        assert result is not None
+        assert result.raw_address == structured_addr
+        addr = result.permanent_address
+        assert addr is not None
+        assert addr.street == "123 Đường Lê Lợi"
+        assert addr.ward == "Phường Bến Nghé"
+        assert addr.district == "Quận 1"
+        assert addr.city == "TP. Hồ Chí Minh"
+
+    @pytest.mark.asyncio
+    async def test_decode_qr_handles_utf8_correctly(self, tmp_path):
+        """Vietnamese diacritical characters in QR data must survive the byte decode."""
+        svc = _make_svc()
+        img_path = _make_blank_jpg(tmp_path)
+        vietnamese_qr = (
+            "079304012345||Nguyễn Văn An|01011990|Nam"
+            "|123 Đường Lê Lợi, Phường 1, Quận 1, TP.HCM|15032021"
+        ).encode("utf-8")
+
+        with patch("app.services.ocr_service.pyzbar_decode", return_value=[_make_decoded(vietnamese_qr)]):
+            result = await svc.decode_qr(img_path)
+
+        assert result is not None
+        assert result.full_name == "Nguyễn Văn An", (
+            f"Vietnamese diacritics corrupted: got {result.full_name!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -288,7 +328,7 @@ class TestExtraction:
         svc._paddle_engine = mock_paddle
 
         with patch.object(svc, "_preprocess_for_ocr", return_value=img_path):
-            with patch("asyncio.get_event_loop") as mock_loop_fn:
+            with patch("asyncio.get_running_loop") as mock_loop_fn:
                 mock_loop = MagicMock()
                 mock_loop_fn.return_value = mock_loop
 
@@ -331,13 +371,37 @@ class TestExtraction:
         mock_loop = MagicMock()
         mock_loop.run_in_executor = AsyncMock(side_effect=fake_executor)
 
-        with patch("asyncio.get_event_loop", return_value=mock_loop):
+        with patch("asyncio.get_running_loop", return_value=mock_loop):
             await svc.extract(img_path, "cccd")
 
         # _run_paddle_ocr must have been submitted to the executor
         assert svc._run_paddle_ocr in executor_funcs, (
             "PaddleOCR was not called via run_in_executor"
         )
+
+    @pytest.mark.asyncio
+    async def test_paddleocr_uses_get_running_loop(self, tmp_path):
+        """extract() must call asyncio.get_running_loop(), never get_event_loop()."""
+        img_path = _make_blank_jpg(tmp_path)
+
+        mock_llm = AsyncMock()
+        mock_llm.async_invoke = AsyncMock(return_value=_VALID_PD_JSON)
+        svc = _make_svc(mock_llm)
+        mock_paddle = MagicMock()
+        mock_paddle.ocr.return_value = []
+        svc._paddle_engine = mock_paddle
+
+        with patch("asyncio.get_running_loop") as mock_get_loop:
+            mock_loop = MagicMock()
+            mock_get_loop.return_value = mock_loop
+
+            async def fake_executor(executor, func, *args):
+                return func(*args)
+
+            mock_loop.run_in_executor = AsyncMock(side_effect=fake_executor)
+            await svc.extract(img_path, "cccd")
+
+        mock_get_loop.assert_called()
 
     @pytest.mark.asyncio
     async def test_token_cap_truncates_and_logs_warning(self, tmp_path):
@@ -368,7 +432,7 @@ class TestExtraction:
         mock_loop = MagicMock()
         mock_loop.run_in_executor = AsyncMock(side_effect=fake_executor)
 
-        with patch("asyncio.get_event_loop", return_value=mock_loop):
+        with patch("asyncio.get_running_loop", return_value=mock_loop):
             with structlog.testing.capture_logs() as cap_logs:
                 await svc.extract(img_path, "cccd")
 
@@ -409,7 +473,7 @@ class TestExtraction:
         mock_loop = MagicMock()
         mock_loop.run_in_executor = AsyncMock(side_effect=fake_executor)
 
-        with patch("asyncio.get_event_loop", return_value=mock_loop):
+        with patch("asyncio.get_running_loop", return_value=mock_loop):
             result = await svc.extract(img_path, "cccd")  # must not raise
 
         assert result is not None
@@ -417,3 +481,29 @@ class TestExtraction:
         assert result.id_number is None
         assert result.date_of_birth is None
         assert result.extraction_confidence == 0.0
+
+    @pytest.mark.asyncio
+    async def test_classify_document_type_returns_valid_type(self, tmp_path):
+        """classify_document_type() must return one of the 5 valid document type strings."""
+        from app.agents.prompts.document_classifier_prompt import VALID_DOCUMENT_TYPES
+
+        img_path = _make_blank_jpg(tmp_path)
+
+        for doc_type in sorted(VALID_DOCUMENT_TYPES):
+            mock_llm = AsyncMock()
+            mock_llm.async_invoke = AsyncMock(return_value=doc_type)
+            svc = _make_svc(mock_llm)
+            result = await svc.classify_document_type(img_path)
+            assert result == doc_type, f"Expected {doc_type!r}, got {result!r}"
+
+    def test_preprocess_for_ocr_runs_on_valid_jpeg(self, minimal_image_path):
+        """_preprocess_for_ocr must complete without error on a minimal valid JPEG."""
+        svc = _make_svc()
+        result_path = svc._preprocess_for_ocr(minimal_image_path)
+        try:
+            assert os.path.exists(result_path), "Preprocessed temp file does not exist"
+            preprocessed = cv2.imread(result_path)
+            assert preprocessed is not None, "cv2.imread returned None on preprocessed image"
+        finally:
+            if os.path.exists(result_path):
+                os.unlink(result_path)

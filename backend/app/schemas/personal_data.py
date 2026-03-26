@@ -11,6 +11,7 @@ class Address(BaseModel):
     ward: str | None = None
     district: str | None = None
     province: str | None = None
+    city: str | None = None   # city/thành phố — last component of Vietnamese address
     country: str = "Việt Nam"
 
 
@@ -25,6 +26,11 @@ class PersonalData(BaseModel):
     id_issue_place: str | None = None
     permanent_address: Address | None = None
     temporary_address: Address | None = None
+
+    # Raw address string preserved before structured parsing
+    # Always populated when address comes from a QR code or structured source.
+    # Forms that need the full single-line address string use this field directly.
+    raw_address: str | None = None
 
     # Provenance — never omit these
     source_document_type: str

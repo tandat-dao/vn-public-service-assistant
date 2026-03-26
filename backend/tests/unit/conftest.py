@@ -7,7 +7,10 @@ Registers stub modules for heavy native dependencies so that:
 """
 
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Stub out python-magic before any test module imports it.
@@ -31,3 +34,14 @@ if "pyzbar" not in sys.modules:
     _pyzbar_stub.decode = MagicMock(return_value=[])
     sys.modules["pyzbar"] = _pyzbar_stub
     sys.modules["pyzbar.pyzbar"] = _pyzbar_stub
+
+
+# ---------------------------------------------------------------------------
+# Reusable image fixture — a committed JPEG that cv2.imread() can always read.
+# Use this instead of tmp_path alone whenever a test calls cv2.imread() or
+# passes an image path to decode_qr() / _preprocess_for_ocr().
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def minimal_image_path() -> str:
+    """Return path to tests/fixtures/minimal_cccd.jpg — a real 200×120 JPEG."""
+    return str(Path(__file__).parent.parent / "fixtures" / "minimal_cccd.jpg")

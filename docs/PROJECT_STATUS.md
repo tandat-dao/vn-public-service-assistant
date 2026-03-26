@@ -1,5 +1,7 @@
 # DichVuCong AI Assistant — System Overview & Project Status
-**Version 1.6 | Updated 2026-03-27**
+**Version 1.7 | Updated 2026-03-27**
+
+> **What changed in v1.7:** TASK-04 post-review fixes — `asyncio.get_event_loop()` replaced with `get_running_loop()` in both `ocr_service.py` and `storage_service.py`; Vietnamese address in QR data now parsed into `street/ward/district/city` components (raw string preserved in `PersonalData.raw_address`); `Address.city` field added; `tests/fixtures/minimal_cccd.jpg` committed; `minimal_image_path` fixture added to `conftest.py`; "Reasoning and Self-Verification Rules" section added to `CLAUDE.md`. 6 new unit tests (143 total).
 
 > **What changed in v1.6:** TASK-04 complete — OCRService (two-path pipeline: QR decode via pyzbar with 5-attempt OpenCV preprocessing, plus full OCR fallback via PaddleOCR + LLM extraction), `document_classifier_prompt.py`, `ocr_extraction_prompt.py` (SCHEMA_BLOCK ≤150 tokens, injection-hardened), and `ocr_fn` worker all implemented and tested. PaddleOCR wrapped in `run_in_executor` (never blocking async). `pyzbar==0.1.9` added to requirements. 15 new unit tests (137 total).
 
@@ -350,7 +352,7 @@ Residence procedure dependency edges (required before TASK-09):
 | ocr_extraction_prompt (injection-hardened, SCHEMA_BLOCK ≤150 tokens) | `app/agents/prompts/ocr_extraction_prompt.py` | Implemented & Tested |
 | SessionData schema | `app/schemas/session.py` | Implemented & Tested |
 | DocumentChunk schema | `app/schemas/rag.py` | Implemented & Tested |
-| 137 unit tests passing | `tests/unit/` | Implemented & Tested |
+| 143 unit tests passing | `tests/unit/` | Implemented & Tested |
 
 #### Backend — Scaffolded (stubs, not functional)
 | Item | File | Confidence |
@@ -911,7 +913,7 @@ Uploaded image
 - `app/agents/prompts/ocr_extraction_prompt.py` — terse schema, XML-tagged OCR text, injection-hardened
 - `app/agents/prompts/document_classifier_prompt.py` — vision classification prompt, 5 document types
 - `app/agents/nodes/ocr.py` — `ocr_fn` with QR-first orchestration
-- `tests/unit/test_ocr_extraction.py` — 15 unit tests, all mocked
+- `tests/unit/test_ocr_extraction.py` — 20 unit tests, all mocked
 
 #### Definition of Done
 - [x] `decode_qr()` successfully parses `id_number||full_name|dob|gender|address|issue_date` with all 7 fields populated and `confidence=1.0`

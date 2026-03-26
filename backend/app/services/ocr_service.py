@@ -11,7 +11,7 @@ System dependency: pyzbar requires the libzbar0 native library.
   Windows: bundled with the pyzbar wheel for common architectures.
 
 PaddleOCR is synchronous — NEVER call it directly in an async function.
-Always wrap in asyncio.get_event_loop().run_in_executor(None, self._run_paddle_ocr, path).
+Always wrap in asyncio.get_running_loop().run_in_executor(None, self._run_paddle_ocr, path).
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ from app.agents.prompts.ocr_extraction_prompt import (
 from app.config import settings
 from app.schemas.personal_data import Address, PersonalData
 
-# pyzbar imported at module level for testability (stubbed in conftest.py for tests)
+# Imported at module level so tests can patch app.services.ocr_service.pyzbar_decode
 from pyzbar.pyzbar import decode as pyzbar_decode
 
 logger = structlog.get_logger(__name__)
@@ -55,6 +55,7 @@ _PROVENANCE_FIELDS = frozenset(
         "extracted_at",
         "field_confidences",
         "nationality",
+        "raw_address",   # raw source string — not a semantic extraction field
     }
 )
 
@@ -238,6 +239,27 @@ class OCRService:
         else:
             gender = None
 
+        # Parse structured address from QR string.
+        # Vietnamese format (most-specific → least-specific): street, ward, district, city
+        # Split on ", " (comma-space). Fewer than 4 segments → fallback to street-only.
+        parsed_address: Address | None = None
+        if address_str:
+            segments = address_str.split(", ")
+            if len(segments) >= 4:
+                city = segments[-1]
+                district = segments[-2]
+                ward = segments[-3]
+                street = ", ".join(segments[:-3])
+                parsed_address = Address(
+                    street=street, ward=ward, district=district, city=city
+                )
+            else:
+                logger.debug(
+                    "decode_qr: address has fewer than 4 components, using raw string as street",
+                    component_count=len(segments),
+                )
+                parsed_address = Address(street=address_str)
+
         field_map = {
             "id_number": id_number,
             "full_name": full_name,
@@ -254,7 +276,8 @@ class OCRService:
             gender=gender,  # type: ignore[arg-type]
             id_number=id_number,
             id_issue_date=issue_date,
-            permanent_address=Address(street=address_str) if address_str else None,
+            permanent_address=parsed_address,
+            raw_address=address_str,
             source_document_type="cccd",
             source_image_path=image_path,
             extraction_confidence=1.0,
@@ -439,7 +462,7 @@ class OCRService:
         """
         preprocessed_path: str | None = None
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             preprocessed_path = await loop.run_in_executor(
                 None, self._preprocess_for_ocr, image_path
