@@ -41,7 +41,7 @@ coverage.xml
 logs/
 
 # ── Backend runtime data (use MinIO / object storage instead) ──
-backend/data/legal_documents/
+# backend/data/legal_documents/
 backend/data/mock_documents/
 backend/data/form_templates/
 uploads/
