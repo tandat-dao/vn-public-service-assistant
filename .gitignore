@@ -65,3 +65,6 @@ desktop.ini
 .vscode/
 *.swp
 *.swo
+
+# ── Model caches ─────────────────────────────────────────────
+backend/.cache/

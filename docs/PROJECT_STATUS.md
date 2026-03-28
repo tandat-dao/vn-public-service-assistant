@@ -1,5 +1,9 @@
 # DichVuCong AI Assistant — System Overview & Project Status
-**Version 1.7 | Updated 2026-03-27**
+**Version 1.9 | Updated 2026-03-28**
+
+> **What changed in v1.9:** Documentation audit — enrichment_node two-condition guard clarified, BM25 procedure_id pre-filter rule added, form field mapping cache rule added, conversation history load-time trim rule added, TASK-13 elevated to High priority, TASK-10 expanded to M (2 days) with six Synthesizer response modes specified, TASK-08 DoD updated with field mapping cache requirements.
+
+> **What changed in v1.8:** Full DoD audit of TASK-01 through TASK-07 — all checks passed except one bug: `app/services/embedder.py:118` used deprecated `asyncio.get_event_loop()` inside `async _embed_bge_m3()`. Fixed to `get_running_loop()`. `storage_service.py` docstring updated to correctly document `_ensure_bucket()` startup exception. 1 new test `test_bge_m3_uses_get_running_loop` added (144 total).
 
 > **What changed in v1.7:** TASK-04 post-review fixes — `asyncio.get_event_loop()` replaced with `get_running_loop()` in both `ocr_service.py` and `storage_service.py`; Vietnamese address in QR data now parsed into `street/ward/district/city` components (raw string preserved in `PersonalData.raw_address`); `Address.city` field added; `tests/fixtures/minimal_cccd.jpg` committed; `minimal_image_path` fixture added to `conftest.py`; "Reasoning and Self-Verification Rules" section added to `CLAUDE.md`. 6 new unit tests (143 total).
 
@@ -99,7 +103,7 @@ The Router Node decomposes the user message into an ordered `execution_plan: lis
 | Component | File | Role |
 |---|---|---|
 | **Router Node** | `agents/nodes/router.py` | Decomposes user message into `execution_plan: list[str]` and `entities`. Uses structured LLM output. Sets `plan_cursor = 0`. |
-| **enrichment_node** | `agents/nodes/enrichment.py` | **(new)** Pre-flight enrichment node. Runs unconditionally after Router, before plan_executor. If `target_procedure_id` is set in state, calls `procedure_planner_fn` directly and writes `procedure_execution_plan` into state. No LLM call. Completes in < 50ms. No-op when `target_procedure_id` is None. |
+| **enrichment_node** | `agents/nodes/enrichment.py` | **(new)** Pre-flight enrichment node. Runs unconditionally after Router, before plan_executor. Calls `procedure_planner_fn` directly only when BOTH conditions are true: (1) `target_procedure_id` is set in state AND (2) `"form_filler_fn"` is present in `execution_plan`. If either condition is false, returns `{}` immediately. No LLM call. Completes in < 50ms. |
 | **plan_executor Node** | `agents/nodes/plan_executor.py` | Reads `NODE_DEPENDENCIES` from `node_registry.py`, groups remaining plan steps into execution waves where all dependencies are satisfied, runs each wave with `asyncio.gather()`, advances `plan_cursor` by wave size. Enforces `MAX_PLAN_STEPS` circuit-breaker. |
 | **NODE_REGISTRY** | `agents/node_registry.py` | Dict mapping name strings to worker functions. Valid keys: `"rag_fn"`, `"ocr_fn"`, `"form_filler_fn"`. Also exports `NODE_DEPENDENCIES: dict[str, list[str]]` — static dependency matrix driving parallel waves. The only file that imports all worker functions. |
 | **rag_fn** | `agents/nodes/rag.py` | Worker: hybrid retrieval from Qdrant + cited generation + `verify_citations()`. Called by `plan_executor`. |
@@ -352,7 +356,7 @@ Residence procedure dependency edges (required before TASK-09):
 | ocr_extraction_prompt (injection-hardened, SCHEMA_BLOCK ≤150 tokens) | `app/agents/prompts/ocr_extraction_prompt.py` | Implemented & Tested |
 | SessionData schema | `app/schemas/session.py` | Implemented & Tested |
 | DocumentChunk schema | `app/schemas/rag.py` | Implemented & Tested |
-| 143 unit tests passing | `tests/unit/` | Implemented & Tested |
+| 144 unit tests passing | `tests/unit/` | Implemented & Tested |
 
 #### Backend — Scaffolded (stubs, not functional)
 | Item | File | Confidence |
@@ -1084,6 +1088,7 @@ Implement the LLM-driven semantic field mapping, the confidence-based carry-forw
 - `app/core/session_accumulator.py` — `SessionDataAccumulator.merge(existing, new) -> PersonalData` (higher confidence wins)
 - `app/agents/nodes/form_filler.py` — `form_filler_fn(state) -> dict` returning `{"filled_fields": ..., "unfilled_required_fields": [...]}`;  calls `storage_service.promote_tmp()` only when `unfilled_required_fields` is empty
 - `tests/unit/test_form_mapper.py` — real implementation tests
+- `form_filler_fn` includes cache-check logic: load `form_templates.fields` → if populated use directly → if null call `FormFieldMapper.map()` then persist result to DB before continuing
 
 #### Definition of Done
 - [ ] `merge()` overwrites with new value only when `new_confidence >= old_confidence`
@@ -1092,6 +1097,9 @@ Implement the LLM-driven semantic field mapping, the confidence-based carry-forw
 - [ ] PDF is only promoted from `tmp/` to final path when `unfilled_required_fields` is empty
 - [ ] Unit tests for merge rule pass (4 edge cases minimum)
 - [ ] `/review-agent-node` checklist passes
+- [ ] `form_filler_fn` checks `form_templates.fields` JSONB before calling `FormFieldMapper.map()` — LLM mapping call is skipped if cached mapping exists
+- [ ] On first successful mapping for a given `form_id`, the resolved mapping is written back to `form_templates.fields` in PostgreSQL
+- [ ] Unit test verifies that a second call for the same `form_id` does NOT invoke `FormFieldMapper.map()` (mock confirms LLM is not called)
 
 #### Notes / Constraints
 - **Never hard-code field mappings** (CLAUDE.md rule) — use `FormFieldMapper` for every form
@@ -1120,7 +1128,7 @@ Implement `enrichment_node` as a true LangGraph graph node (not a worker functio
 - `.claude/agents/procedure-planner-agent.md` → full behavioural spec — **read before starting**
 
 #### Outputs
-- `app/agents/nodes/enrichment.py` — `enrichment_node(state) -> dict`: if `state["target_procedure_id"]` is set, calls `procedure_planner_fn(state)` and returns the result dict; otherwise returns `{}` (no-op). This is a true LangGraph graph node wired between Router and plan_executor.
+- `app/agents/nodes/enrichment.py` — `enrichment_node(state) -> dict`: if `state["target_procedure_id"]` is set AND `"form_filler_fn"` is present in `state["execution_plan"]`, calls `procedure_planner_fn(state)` and returns the result dict; otherwise returns `{}` (no-op). This is a true LangGraph graph node wired between Router and plan_executor.
 - `app/agents/nodes/procedure_planner.py` — `procedure_planner_fn(state) -> dict` querying DB via `get_db()`, calling `resolve_execution_plan()`, returning `{"procedure_execution_plan": [...]}`. Plain Python helper — not a graph node, not in `NODE_REGISTRY`.
 - `tests/unit/test_procedure_planner_node.py` — mocked DB session; includes test that `enrichment_node` returns `{}` when `target_procedure_id` is `None`
 
@@ -1147,12 +1155,21 @@ Implement `enrichment_node` as a true LangGraph graph node (not a worker functio
 ### TASK-10: Synthesizer Node + Synthesis Prompt
 **Phase:** 3
 **Priority:** High
-**Estimated effort:** S (1 day)
+**Estimated effort:** M (2 days)
 **Depends on:** TASK-06 (rag_fn), TASK-08 (form_filler_fn), TASK-09 (enrichment_node)
 **Can be parallelized with:** TASK-11 (after deps)
 
 #### Goal
-Implement the Synthesizer — the only true output graph node after `plan_executor`. It assembles `final_response` from all accumulated state fields including `errors` populated by the circuit-breaker.
+Implement the Synthesizer — the only true output graph node after `plan_executor`. It assembles `final_response` from all accumulated state fields. The Synthesizer must handle six distinct response modes cleanly from a single node — the synthesis prompt must be designed to cover all of them before any code is written:
+
+  1. **RAG only** — legal question answered with citations, no form or OCR context
+  2. **OCR only** — document uploaded and extracted, no form fill requested
+  3. **Form fill complete** — all required fields filled, PDF ready for download
+  4. **Form fill partial** — some required fields missing, user must be prompted for specific missing values (sourced from `unfilled_required_fields`)
+  5. **Multi-worker combined** — RAG + OCR + form fill all ran in same invocation
+  6. **Circuit-breaker or error** — `errors` list is non-empty; surface a user-friendly message without exposing internal state or tracebacks
+
+Design the synthesis prompt to handle all six modes via conditional sections keyed on which state fields are populated. Do not implement six separate prompts — one prompt with conditional logic is correct.
 
 #### Inputs
 - `app/agents/nodes/synthesizer.py` → stub to implement
@@ -1172,6 +1189,8 @@ Implement the Synthesizer — the only true output graph node after `plan_execut
 - [ ] Citations included in response when `retrieved_chunks` is non-empty
 - [ ] **Only** `final_response` and `response_metadata` stream to frontend — not raw state
 - [ ] `/review-agent-node` checklist passes
+- [ ] Unit tests cover all six response modes with appropriate mocked state
+- [ ] Synthesis prompt reviewed against all six modes before implementation begins — do not write code until the prompt handles all six cleanly
 
 #### Notes / Constraints
 - **Do not stream raw LangGraph state** — only `final_response` goes over SSE (CLAUDE.md rule)
@@ -1268,9 +1287,9 @@ Implement functional document upload and OCR endpoints with full file validation
 ---
 ### TASK-13: Synthetic CCCD Mock Image Generation
 **Phase:** 4
-**Priority:** Medium
+**Priority:** High
 **Estimated effort:** S (1 day)
-**Depends on:** None (pure Pillow/reportlab, no services)
+**Depends on:** None (pure Pillow/qrcode, no services) — but should be started in parallel with TASK-05, not after it
 **Can be parallelized with:** Any task
 
 #### Goal
@@ -1431,7 +1450,7 @@ TASK-04 done. The following can start simultaneously:
 - `TASK-05` Legal doc ingestion (requires TASK-02 ✅ + converted PDFs ✅ — run `libreoffice --headless --convert-to pdf`)
 - `TASK-06` RAG worker function (requires TASK-01 ✅ + TASK-02 ✅ + TASK-05)
 - `TASK-09` enrichment_node + procedure_planner_fn (can start now — no TASK-05/06 dependency)
-- `TASK-13` Mock CCCD image generation — ⚠️ must generate **both** QR-encoded and non-QR images to test both decode paths in OCRService
+- `TASK-13` Mock CCCD image generation — ⚠️ **start this in parallel with TASK-05, not after**. The OCR pipeline (TASK-04) is fully implemented but has no realistic test images beyond `minimal_cccd.jpg`. The injection-hardening in the extraction prompt is unvalidated without a synthetic image that contains an injection-attempt string. Must generate both QR-encoded and non-QR images.
 
 **4. TASK-08 + TASK-09 + TASK-10 — start after Group B (Group C)**
 - `TASK-09` enrichment_node + procedure_planner_fn (pre-flight, no LLM call)

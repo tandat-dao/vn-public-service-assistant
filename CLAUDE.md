@@ -69,10 +69,10 @@ A mock Vietnamese government public administration portal (dichvucong.gov.vn) wi
 - `app/schemas/personal_data.py` — `Address.city` field added; `PersonalData.raw_address: str | None` added.
 - `pyzbar==0.1.9` added to `requirements.txt`; `conftest.py` stubs pyzbar at `sys.modules` level; `minimal_image_path` fixture added pointing to committed `tests/fixtures/minimal_cccd.jpg`.
 
-**Tests — 143 unit tests passing**
+**Tests — 144 unit tests passing**
 - `test_procedure_graph.py` (8) | `test_dependencies.py` (4) | `test_orm_models.py` (21)
 - `test_rate_limiting.py` (5) | `test_file_validator.py` (10) | `test_legal_doc_versioning.py` (8)
-- `test_router_node.py` (31) | `test_embedder_service.py` (5) | `test_qdrant_service.py` (9)
+- `test_router_node.py` (31) | `test_embedder_service.py` (6) | `test_qdrant_service.py` (9)
 - `test_redis_service.py` (9) | `test_storage_service.py` (6) | `test_pdf_service.py` (5)
 - `test_ocr_extraction.py` (20) | `test_form_mapper.py` (1 placeholder) | `test_session_accumulator.py` (1 placeholder)
 
@@ -238,6 +238,9 @@ async def run(session_id: str, message: str) -> AsyncIterator[str]:
     await redis_service.save_session(session_id, extract_session(final_state))  # save
 ```
 
+**Conversation history must be trimmed at load time, not only at save time.**
+`RedisService.save_session()` trims history to 6 turns before writing. However, the loaded history must also be capped when hydrating AgentState at the start of an invocation. In `app/agents/graph.py` (or wherever AgentState is constructed from session data), slice `conversation_history` to the last 6 entries before assigning it to state. This prevents any edge case where a session written before the trim rule was enforced, or a session written by a different code path, could inject a longer history into the LLM prompt.
+
 ### 5. Core Domain Logic Has Zero Infrastructure Dependencies
 
 Everything in `app/core/` must be importable and testable without a running database, Redis, LLM, or Qdrant. If a function in `core/` needs to call an external service, it is in the wrong place — move it to `services/` or an agent node.
@@ -333,13 +336,21 @@ The graph topology is a **linear loop** — not a conditional fan-out. The Route
 
 **Graph topology:**
 ```
-Entry → router_node → plan_executor (loops) → synthesizer_node → END
+Entry → router_node → enrichment_node → plan_executor (loops) → synthesizer_node → END
 ```
 
-**True graph nodes (only 3):**
+**enrichment_node two-condition guard (do not simplify this):**
+enrichment_node must check TWO conditions before doing any work. Both must be true or it returns {} immediately:
+  1. `state["target_procedure_id"]` is not None
+  2. `"form_filler_fn"` is present in `state["execution_plan"]`
+
+Checking only condition 1 is a common implementation mistake. A user asking a legal question about a procedure does not need the full DAG injected into the Synthesizer prompt. The lazy-check on condition 2 is the primary token-saving mechanism of this node. Do not remove or simplify it.
+
+**True graph nodes (only 4):**
 ```
 nodes/
 ├── router.py           → router_node(state): sets execution_plan + plan_cursor=0
+├── enrichment.py       → enrichment_node(state): pre-flight DAG enrichment (two-condition guard)
 ├── plan_executor.py    → plan_executor_node(state): calls NODE_REGISTRY[plan[cursor]](state)
 └── synthesizer.py      → synthesizer_node(state): assembles final_response
 ```
@@ -360,8 +371,8 @@ nodes/
 NODE_REGISTRY: dict[str, Callable[[AgentState], dict]] = {
     "rag_fn": rag_fn,
     "ocr_fn": ocr_fn,
-    "procedure_planner_fn": procedure_planner_fn,
     "form_filler_fn": form_filler_fn,
+    # "procedure_planner_fn" is NOT here — it is called directly by enrichment_node, never via NODE_REGISTRY
 }
 
 # app/agents/nodes/plan_executor.py
@@ -494,6 +505,9 @@ async def search(
     return self._apply_token_budget(results, max_tokens=6000)
 ```
 
+**BM25 corpus must be pre-filtered by procedure_id before index construction.**
+When `procedure_id` is provided to `QdrantService.search()`, the BM25 stage must scroll only chunks whose `procedure_tags` payload contains that `procedure_id` — not the full collection. Building the BM25 index over the full corpus and then filtering scores after the fact defeats the purpose of the parameter and will produce incorrect rankings as the corpus grows. The scroll call that feeds the BM25 index must pass the same `procedure_id` filter that the dense search uses.
+
 ### Active Status Filter — Never Skip
 
 Every Qdrant search MUST filter on `status = "active"`. Use `QdrantService._active_filter()` to get the filter object. Do not inline the filter condition. Superseded chunks must never reach the LLM or appear in citations.
@@ -539,6 +553,17 @@ The OCR LLM call uses a dedicated prompt in `app/agents/prompts/ocr_extraction_p
 ### Never Hard-Code Field Mappings
 
 Do not create a file like `cccd_to_form_a_mapping.py`. The semantic field mapper (`app/core/form_field_mapper.py`) uses the LLM to map `PersonalData` fields to PDF form field names at runtime. Adding a new PDF template requires no code changes.
+
+### Cache the Field Mapping After First Use
+
+`FormFieldMapper.map()` makes an LLM call. For a given PDF template, the field names are fixed at template-creation time — the mapping does not change between users or sessions. After the first successful mapping for a given `form_id`, store the resolved mapping in the `form_templates.fields` JSONB column in PostgreSQL. On subsequent calls for the same `form_id`, load the cached mapping from the DB and skip the LLM call entirely.
+
+`form_filler_fn` is responsible for checking the cache before calling `FormFieldMapper.map()`. The cache check pattern is:
+  1. Load `form_templates` row for `form_id`
+  2. If `fields` JSONB is populated, use it directly — no LLM call
+  3. If `fields` is null or empty, call `FormFieldMapper.map()`, then write the result back to `form_templates.fields` before continuing
+
+This must be implemented in TASK-08. Add it to the TASK-08 DoD checklist.
 
 ### PDF Type Detection
 
@@ -670,3 +695,7 @@ These rules govern how Claude reasons before writing code or marking a task comp
 - **Do not skip the QR decode path for CCCD uploads.** `OCRService.decode_qr()` must always be attempted first. It is ~10× faster than full OCR (200ms vs 2s+), uses zero LLM tokens, and produces confidence=1.0 per field. Calling `extract()` directly on a QR-encoded CCCD bypasses the highest-quality extraction path.
 - **Do not overwrite a QR-derived PersonalData with OCR-derived data.** QR extraction has confidence=1.0 per field. If `OCRService.decode_qr()` returns a non-None result, it is stored in state as the canonical source. OCR extraction (`extract()`) is only called when QR returns None — never after a QR success.
 - **Do not treat the empty second element in QR data as a field.** CCCD QR format splits on `|` into 7 elements: `[id_number, "", full_name, dob, gender, address, issue_date]`. Index 1 is always an empty string — it is structural, not a data field. `_parse_qr_data()` skips it explicitly; never try to map it to a PersonalData field.
+- **Do not implement enrichment_node with only a target_procedure_id check.** The node requires both `target_procedure_id` set AND `form_filler_fn` present in `execution_plan`. Checking only `target_procedure_id` will inject the full procedure plan into every Synthesizer prompt for any procedure-related query, regardless of whether form filling is actually happening. The full guard is specified in the LangGraph Node Conventions section.
+- **Do not call FormFieldMapper.map() on every form fill.** The LLM semantic field mapping is computed once per PDF template and cached in `form_templates.fields` JSONB. Calling it on every invocation adds 1-2 seconds of latency and burns tokens unnecessarily. See the Form Fill — Implementation Notes section for the cache check pattern.
+- **Do not build the BM25 index from an unfiltered corpus scroll when procedure_id is provided.** If `QdrantService.search()` receives a non-None `procedure_id`, the scroll that populates the BM25 corpus must filter by `procedure_tags` first. Scrolling all chunks and scoring them all is both slower and incorrect — chunks from unrelated procedures will pollute the rankings.
+- **Do not rely solely on save_session() to enforce the 6-turn history cap.** The cap must also be applied when loading history into AgentState. Trimming only on write leaves a window where a stale or externally-written session could bloat the prompt. Apply `[-6:]` slice at both load and save.
