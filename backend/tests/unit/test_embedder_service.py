@@ -136,3 +136,32 @@ def test_both_fail_raises_runtime_error():
 def test_embed_is_async():
     """EmbedderService.embed must be a coroutine function."""
     assert asyncio.iscoroutinefunction(EmbedderService.embed)
+
+
+# ---------------------------------------------------------------------------
+# Test 6 — bge-m3 uses get_running_loop, not deprecated get_event_loop
+# ---------------------------------------------------------------------------
+
+async def test_bge_m3_uses_get_running_loop():
+    """_embed_bge_m3 must call asyncio.get_running_loop(), not get_event_loop()."""
+    st_class = _make_st_class_mock()
+    with patch("app.services.embedder.SentenceTransformer", st_class):
+        with patch("app.services.embedder.settings") as mock_settings:
+            mock_settings.EMBEDDING_BACKEND = "bge-m3"
+            mock_settings.OPENAI_API_KEY = ""
+            mock_settings.SENTENCE_TRANSFORMERS_HOME = ".cache/"
+
+            svc = EmbedderService()
+
+            with patch("asyncio.get_running_loop") as mock_get_loop:
+                mock_loop = MagicMock()
+
+                async def fake_executor(executor, fn):
+                    return fn()
+
+                mock_loop.run_in_executor = fake_executor
+                mock_get_loop.return_value = mock_loop
+
+                await svc.embed("test query")
+
+    mock_get_loop.assert_called()

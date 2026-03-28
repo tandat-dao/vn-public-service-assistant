@@ -1,8 +1,11 @@
 """Storage service — MinIO (S3-compatible) object storage wrapper.
 
 Bucket policy is PRIVATE: anonymous get_object returns 403.
-All blocking MinIO SDK calls are wrapped in asyncio.get_running_loop().run_in_executor()
-so they do not block the async event loop.
+All blocking MinIO SDK calls in async methods are wrapped in asyncio.get_running_loop().run_in_executor()
+so they do not block the async event loop. Exception: _ensure_bucket() is called once from
+the synchronous __init__ at startup — those three calls (bucket_exists, make_bucket,
+set_bucket_policy) run synchronously on the calling thread, which is the lifespan task,
+not a request handler.
 
 Partial form-fill PDFs are written to a ``tmp/{session_id}/`` prefix and
 promoted to the final path via ``promote_tmp()`` only when all required

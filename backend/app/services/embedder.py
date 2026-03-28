@@ -115,7 +115,7 @@ class EmbedderService:
     # ------------------------------------------------------------------
 
     async def _embed_bge_m3(self, text: str) -> list[float]:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         model = self._st_model
 
         def _encode() -> list[float]:
