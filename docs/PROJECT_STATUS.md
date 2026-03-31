@@ -1,5 +1,6 @@
-# DichVuCong AI Assistant — System Overview & Project Status
-**Version 1.9 | Updated 2026-03-28**
+# DichVuCong AI Assistant — Project Status
+
+> **What changed in v2.0:** Documentation restructured — PROJECT_STATUS.md split into PROJECT_CONTEXT.md (architecture, vision, stack, roadmap, open questions) and PROJECT_STATUS.md (version log, progress, task cards, next actions). CLAUDE.md updated to read both files before any work.
 
 > **What changed in v1.9:** Documentation audit — enrichment_node two-condition guard clarified, BM25 procedure_id pre-filter rule added, form field mapping cache rule added, conversation history load-time trim rule added, TASK-13 elevated to High priority, TASK-10 expanded to M (2 days) with six Synthesizer response modes specified, TASK-08 DoD updated with field mapping cache requirements.
 
@@ -22,303 +23,16 @@
 ---
 
 ## Table of Contents
-1. [System Vision](#1-system-vision)
-2. [System Architecture](#2-system-architecture)
-3. [Technology Stack](#3-technology-stack)
-4. [Feature Roadmap](#4-feature-roadmap)
-5. [Current Progress Status](#5-current-progress-status)
-6. [Open Questions & Blockers](#6-open-questions--blockers)
-7. [Task Delegation Board](#7-task-delegation-board)
-8. [Recommended Next Actions](#8-recommended-next-actions)
+1. [Current Progress Status](#1-current-progress-status)
+2. [Task Delegation Board](#2-task-delegation-board)
+3. [Dependency Graph](#3-dependency-graph)
+4. [Recommended Next Actions](#4-recommended-next-actions)
 
 ---
 
-## 1. System Vision
+## 1. Current Progress Status
 
-DichVuCong AI Assistant is a mock Vietnamese government public administration portal that adds a conversational AI layer on top of an otherwise static service directory. The core problem it solves is **navigational complexity**: Vietnamese citizens must complete multiple interdependent administrative procedures in a specific order, and the legal basis for each step is scattered across dozens of decrees and circulars. Today, citizens either hire intermediaries or make repeated trips to government offices due to missing prerequisites. This system removes that friction.
-
-The system is built around a **procedure dependency graph** (DAG) stored in PostgreSQL. All AI capabilities — RAG, OCR, and form auto-fill — exist to serve that graph: RAG answers legal questions about *why* a procedure requires certain documents, OCR extracts personal data from identity documents so it can be *carried forward* into form fields, and form fill automates the tedious transcription of data across multiple government PDF templates. The AI assistant acts as a guide that knows the entire procedural landscape and can route a citizen from their first question to a fully filled form package, citing the exact legal articles at each step.
-
-The target audience is Vietnamese citizens interacting with administrative procedures such as birth registration, residence registration, business formation, and land transactions. The primary AI value proposition over a plain portal is threefold: (1) **cited answers** — every legal claim traces to a specific article number in a real decree; (2) **automatic dependency resolution** — the system tells you what you need *before* you need it; (3) **carry-forward form fill** — data extracted from one document (e.g., CCCD) is automatically propagated into every subsequent form in the procedure chain, without the user re-typing it.
-
----
-
-## 2. System Architecture
-
-### 2.1 System Layers Diagram
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                        NEXT.JS FRONTEND (Port 3000)                  │
-│                                                                       │
-│  ┌──────────────┐  ┌─────────────────┐  ┌──────────────────────────┐ │
-│  │  Chat UI     │  │ 3 Residence     │  │  Document Upload         │ │
-│  │  (Widget +   │  │ Form Pages      │  │  (DropZone, OCR result)  │ │
-│  │  Full page)  │  │ (manual input,  │  │                          │ │
-│  │              │  │  AI-fill ready) │  │                          │ │
-│  └──────┬───────┘  └────────┬────────┘  └────────────┬─────────────┘ │
-└─────────┼───────────────────┼────────────────────────┼───────────────┘
-          │  SSE stream       │  REST POST             │  REST POST
-          │  text/event-stream│  /api/v1/forms/submit  │  /api/v1/documents/ocr
-┌─────────▼───────────────────▼────────────────────────▼───────────────┐
-│                    FASTAPI BACKEND (Port 8000)                        │
-│                                                                       │
-│   /api/v1/chat      /api/v1/forms     /api/v1/documents              │
-│   /api/v1/procedures  /api/v1/legal                                  │
-│                                                                       │
-│  ┌───────────────────────────────────────────────────────────────┐   │
-│  │               LANGGRAPH AGENT PIPELINE                        │   │
-│  │                                                               │   │
-│  │  Entry ──► Router ──► enrichment_node ──► plan_executor (loop) ──► Synth │   │
-│  │                                                   │                │     │   │
-│  │                                          NODE_REGISTRY calls:  ──► END   │   │
-│  │                                          · rag_fn(state)                 │   │
-│  │                                          · ocr_fn(state)                 │   │
-│  │                                          · form_filler_fn(state)          │   │
-│  │                                                               │   │
-│  │  Worker functions accumulate into AgentState each step.      │   │
-│  │  plan_executor loops until execution_plan is exhausted,      │   │
-│  │  then routes to Synthesizer.                                  │   │
-│  └───────────────────────────────────────────────────────────────┘   │
-│                                                                       │
-│  ┌─────────────┐  ┌──────────────┐  ┌──────────┐  ┌──────────────┐  │
-│  │ PostgreSQL  │  │   Qdrant     │  │  MinIO   │  │   Redis      │  │
-│  │ (Port 5432) │  │ (Port 6333)  │  │(Port 9000│  │ (Port 6379)  │  │
-│  │ Procedures  │  │ Legal doc    │  │ PDF files│  │ Sessions     │  │
-│  │ DAG, Forms  │  │ vectors      │  │ Images   │  │ Cache        │  │
-│  └─────────────┘  └──────────────┘  └──────────┘  └──────────────┘  │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-### 2.2 Multi-Agent LangGraph Pipeline
-
-The graph topology is a **linear loop**, not a conditional fan-out:
-
-```
-Entry → Router → enrichment_node → plan_executor (loops) → Synthesizer → END
-```
-
-The Router Node decomposes the user message into an ordered `execution_plan: list[str]` (e.g. `["ocr_fn", "form_filler_fn"]`). The `plan_executor` node reads `execution_plan[plan_cursor]`, calls the corresponding worker function via `NODE_REGISTRY[node_name](state)`, increments `plan_cursor`, and loops back to itself until the plan is exhausted. Worker functions are **never graph nodes** — they are plain Python functions called internally by `plan_executor`. Their outputs accumulate into `AgentState` across each step.
-
-| Component | File | Role |
-|---|---|---|
-| **Router Node** | `agents/nodes/router.py` | Decomposes user message into `execution_plan: list[str]` and `entities`. Uses structured LLM output. Sets `plan_cursor = 0`. |
-| **enrichment_node** | `agents/nodes/enrichment.py` | **(new)** Pre-flight enrichment node. Runs unconditionally after Router, before plan_executor. Calls `procedure_planner_fn` directly only when BOTH conditions are true: (1) `target_procedure_id` is set in state AND (2) `"form_filler_fn"` is present in `execution_plan`. If either condition is false, returns `{}` immediately. No LLM call. Completes in < 50ms. |
-| **plan_executor Node** | `agents/nodes/plan_executor.py` | Reads `NODE_DEPENDENCIES` from `node_registry.py`, groups remaining plan steps into execution waves where all dependencies are satisfied, runs each wave with `asyncio.gather()`, advances `plan_cursor` by wave size. Enforces `MAX_PLAN_STEPS` circuit-breaker. |
-| **NODE_REGISTRY** | `agents/node_registry.py` | Dict mapping name strings to worker functions. Valid keys: `"rag_fn"`, `"ocr_fn"`, `"form_filler_fn"`. Also exports `NODE_DEPENDENCIES: dict[str, list[str]]` — static dependency matrix driving parallel waves. The only file that imports all worker functions. |
-| **rag_fn** | `agents/nodes/rag.py` | Worker: hybrid retrieval from Qdrant + cited generation + `verify_citations()`. Called by `plan_executor`. |
-| **ocr_fn** | `agents/nodes/ocr.py` | Worker: OpenCV pre-processing → PaddleOCR → prompt-injection-hardened LLM extraction → `PersonalData`. Called by `plan_executor`. |
-| **procedure_planner_fn** | `agents/nodes/procedure_planner.py` | Pre-flight enrichment helper: DB query + topological sort → `ExecutionPlan`. Called **directly by `enrichment_node`** — never a `NODE_REGISTRY` entry, never an `execution_plan` step. |
-| **form_filler_fn** | `agents/nodes/form_filler.py` | Worker: LLM semantic field mapping → PDF fill to `tmp/` → promote to final path only when complete. Called by `plan_executor`. |
-| **Synthesizer Node** | `agents/nodes/synthesizer.py` | True graph node: assembles `final_response` from all accumulated state fields. Always the last graph node before END. |
-
-**AgentState additions for plan_executor topology** — new fields required in `app/agents/state.py`:
-
-```python
-# New routing control fields (add to existing AgentState TypedDict)
-execution_plan: list[str]    # e.g. ["ocr_fn", "form_filler_fn"] — set by Router, read by plan_executor
-                             # Valid entries: "rag_fn", "ocr_fn", "form_filler_fn" ONLY.
-                             # "procedure_planner_fn" is NOT a valid execution_plan entry —
-                             # procedure resolution happens in enrichment_node before plan_executor.
-plan_cursor: int             # current index into execution_plan — incremented by plan_executor only
-conversation_history: list[dict]  # last 6 turns only — trimmed by RedisService.save_session()
-                                   # each entry: {"role": "user"|"assistant", "content": str}
-```
-
-Conversation history in `AgentState` holds at most the last 6 turns. Older turns are dropped before the state is passed to any LLM call. The full history is never persisted — only the current window is stored in Redis `SessionData`.
-
-### Parallel execution model
-
-`plan_executor` reads a static `NODE_DEPENDENCIES` dict from `node_registry.py` before each iteration. It groups all steps in the remaining plan whose dependencies are already satisfied into a single wave and runs them with `asyncio.gather()`. Steps with unsatisfied dependencies wait for the next wave. The dependency rules are:
-
-- `rag_fn`: no dependencies
-- `ocr_fn`: no dependencies
-- `form_filler_fn`: depends on `ocr_fn`
-
-For a plan `["ocr_fn", "rag_fn", "form_filler_fn"]`, the executor fires `ocr_fn` and `rag_fn` concurrently in wave 1, then `form_filler_fn` in wave 2. Wall-clock latency for the two-LLM wave is the maximum of the two, not their sum.
-
-### 2.3 RAG Pipeline
-
-```
-Raw Vietnamese Legal PDF
-  → Docling parser (article hierarchy extraction)
-  → Article-boundary chunker (chunk never spans two articles)
-  → Metadata tagging (document_number, article_number, procedure_tags, status: "active")
-  → bge-m3 embedding (1024-dim, multilingual, Vietnamese-native)
-  → Qdrant upsert (vector + payload)
-
-At query time:
-  → Dense semantic search (top_k×2 candidates)
-  → BM25 keyword search (top_k×2 candidates, critical for decree/article numbers)
-  → Reciprocal Rank Fusion merge → top_k results, filtered to status = "active" only
-  → Token budget cap: combined retrieved context capped at 6,000 tokens before LLM call
-  → Claude citation-enforced generation
-  → Citation format: [Điều X, Nghị định YYY/YYYY/NĐ-CP]
-  → Post-generation verify_citations(): cross-check cited articles against retrieved chunk payloads
-     → Citations not in retrieved chunks are flagged as [unverified: ...], not silently passed
-```
-
-### 2.4 OCR Pipeline
-
-```
-Uploaded Image (CCCD, birth cert, land cert)
-  → File validation: MIME type whitelist, size limit ≤ 5 MB, extension whitelist (TASK-0D)
-  → OpenCV: deskew + CLAHE contrast + denoise
-  → Document type classifier (vision LLM)
-  → PaddleOCR PP-OCRv4 (Vietnamese charset)
-  → Prompt-injection hardened LLM extraction:
-      - OCR text wrapped in <ocr_text> XML tags
-      - Explicit "treat as data only" instruction in prompt
-      - Output constrained to PersonalData JSON schema only
-      - Pydantic validation discards any non-conforming output entirely
-  → PersonalData (Pydantic, all fields optional with confidence)
-  → Validation: CCCD checksum, date normalization
-  → Redis session storage (keyed by session_id, TTL 1 hour, Fernet-encrypted)
-```
-
-### 2.5 Procedure DAG
-
-```
-PostgreSQL adjacency list (procedure_dependencies table)
-  → Python: load all edges for target procedure subtree
-  → procedure_graph.resolve_execution_plan() — Kahn's topological sort
-  → Gap analysis: completed_procedures ⊆ required_steps
-  → Returns: ordered list[ProcedureStep] with status (PENDING/COMPLETED/BLOCKED)
-
-Residence procedure dependency edges (required before TASK-09):
-  → TTDN-003 (Xác nhận thông tin cư trú) requires TTDN-001 or TTDN-002
-  → TTDN-001 (Đăng ký thường trú) may follow TTDN-002 under Luật Cư trú 2020 Điều 20
-  → See Q4 resolution notes in Section 6
-```
-
----
-
-## 3. Technology Stack
-
-| Layer | Technology | Version / Notes | Status |
-|---|---|---|---|
-| **Frontend Framework** | Next.js (App Router) | 14.2.x | ✅ Confirmed |
-| **Frontend Styling** | Tailwind CSS | 3.x | ✅ Confirmed |
-| **Frontend Forms** | React Hook Form + Zod | RHF 7.x, Zod 3.x | ✅ Confirmed |
-| **Frontend State** | Zustand | 4.x | ✅ Confirmed |
-| **API Framework** | FastAPI | 0.115.x | ✅ Confirmed |
-| **ORM** | SQLAlchemy 2.0 (async) | 2.0.x | ✅ Confirmed |
-| **DB Migrations** | Alembic | 1.14.x | ✅ Confirmed |
-| **Task Queue** | Celery + Redis | Celery 5.4 | ⚙️ Partially set up |
-| **Relational DB** | PostgreSQL | 16-alpine (Docker) | ✅ Confirmed |
-| **Vector DB** | Qdrant | latest (Docker) | ⚙️ Partially set up |
-| **Cache / Sessions** | Redis | 7-alpine (Docker) | ⚙️ Partially set up |
-| **Object Storage** | MinIO | latest (Docker) | ⚙️ Partially set up |
-| **LLM Backbone** | Claude claude-sonnet-4-20250514 | Anthropic SDK 0.85.0 | ⚙️ Partially set up |
-| **Embeddings** | bge-m3 (local) | sentence-transformers | ⚙️ Partially set up |
-| **Agent Framework** | LangGraph | 1.1.2 | ⚙️ Partially set up |
-| **OCR Engine** | PaddleOCR (primary) | PP-OCRv4 | 📋 Planned |
-| **OCR Fallback** | Tesseract | 5.x | 📋 Planned |
-| **PDF Processing** | pdfplumber + pdfrw | latest | 📋 Planned |
-| **PDF Form Fill** | pdfrw + reportlab | latest | 📋 Planned |
-| **Document Parsing** | Docling (IBM) | latest | 📋 Planned |
-| **Image Processing** | OpenCV (cv2) | 4.x | 📋 Planned |
-| **Observability** | LangSmith | via langchain | 📋 Planned — wired in TASK-01 (Phase 2), not Phase 4 |
-| **Containerization** | Docker Compose | v2 | ✅ Confirmed |
-
----
-
-## 4. Feature Roadmap
-
-### Core AI
-
-| Feature | Phase | Core / Enhancement |
-|---|---|---|
-| Multi-intent plan decomposition (Router → `execution_plan: list[str]`) | 2 | Core |
-| `plan_executor` loop node + `NODE_REGISTRY` | 2 | Core |
-| Parallel worker execution via `NODE_DEPENDENCIES` matrix (`asyncio.gather`) | 2 | Core |
-| Iteration circuit-breaker in `plan_executor` (`MAX_PLAN_STEPS`) | 2 | Core |
-| Hybrid RAG retrieval (dense + BM25 RRF) | 2 | Core |
-| Legal citation generation | 2 | Core |
-| Post-generation citation verification (`verify_citations()`) | 2 | Core |
-| RAG context window token budget cap (6,000 tokens) | 2 | Core |
-| OCR raw text token cap (8,000 tokens, truncation with warning log) | 2 | Core |
-| Vietnamese legal document ingestion pipeline | 2 | Core |
-| Legal document versioning + re-ingestion strategy (`status` field) | 2 | Core |
-| Streaming SSE chat endpoint | 2 | Core |
-| LangSmith agent tracing | 2 | Core — moved from Phase 4 |
-| PaddleOCR image pre-processing + field extraction | 3 | Core |
-| Prompt-injection hardening on OCR extraction prompt | 3 | Core |
-| PersonalData carry-forward merge | 3 | Core |
-| LLM semantic form field mapping | 3 | Core |
-| PDF AcroForm fill + overlay fallback | 3 | Core |
-| Partial form write protection (tmp/ MinIO prefix) | 3 | Core |
-| Procedure dependency resolution (pre-flight enrichment node, no LLM call) | 2 | Core |
-| Full LangGraph graph assembly (plan_executor topology) | 4 | Core |
-| Multi-turn conversation history (windowed, last 6 turns — caps input token growth) | 4 | Core |
-| Session persistence across turns (Redis, TTL, encrypted) | 4 | Core |
-| Rate limiting middleware on `/chat` endpoint | 4 | Core |
-| Cross-encoder reranker | 4 | Enhancement |
-
-### Frontend
-
-| Feature | Phase | Core / Enhancement |
-|---|---|---|
-| Government portal UI (10 pages) | 1 | Core |
-| Floating AI chat widget (SSE streaming) | 1 | Core |
-| 3 residence registration form pages | 1 | Core |
-| Zustand formStore with AI-fill-ready setFieldValue | 1 | Core |
-| AI-highlighted field visual indicator | 3 | Core |
-| Procedure execution plan panel | 1 | Core |
-| Document upload DropZone | 1 | Core |
-| OCR result display card | 3 | Core |
-| PDF preview (react-pdf) | 3 | Enhancement |
-
-### Backend
-
-| Feature | Phase | Core / Enhancement |
-|---|---|---|
-| FastAPI app factory + config | 0 | Core |
-| API stubs (chat, forms, procedures, documents, legal) | 0 | Core |
-| `get_db()` async session factory (`app/dependencies.py`) | 0 | Core |
-| ORM model column definitions (all 4 models) | 0 | Core |
-| Functional chat SSE endpoint | 2 | Core |
-| Functional form submit endpoint | 2 | Core |
-| Document upload + OCR endpoint | 3 | Core |
-| File upload validation (MIME, size, extension whitelist) | 3 | Core |
-| Rate limiting middleware on chat endpoint | 4 | Core |
-| Procedure CRUD + graph endpoint | 2 | Core |
-| Pydantic schemas (all) | 0 | Core |
-| AgentState TypedDict (with `execution_plan`, `plan_cursor`) | 0 | Core |
-| Procedure graph topological sort | 0 | Core |
-| Session accumulator (carry-forward merge) | 3 | Core |
-| Citation formatter + `verify_citations()` post-check | 2 | Core |
-
-### Infrastructure
-
-| Feature | Phase | Core / Enhancement |
-|---|---|---|
-| Docker Compose (all 4 services) | 0 | Core |
-| Redis authentication (`requirepass`) | 0 | Core |
-| CORS config: explicit origin allowlist (not `*`) | 0 | Core |
-| Alembic migration (7 tables) | 0 | Core |
-| Procedure seed data + dependency edges | 0 | Core |
-| MinIO bucket initialization with explicit PRIVATE policy | 2 | Core |
-| Redis session TTL (1 hour) + Fernet encryption at rest | 3 | Core |
-| Celery worker setup | 3 | Enhancement |
-
-### Data
-
-| Feature | Phase | Core / Enhancement |
-|---|---|---|
-| 3 residence procedures seeded in PostgreSQL | 0 | Core |
-| `procedure_dependencies` edges seeded (TTDN-003 → TTDN-001/002) | 0 | Core |
-| Real Vietnamese legal PDFs collected | 2 | Core |
-| Legal documents ingested into Qdrant (with `status: "active"` field) | 2 | Core |
-| Blank PDF form templates collected/created | 3 | Core |
-| Form templates uploaded to MinIO | 3 | Core |
-| Synthetic CCCD mock images generated | 3 | Core |
-
----
-
-## 5. Current Progress Status
-
-### 5.1 Completed ✅
+### 1.1 Completed ✅
 
 #### Infrastructure
 | Item | File | Confidence |
@@ -332,10 +46,15 @@ Residence procedure dependency edges (required before TASK-09):
 #### Backend — Implemented
 | Item | File | Confidence |
 |---|---|---|
-| FastAPI app factory + CORS + health | `app/main.py` (43 lines) | Implemented — **⚠️ CORS allow_origins likely `["*"]`, fix in TASK-0A** |
-| Settings from env (pydantic-settings) | `app/config.py` (43 lines) | Implemented |
-| Procedure graph — Kahn's topo sort | `app/core/procedure_graph.py` (147 lines) | Implemented & Tested |
-| AgentState TypedDict (all fields) | `app/agents/state.py` (60 lines) | Implemented — **⚠️ needs `execution_plan: list[str]` and `plan_cursor: int` fields added** |
+| FastAPI app factory + CORS + MinIO init + rate limit middleware | `app/main.py` | Implemented ✅ |
+| Settings from env (pydantic-settings) | `app/config.py` | Implemented |
+| Async DB session factory with rollback | `app/dependencies.py` | Implemented & Tested |
+| Shared slowapi Limiter module | `app/rate_limit.py` | Implemented & Tested |
+| MIME/extension/size file validation | `app/core/file_validator.py` | Implemented & Tested |
+| All 4 ORM models (UUID PKs, TIMESTAMPTZ, JSONB, ARRAY) | `app/models/*.py` | Implemented & Tested |
+| Legal doc versioning migration (`superseded_by` FK) | `alembic/versions/0002_legal_doc_versioning.py` | Implemented & Tested |
+| Procedure graph — Kahn's topo sort | `app/core/procedure_graph.py` | Implemented & Tested |
+| AgentState TypedDict (all fields) | `app/agents/state.py` | Implemented & Tested |
 | PersonalData schema w/ confidence | `app/schemas/personal_data.py` (41 lines) | Implemented |
 | ResidenceFormData + submission schemas | `app/schemas/form.py` (75 lines) | Implemented |
 | ChatRequest/Response/Citation schemas | `app/schemas/chat.py` (28 lines) | Implemented |
@@ -361,14 +80,14 @@ Residence procedure dependency edges (required before TASK-09):
 #### Backend — Scaffolded (stubs, not functional)
 | Item | File | Confidence |
 |---|---|---|
-| Chat route stub | `app/api/v1/chat.py` (15 lines) | Scaffolded |
-| Forms route stub | `app/api/v1/forms.py` (55 lines) | Scaffolded |
+| Chat route stub | `app/api/v1/chat.py` | Scaffolded |
+| Forms route stub | `app/api/v1/forms.py` | Scaffolded |
 | Documents/procedures/legal routes | `app/api/v1/` | Scaffolded |
-| Node stubs | `app/agents/nodes/*.py` | Scaffolded — **⚠️ topology changes in §2.2; plan_executor.py and node_registry.py are new files** |
-| All 5 LLM prompt stubs | `app/agents/prompts/*.py` | Scaffolded — **router_prompt.py output contract changes** |
-| LangGraph graph stub | `app/agents/graph.py` (6 lines) | Scaffolded — **will be fully rewritten in TASK-11** |
-| All 7 service stubs | `app/services/*.py` | Scaffolded |
-| All 4 ORM model stubs | `app/models/*.py` | Scaffolded — **⚠️ column definitions missing, blocks all DB work (TASK-0B)** |
+| enrichment_node, plan_executor_node, synthesizer_node | `app/agents/nodes/` | Scaffolded — implemented in TASK-09/TASK-10/TASK-11 |
+| rag_fn, form_filler_fn worker stubs | `app/agents/nodes/rag.py`, `form_filler.py` | Scaffolded |
+| LLM prompts: rag, form_mapping, synthesis | `app/agents/prompts/rag_prompt.py`, `form_mapping_prompt.py`, `synthesis_prompt.py` | Scaffolded |
+| LangGraph graph stub | `app/agents/graph.py` | Scaffolded — fully rewritten in TASK-11 |
+| procedure_planner_fn stub | `app/agents/nodes/procedure_planner.py` | Scaffolded — implemented in TASK-09 |
 
 #### Frontend — Implemented
 | Item | File | Confidence |
@@ -388,31 +107,22 @@ Residence procedure dependency edges (required before TASK-09):
 #### Documentation
 | Item | File | Confidence |
 |---|---|---|
-| Architecture blueprint | `docs/dichvucong_architecture_blueprint.md` (923 lines) | Documented — **§7 agent topology section outdated, update for plan_executor** |
+| Architecture blueprint | `docs/dichvucong_architecture_blueprint.md` | Documented |
 | UI analysis (colors, spacing, components) | `docs/dichvucong_ui_analysis.md` | Documented |
-| CLAUDE.md (architecture rules + skills index) | `CLAUDE.md` | Documented — **LangGraph node conventions section needs update for plan_executor topology** |
-| Agent spec files | `.claude/agents/*.md` | Documented — **router-agent.md must be updated before TASK-01 starts** |
+| CLAUDE.md (architecture rules + skills index) | `CLAUDE.md` | Documented ✅ |
+| Agent spec files | `.claude/agents/*.md` | Documented ✅ (router-agent.md updated for plan_executor topology) |
 | 6 hook scripts | `.claude/hooks/*.sh` | Implemented |
 | 10 skill files | `.claude/skills/` + `.agents/skills/` | Documented |
 
 ---
 
-### 5.2 In Progress 🔄
+### 1.2 In Progress 🔄
 
 Nothing is currently mid-implementation (all work is either complete or not yet started).
 
 ---
 
-### 5.3 Not Started 📋
-
-#### Phase 0 Gaps — Must Fix Before Phase 2
-
-- `app/dependencies.py` — `get_db()` async session factory using `async_sessionmaker` with `expire_on_commit=False` (**TASK-0A**)
-- `docker-compose.yml` — Redis `requirepass` authentication (**TASK-0A scope**)
-- `app/main.py` — CORS `allow_origins` set to explicit origin list (**TASK-0A scope**)
-- `app/models/procedure.py`, `form.py`, `legal_document.py`, `session.py` — full ORM column definitions matching `0001_initial_schema.py` (**TASK-0B**)
-- `ingestion/ingest_procedures.py` — add at least one `procedure_dependencies` edge (TTDN-003 → TTDN-001 or TTDN-002) (**TASK-0B scope**)
-- `app/agents/state.py` — add `execution_plan: list[str]`, `plan_cursor: int`, and `conversation_history: list[dict]` fields. `conversation_history` holds at most 6 entries; each entry is `{"role": "user" | "assistant", "content": str}`.
+### 1.3 Not Started 📋
 
 #### Backend Services (all 7 — skeletons exist but contain no logic)
 - `app/services/redis_consumer.py` — Celery worker / async consumer (**TASK-03 Enhancement — not yet implemented**)
@@ -421,37 +131,28 @@ Nothing is currently mid-implementation (all work is either complete or not yet 
 - `app/core/form_field_mapper.py` — LLM semantic mapping of PersonalData → form fields
 - `app/core/session_accumulator.py` — confidence-based PersonalData merge
 - `app/core/citation_formatter.py` — `format_citation(chunk) -> str` + `verify_citations(response_text, retrieved_chunks) -> str`
-- `app/core/file_validator.py` — **(new file)** MIME/size/extension validation (**TASK-0D**)
 
 #### LangGraph Graph Components
 
-**True graph nodes (4):**
-- `app/agents/nodes/router.py` — produces `execution_plan: list[str]` (multi-intent decomposition), `entities`, sets `plan_cursor = 0`
-- `app/agents/nodes/enrichment.py` — **(new file)** `enrichment_node`: runs after Router, calls `procedure_planner_fn` directly if `target_procedure_id` is set, no-op otherwise. No LLM call.
-- `app/agents/nodes/plan_executor.py` — **(new file)** loop node; reads `NODE_DEPENDENCIES`, groups steps into waves, runs waves with `asyncio.gather()`, enforces `MAX_PLAN_STEPS` circuit-breaker
-- `app/agents/nodes/synthesizer.py` — final response assembly
+**True graph nodes still to implement (3):**
+- `app/agents/nodes/enrichment.py` — `enrichment_node`: runs after Router, calls `procedure_planner_fn` directly if `target_procedure_id` is set AND `form_filler_fn` in plan, no-op otherwise. No LLM call. **(TASK-09)**
+- `app/agents/nodes/plan_executor.py` — loop node; reads `NODE_DEPENDENCIES`, calls workers via `NODE_REGISTRY`, enforces `MAX_PLAN_STEPS=8` circuit-breaker. **(TASK-11)**
+- `app/agents/nodes/synthesizer.py` — final response assembly with 6 response modes. **(TASK-10)**
 
 **Pre-flight enrichment helper (called by enrichment_node, not in NODE_REGISTRY):**
-- `app/agents/nodes/procedure_planner.py` — `procedure_planner_fn(state) -> dict` — DB query + topo sort → ExecutionPlan. Called by `enrichment_node` only.
+- `app/agents/nodes/procedure_planner.py` — `procedure_planner_fn(state) -> dict` — DB query + topo sort → ExecutionPlan. **(TASK-09)**
 
-**Worker functions (called by plan_executor via NODE_REGISTRY, never graph nodes):**
-- `app/agents/nodes/rag.py` — `rag_fn(state) -> dict` — hybrid retrieval + cited generation + `verify_citations()` call
-- `app/agents/nodes/ocr.py` — `ocr_fn(state) -> dict` — image → PersonalData pipeline
-- `app/agents/nodes/form_filler.py` — `form_filler_fn(state) -> dict` — field mapping + PDF fill to `tmp/` + promote on completion
+**Worker functions still to implement:**
+- `app/agents/nodes/rag.py` — `rag_fn(state) -> dict` — hybrid retrieval + cited generation + `verify_citations()` call. **(TASK-06)**
+- `app/agents/nodes/form_filler.py` — `form_filler_fn(state) -> dict` — field mapping + PDF fill to `tmp/` + promote on completion. **(TASK-08)**
 
-**Registry and graph:**
-- `app/agents/node_registry.py` — **(new file)** `NODE_REGISTRY: dict[str, Callable[[AgentState], dict]]` with keys `"rag_fn"`, `"ocr_fn"`, `"form_filler_fn"`; also exports `NODE_DEPENDENCIES: dict[str, list[str]]` — static dependency matrix driving parallel execution waves in plan_executor. The only file that imports all worker functions.
-- `app/agents/graph.py` — `build_graph()` with topology: Entry → router_node → enrichment_node → plan_executor_node (loop) → synthesizer_node → END; compiled with `recursion_limit=10`
+**Graph assembly:**
+- `app/agents/graph.py` — `build_graph()` with topology: Entry → router_node → enrichment_node → plan_executor_node (loop) → synthesizer_node → END; `recursion_limit=10`. **(TASK-11)**
 
-#### LLM Prompts (all 5 — stubs only; router_prompt output contract changes)
-- `app/agents/prompts/router_prompt.py` — structured prompt returning `RouterOutput` with `execution_plan: list[str]` and `entities: dict`
-- `app/agents/prompts/rag_prompt.py`
-- `app/agents/prompts/ocr_extraction_prompt.py` — prompt-injection hardened (XML tags + schema-only output)
-- `app/agents/prompts/form_mapping_prompt.py`
-- `app/agents/prompts/synthesis_prompt.py`
-
-#### Middleware
-- Rate limiting on `POST /api/v1/chat` — 10 requests/minute per `session_id` (**TASK-0C**)
+#### LLM Prompts (3 remaining stubs)
+- `app/agents/prompts/rag_prompt.py` — cited generation prompt; must enforce `[Điều X, NĐ YYY]` citation format. **(TASK-06)**
+- `app/agents/prompts/form_mapping_prompt.py` — semantic PersonalData → PDF field mapping. **(TASK-08)**
+- `app/agents/prompts/synthesis_prompt.py` — 6 response modes (procedure plan / form fill / legal Q&A / clarification / error / hybrid). **(TASK-10)**
 
 #### API Endpoints (functional implementations)
 - `POST /api/v1/chat` — functional streaming SSE; catches `GraphRecursionError`
@@ -460,66 +161,32 @@ Nothing is currently mid-implementation (all work is either complete or not yet 
 - `GET /api/v1/procedures/{id}/plan` — real DAG resolution
 
 #### Data
-- Real Vietnamese legal PDFs (0 collected, 0 ingested) — minimum: Luật Cư trú 2020, Nghị định 62/2021/NĐ-CP
+- Real Vietnamese legal PDFs — **4 collected ✅, converted to PDF ✅ (2026-03-26), 0 ingested into Qdrant** — Luật Cư trú 2020 (68/2020/QH14), NĐ 62/2021/NĐ-CP, NĐ 104/2022/NĐ-CP, TT 55/2021/TT-BCA; stored in `backend/data/legal_documents/`
 - Qdrant `legal_documents` collection (0 vectors) — chunks need `status: "active"` payload field
 - PDF form templates for 3 residence procedures (0 collected)
 - Synthetic CCCD images (0 generated)
 
 #### Tests
-- `tests/unit/test_router_node.py` — 20+ cases with Vietnamese government queries; verify `execution_plan` contents and ordering
-- `tests/unit/test_plan_executor.py` — verify loop terminates correctly, circuit-breaker fires at `MAX_PLAN_STEPS`
-- `tests/unit/test_dependencies.py` — verify `get_db()` yields `AsyncSession` cleanly
-- `tests/unit/test_file_validator.py` — verify all rejection cases
-- `tests/unit/test_legal_doc_versioning.py` — verify superseded chunks excluded from search
-- `tests/unit/test_form_mapper.py` — beyond placeholder
-- `tests/unit/test_session_accumulator.py` — beyond placeholder
-- `tests/unit/test_ocr_extraction.py` — not created; include injection-string test case
-- `tests/integration/test_rag_pipeline.py` — beyond placeholder
-- `tests/integration/test_agent_graph.py` — end-to-end with new plan_executor topology
+- `tests/unit/test_plan_executor.py` — verify loop terminates correctly, circuit-breaker fires at `MAX_PLAN_STEPS`. **(TASK-11)**
+- `tests/unit/test_form_mapper.py` — beyond placeholder (confidence-based merge, LLM cache check). **(TASK-08)**
+- `tests/unit/test_session_accumulator.py` — beyond placeholder (carry-forward merge, higher-confidence wins). **(TASK-08)**
+- `tests/integration/test_rag_pipeline.py` — ingest real PDF, retrieve chunk, verify citation metadata. **(TASK-14)**
+- `tests/integration/test_agent_graph.py` — end-to-end with plan_executor topology, mocked LLM. **(TASK-14)**
 
 ---
 
-## 6. Open Questions & Blockers
-
-| # | Question / Blocker | Blocks | Resolution |
-|---|---|---|---|
-| **Q1** | Which Vietnamese legal PDFs to ingest? | TASK-05, TASK-06 | Collect Luật Cư trú 2020, Nghị định 62/2021/NĐ-CP, Nghị định 144/2021/NĐ-CP from thuvienphapluat.vn. Download today — non-code prerequisite. |
-| **Q2** | Are real blank government PDF form templates available, or must we mock them? | TASK-08, TASK-15 | Create mock AcroForm PDFs using reportlab/pdfrw with realistic Vietnamese field names |
-| **Q3** | ANTHROPIC_API_KEY not set in `.env` | TASK-01, all agent nodes | Add key to `backend/.env` before starting Phase 2 work |
-| **Q4** | `procedure_dependencies` table is empty | TASK-09 | **Resolved (design):** TTDN-003 (Xác nhận thông tin cư trú) depends on TTDN-001 or TTDN-002. TTDN-001 may follow prior tạm trú under Luật Cư trú 2020 Điều 20. Seed edges in TASK-0B. |
-| **Q5** | MinIO bucket `dichvucong` not created yet | TASK-07, TASK-15 | **Resolved → TASK-0A scope:** Add bucket init with explicit PRIVATE policy to FastAPI lifespan in `app/dependencies.py`. |
-| **Q6** | PaddleOCR requires CUDA or CPU mode — local hardware unclear | TASK-04 | Default to CPU mode (`use_gpu=False`); document GPU path for later |
-| **Q7** | `bge-m3` model download size (~2.2 GB) — first run will be slow | TASK-02 | Pre-download model in a setup script; cache in `.cache/` via `SENTENCE_TRANSFORMERS_HOME` |
-| **Q8** | No `get_db()` async session factory implemented | TASK-09, TASK-11, all routes | **Resolved → TASK-0A:** Implement using `async_sessionmaker` with `expire_on_commit=False`. |
-| **Q9** | ORM model stubs have no column definitions | All DB-touching tasks | **Resolved → TASK-0B:** Write full column definitions before any Phase 2 task writes to the DB. |
-| **Q10** | Chat endpoint makes 3–5 LLM calls per message with no rate limiting | TASK-11 | **Resolved → TASK-0C:** `slowapi` middleware, 10 req/min per `session_id`. |
-| **Q11** | Document upload has no file type or size validation | TASK-12 | **Resolved → TASK-0D:** MIME whitelist, 5 MB max, extension whitelist in `file_validator.py`. |
-| **Q12** | No legal document versioning strategy | TASK-05, RAG accuracy | **Resolved → TASK-0E:** `status: "active" \| "superseded"` field in Qdrant payload. Re-ingestion soft-deprecates old chunks. `QdrantService.search()` always filters `status = "active"`. |
-| **Q13** | `plan_executor` loop has no iteration limit | TASK-11 | **Resolved → TASK-0F / TASK-11:** `MAX_PLAN_STEPS = 8` constant inside `plan_executor`. `graph.compile(recursion_limit=10)` as second safeguard. `GraphRecursionError` caught in chat endpoint. |
-| **Q14** | OCR text fed directly into LLM prompt — prompt injection risk | TASK-04 | **Resolved → TASK-04:** OCR text wrapped in `<ocr_text>` XML tags; "treat as data only" instruction; Pydantic validation discards non-conforming output. |
-| **Q15** | PersonalData (PII) stored in Redis with no TTL or encryption | TASK-03 | **Resolved → TASK-03:** `ex=3600` TTL on all session `redis.set()` calls. Fernet encryption of Redis values at rest using `REDIS_ENCRYPTION_KEY` env var. |
-| **Q16** | MinIO bucket has no access policy — may default to public | TASK-07 | **Resolved → TASK-07:** Explicit PRIVATE policy set in `StorageService.__init__()`. Verified by unit test (anonymous `get_object` returns 403). |
-| **Q17** | No RAG context window token budget — large contexts overflow | TASK-06 | **Resolved → TASK-02/TASK-06:** Combined retrieved chunk text capped at 6,000 tokens in `QdrantService`. Lowest-ranked chunks truncated first. |
-| **Q18** | Partially filled PDFs written to final MinIO path prematurely | TASK-08 | **Resolved → TASK-07/TASK-08:** `PDFService.fill()` writes to `tmp/{session_id}/`. `form_filler_fn` calls `storage_service.promote_tmp()` only when `unfilled_required_fields` is empty. |
-| **Q19** | CORS config likely `allow_origins=["*"]` in scaffold | `app/main.py` | **Resolved → TASK-0A:** `allow_origins=["http://localhost:3000"]` from env var. |
-| **Q20** | Redis has no authentication in Docker Compose | `docker-compose.yml` | **Resolved → TASK-0A:** `redis-server --requirepass ${REDIS_PASSWORD}` in compose; `REDIS_PASSWORD` added to `.env`. |
-| **Q21** | Citation enforcement is prompt-based only — hallucinated article numbers pass silently | TASK-06, `citation_formatter.py` | **Resolved → TASK-06:** `verify_citations(response_text, retrieved_chunks) -> str` cross-checks every `[Điều X, Nghị định YYY]` reference against retrieved payloads. Unverified citations flagged as `[unverified: ...]`. |
-| **Q22** | LangSmith wired in Phase 4 — no observability during routing development | All agent phases | **Resolved → TASK-01:** `LANGCHAIN_TRACING_V2=true` and `LANGCHAIN_API_KEY` wired in `LLMService.__init__()`. Active from first real invocation. |
-| **Q23** | Conversation history grows unboundedly across long sessions, inflating input tokens on every LLM call | All LLM-calling nodes (TASK-01, TASK-06, TASK-10) | **Resolved — Decision 3:** History capped at 6 turns in both `AgentState` and `SessionData`. `RedisService.save_session()` trims before write. Estimated saving: 3–4× reduction in history token spend for sessions beyond 10 turns. |
-
----
-
-## 7. Task Delegation Board
+## 2. Task Delegation Board
 
 ### Phase 0 Gaps — Complete Before Any Phase 2 Work ✅ COMPLETE
 
 ---
-### TASK-0A: Async DB Session Factory + Security Baseline Fixes
+### TASK-0A: Async DB Session Factory + Security Baseline Fixes ✅ COMPLETE
 **Phase:** 0 (pre-Phase 2 blocker)
 **Priority:** Critical
 **Estimated effort:** XS (2–3 hours)
 **Depends on:** Nothing
 **Can be parallelized with:** TASK-0B, TASK-0C, TASK-0D, TASK-0E
+**Completed:** 2026-03-19
 
 #### Goal
 Implement `get_db()` async session factory and fix the three infrastructure security baseline items that cost nothing to do now but are expensive to retrofit later.
@@ -536,11 +203,11 @@ Implement `get_db()` async session factory and fix the three infrastructure secu
 - `tests/unit/test_dependencies.py` — verify `get_db()` yields `AsyncSession` and closes cleanly on exception
 
 #### Definition of Done
-- [ ] `get_db()` yields an `AsyncSession` and rolls back correctly on exception
-- [ ] Redis container requires password authentication (verify with `redis-cli` without password → rejected)
-- [ ] CORS no longer uses `allow_origins=["*"]`
-- [ ] MinIO bucket initialized with explicit PRIVATE policy on backend startup
-- [ ] Unit test for `get_db()` passes with mocked engine
+- [x] `get_db()` yields an `AsyncSession` and rolls back correctly on exception
+- [x] Redis container requires password authentication (verify with `redis-cli` without password → rejected)
+- [x] CORS no longer uses `allow_origins=["*"]`
+- [x] MinIO bucket initialized with explicit PRIVATE policy on backend startup
+- [x] Unit test for `get_db()` passes with mocked engine
 
 #### Notes / Constraints
 - Use `async_sessionmaker` (not the legacy `sessionmaker`) — SQLAlchemy 2.0 async pattern
@@ -548,12 +215,13 @@ Implement `get_db()` async session factory and fix the three infrastructure secu
 ---
 
 ---
-### TASK-0B: ORM Model Column Definitions + Procedure DAG Seed Edges
+### TASK-0B: ORM Model Column Definitions + Procedure DAG Seed Edges ✅ COMPLETE
 **Phase:** 0 (pre-Phase 2 blocker)
 **Priority:** Critical
 **Estimated effort:** S (half day)
 **Depends on:** Nothing (schema already in `0001_initial_schema.py`)
 **Can be parallelized with:** TASK-0A
+**Completed:** 2026-03-19
 
 #### Goal
 Write the full SQLAlchemy ORM column definitions for all 4 model stubs and seed at least one real `procedure_dependencies` edge. The procedure DAG is the most critical data structure in the system — it must have real edges before TASK-09 can be tested meaningfully.
@@ -569,11 +237,11 @@ Write the full SQLAlchemy ORM column definitions for all 4 model stubs and seed 
 - `tests/unit/test_orm_models.py` — verify each model maps to the correct table and column types
 
 #### Definition of Done
-- [ ] All 4 ORM models importable without error
-- [ ] `procedure_dependencies` table has at least 1 edge after running the seed script
-- [ ] `procedure_graph.resolve_execution_plan()` returns a non-trivial ordered plan with the new edge
-- [ ] ORM column names match migration exactly (no drift)
-- [ ] `/review-schema` checklist passes on all 4 model files
+- [x] All 4 ORM models importable without error
+- [x] `procedure_dependencies` table has at least 1 edge after running the seed script
+- [x] `procedure_graph.resolve_execution_plan()` returns a non-trivial ordered plan with the new edge
+- [x] ORM column names match migration exactly (no drift)
+- [x] `/review-schema` checklist passes on all 4 model files
 
 #### Notes / Constraints
 - Do not modify `0001_initial_schema.py` — the ORM must match it, not the other way around
@@ -581,12 +249,13 @@ Write the full SQLAlchemy ORM column definitions for all 4 model stubs and seed 
 ---
 
 ---
-### TASK-0C: Rate Limiting Middleware
+### TASK-0C: Rate Limiting Middleware ✅ COMPLETE
 **Phase:** 0 (implement before TASK-11 chat endpoint goes live)
 **Priority:** High
 **Estimated effort:** XS (1–2 hours)
 **Depends on:** TASK-03 (Redis — rate limiter uses Redis backend)
 **Can be parallelized with:** TASK-0A, TASK-0B, and all Phase 2 tasks
+**Completed:** 2026-03-19
 
 #### Goal
 Add request rate limiting to the chat endpoint. Without throttling, a single client can exhaust API quota with 3–5 LLM calls per message.
@@ -602,10 +271,10 @@ Add request rate limiting to the chat endpoint. Without throttling, a single cli
 - `tests/unit/test_rate_limiting.py` — verify 429 returned after limit exceeded
 
 #### Definition of Done
-- [ ] 11th request within 60 seconds for the same `session_id` returns HTTP 429 with JSON error body
-- [ ] Rate limit is keyed per `session_id`, not per IP
-- [ ] `CHAT_RATE_LIMIT` env var configures the limit (default `"10/minute"`)
-- [ ] Unit test passes with mocked Redis limiter backend
+- [x] 11th request within 60 seconds for the same `session_id` returns HTTP 429 with JSON error body
+- [x] Rate limit is keyed per `session_id`, not per IP
+- [x] `CHAT_RATE_LIMIT` env var configures the limit (default `"10/minute"`)
+- [x] Unit test passes with mocked Redis limiter backend
 
 #### Notes / Constraints
 - Use `slowapi` — do not implement a custom token bucket
@@ -613,12 +282,13 @@ Add request rate limiting to the chat endpoint. Without throttling, a single cli
 ---
 
 ---
-### TASK-0D: File Upload Validation
+### TASK-0D: File Upload Validation ✅ COMPLETE
 **Phase:** 0 (implement before TASK-12 document upload endpoint)
 **Priority:** High
 **Estimated effort:** XS (1–2 hours)
 **Depends on:** Nothing
 **Can be parallelized with:** TASK-0A, TASK-0B, TASK-0C
+**Completed:** 2026-03-19
 
 #### Goal
 Add MIME type, file size, and extension validation to the document upload endpoint before it touches MinIO or the OCR pipeline.
@@ -635,11 +305,11 @@ Add MIME type, file size, and extension validation to the document upload endpoi
 - `tests/unit/test_file_validator.py` — test each rejection case
 
 #### Definition of Done
-- [ ] Uploading a `.exe` returns HTTP 422 before touching MinIO
-- [ ] Uploading a file > 5 MB returns HTTP 422
-- [ ] A JPEG renamed to `.pdf` is caught by MIME check (not extension-based)
-- [ ] Valid JPEG, PNG, PDF uploads pass validation
-- [ ] Unit tests cover all rejection cases
+- [x] Uploading a `.exe` returns HTTP 422 before touching MinIO
+- [x] Uploading a file > 5 MB returns HTTP 422
+- [x] A JPEG renamed to `.pdf` is caught by MIME check (not extension-based)
+- [x] Valid JPEG, PNG, PDF uploads pass validation
+- [x] Unit tests cover all rejection cases
 
 #### Notes / Constraints
 - Check actual MIME type via `python-magic`, not just the `Content-Type` header (clients can lie)
@@ -647,12 +317,13 @@ Add MIME type, file size, and extension validation to the document upload endpoi
 ---
 
 ---
-### TASK-0E: Legal Document Versioning Strategy
+### TASK-0E: Legal Document Versioning Strategy ✅ COMPLETE
 **Phase:** 0 (design decision required before TASK-05 ingestion)
 **Priority:** High
 **Estimated effort:** XS (1 hour)
 **Depends on:** Nothing
 **Can be parallelized with:** TASK-0A through TASK-0D
+**Completed:** 2026-03-19
 
 #### Goal
 Add a `status` field to the Qdrant chunk payload schema and update ingestion and search to use it. Implement soft-deprecation on re-ingestion so amended decrees can be updated without losing audit history.
@@ -668,10 +339,10 @@ Add a `status` field to the Qdrant chunk payload schema and update ingestion and
 - `tests/unit/test_legal_doc_versioning.py` — verify superseded chunks are excluded from search results
 
 #### Definition of Done
-- [ ] Search never returns chunks with `status = "superseded"` — verified by unit test
-- [ ] Re-running ingestion on an updated PDF marks old chunks superseded, not deleted
-- [ ] Alembic migration `0002` created and applies cleanly on top of `0001`
-- [ ] Unit test passes (mock Qdrant, verify `status` filter is always applied)
+- [x] Search never returns chunks with `status = "superseded"` — verified by unit test
+- [x] Re-running ingestion on an updated PDF marks old chunks superseded, not deleted
+- [x] Alembic migration `0002` created and applies cleanly on top of `0001`
+- [x] Unit test passes (mock Qdrant, verify `status` filter is always applied)
 
 #### Notes / Constraints
 - Do not hard-delete old chunks on re-ingestion — soft-deprecate for auditability
@@ -679,7 +350,7 @@ Add a `status` field to the Qdrant chunk payload schema and update ingestion and
 ---
 
 ---
-### TASK-0F: plan_executor Circuit-Breaker Design
+### TASK-0F: plan_executor Circuit-Breaker Design ⚠️ DESIGN COMPLETE — IMPLEMENTATION IN TASK-11
 **Phase:** 0 (design; implemented inside TASK-11)
 **Priority:** High
 **Estimated effort:** XS (document design; implementation is part of TASK-11)
@@ -1379,7 +1050,7 @@ Obtain or create blank PDF form templates for the 3 residence procedures and see
 - If real government forms unavailable, create mock PDFs with reportlab with realistic Vietnamese field names
 ---
 
-### Dependency Graph
+## 3. Dependency Graph
 
 ```
 TASK-0A (get_db + security baseline) ──┐
@@ -1422,7 +1093,7 @@ Parallelizable from day 1 (no dependencies):
 
 ---
 
-## 8. Recommended Next Actions
+## 4. Recommended Next Actions
 
 ~~**1. TASK-0A + TASK-0B — do today, in parallel**~~ ✅ Complete (2026-03-19)
 

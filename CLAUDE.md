@@ -6,6 +6,25 @@ A mock Vietnamese government public administration portal (dichvucong.gov.vn) wi
 
 ---
 
+## Project Documentation
+
+Before doing any work on this project, always read both of the following
+files in full:
+
+- `docs/PROJECT_CONTEXT.md` — project vision, system architecture,
+  pipeline descriptions, data models, technology stack, design decisions,
+  open questions. Read this to understand WHAT the system is and WHY
+  decisions were made.
+- `docs/PROJECT_STATUS.md` — version log, current progress, task cards
+  with DoD checklists, next actions. Read this to understand WHERE the
+  project is and WHAT to do next.
+
+Do not begin implementing any task until both files have been read. If
+the content of either file conflicts with an instruction in CLAUDE.md,
+flag the conflict explicitly rather than silently resolving it.
+
+---
+
 ## Current Implementation Status
 
 > Last updated: 2026-03-27. Update this section whenever a phase completes.
