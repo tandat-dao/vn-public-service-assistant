@@ -25,9 +25,9 @@ CATEGORY = {
 
 PROCEDURES = [
     {
-        "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTDN-001")),
+        "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTHC-001")),
         "category_id": CATEGORY["id"],
-        "code": "TTDN-001",
+        "code": "TTHC-001",
         "name": "Đăng ký thường trú",
         "description": (
             "Thủ tục đăng ký thường trú cho công dân muốn đăng ký nơi thường trú "
@@ -43,9 +43,9 @@ PROCEDURES = [
         "is_online": True,
     },
     {
-        "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTDN-002")),
+        "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTHC-002")),
         "category_id": CATEGORY["id"],
-        "code": "TTDN-002",
+        "code": "TTHC-002",
         "name": "Đăng ký tạm trú",
         "description": (
             "Thủ tục đăng ký tạm trú cho công dân lưu trú tại nơi không phải "
@@ -61,9 +61,9 @@ PROCEDURES = [
         "is_online": True,
     },
     {
-        "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTDN-003")),
+        "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTHC-003")),
         "category_id": CATEGORY["id"],
-        "code": "TTDN-003",
+        "code": "TTHC-003",
         "name": "Xác nhận thông tin về cư trú",
         "description": (
             "Thủ tục xác nhận thông tin cư trú (thường trú hoặc tạm trú) "
@@ -81,22 +81,22 @@ PROCEDURES = [
 ]
 
 # Dependency edges for the topological sort.
-# TTDN-003 (xac_nhan_cu_tru) requires proof of an existing registration:
-#   Edge 1 — mandatory:  TTDN-003 depends on TTDN-001 (thường trú)
-#   Edge 2 — conditional: TTDN-003 depends on TTDN-002 (tạm trú), only if the
+# TTHC-003 (xac_nhan_cu_tru) requires proof of an existing registration:
+#   Edge 1 — mandatory:  TTHC-003 depends on TTHC-001 (thường trú)
+#   Edge 2 — conditional: TTHC-003 depends on TTHC-002 (tạm trú), only if the
 #             citizen is a temporary resident (makes the plan non-trivial for testing).
 DEPENDENCIES: list[dict] = [
     {
         "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "dep-003-requires-001")),
-        "procedure_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTDN-003")),
-        "depends_on_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTDN-001")),
+        "procedure_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTHC-003")),
+        "depends_on_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTHC-001")),
         "is_mandatory": True,
         "condition": None,
     },
     {
         "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "dep-003-requires-002")),
-        "procedure_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTDN-003")),
-        "depends_on_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTDN-002")),
+        "procedure_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTHC-003")),
+        "depends_on_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTHC-002")),
         "is_mandatory": False,
         "condition": "Nếu là cư dân tạm trú",
     },

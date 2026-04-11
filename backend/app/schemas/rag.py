@@ -20,3 +20,4 @@ class DocumentChunk(BaseModel):
     procedure_tags: list[str]
     status: str
     rrf_score: float = 0.0
+    structured_summary: str | None = None

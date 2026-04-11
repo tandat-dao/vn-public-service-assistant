@@ -36,9 +36,11 @@ class TestReIngestionSupersedes:
     """Verify the versioning contract: existing chunks are superseded before
     new chunks are upserted."""
 
-    async def test_reingest_calls_batch_set_status_before_upsert(self):
+    @patch("app.services.qdrant_service.EmbedderService")
+    async def test_reingest_calls_batch_set_status_before_upsert(self, mock_embedder_cls):
         """scroll_by_document_number → batch_set_status("superseded") must
         happen before upsert_chunks in the re-ingestion flow."""
+        mock_embedder_cls.return_value = MagicMock()
         svc = QdrantService()
 
         call_order: list[str] = []
@@ -68,8 +70,10 @@ class TestReIngestionSupersedes:
             "supersede must happen before upsert"
         )
 
-    async def test_first_ingest_skips_supersede(self):
+    @patch("app.services.qdrant_service.EmbedderService")
+    async def test_first_ingest_skips_supersede(self, mock_embedder_cls):
         """When no existing chunks are found, batch_set_status must NOT be called."""
+        mock_embedder_cls.return_value = MagicMock()
         svc = QdrantService()
 
         supersede_called = False
@@ -115,16 +119,86 @@ class TestLegalDocumentModel:
 
 
 class TestIngestLegalDocs:
-    def test_empty_procedure_tags_raises_value_error(self):
-        """ingest() must reject an empty procedure_tags list immediately."""
-        from ingestion.ingest_legal_docs import ingest
+    @pytest.mark.asyncio
+    async def test_empty_procedure_tags_chunk_is_skipped_not_raised(self):
+        """Chunks with empty procedure_tags must be skipped (logged as WARNING), not raise.
 
-        with pytest.raises(ValueError, match="procedure_tags must not be empty"):
-            ingest("some/path.pdf", [])
+        The old stub raised ValueError. The full implementation soft-skips instead.
+        """
+        from ingestion.ingest_legal_docs import build_article_lookup, ingest_document
 
-    def test_non_empty_tags_raises_not_implemented(self):
-        """With valid tags, ingest() should reach the NotImplementedError stub."""
-        from ingestion.ingest_legal_docs import ingest
+        config = {
+            "domain": "housing",
+            "procedures": [
+                {
+                    "id": "TTHC-001",
+                    "name": "Test",
+                    "relevant_documents": [
+                        {
+                            "document_number": "68/2020/QH14",
+                            "location_scope": "VN",
+                            "relevant_articles": ["Điều 20"],
+                        }
+                    ],
+                }
+            ],
+        }
+        article_lookup = build_article_lookup(config)
+        # Manually remove procedure_ids to simulate an empty-tags scenario
+        article_lookup["68/2020/QH14"]["Điều 20"]["procedure_ids"] = []
 
-        with pytest.raises(NotImplementedError):
-            ingest("some/path.pdf", ["TTDN-001"])
+        raw_chunks = [
+            {
+                "article_number": "Điều 20",
+                "document_number": "68/2020/QH14",
+                "content": "Some content",
+                "char_count": 12,
+                "chapter_heading": None,
+            }
+        ]
+
+        mock_qdrant = AsyncMock()
+        mock_qdrant.scroll_by_document_number = AsyncMock(return_value=[])
+        mock_qdrant.batch_set_status = AsyncMock()
+        mock_qdrant.upsert = AsyncMock()
+
+        with patch(
+            "ingestion.ingest_legal_docs.parse_chunks_from_pdf",
+            return_value=raw_chunks,
+        ), patch("ingestion.ingest_legal_docs.upsert_scope_coverage", new_callable=AsyncMock):
+            summary = await ingest_document(
+                document_number="68/2020/QH14",
+                article_lookup=article_lookup,
+                domain="housing",
+                qdrant=mock_qdrant,
+                db=AsyncMock(),
+                dry_run=False,
+            )
+
+        # The chunk must be skipped, not raise
+        assert summary["chunks_skipped"] == 1
+        assert summary["chunks_ingested"] == 0
+        mock_qdrant.upsert.assert_not_called()
+
+    def test_unknown_document_number_raises_key_error(self):
+        """validate_document_file_map must raise KeyError for unknown document_numbers."""
+        from ingestion.ingest_legal_docs import validate_document_file_map
+
+        bad_config = {
+            "domain": "housing",
+            "procedures": [
+                {
+                    "id": "TTHC-001",
+                    "name": "Test",
+                    "relevant_documents": [
+                        {
+                            "document_number": "99/9999/UNKNOWN",
+                            "relevant_articles": ["Điều 1"],
+                        }
+                    ],
+                }
+            ],
+        }
+
+        with pytest.raises(KeyError, match="99/9999/UNKNOWN"):
+            validate_document_file_map(bad_config)

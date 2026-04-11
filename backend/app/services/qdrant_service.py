@@ -137,6 +137,7 @@ class QdrantService:
         query: str,
         procedure_id: str | None = None,
         top_k: int | None = None,
+        scope: str | None = None,
     ) -> list[DocumentChunk]:
         """Hybrid search: semantic (dense) + lexical (BM25), merged via RRF.
 
@@ -148,6 +149,11 @@ class QdrantService:
             procedure_id: Optional — restrict results to chunks tagged with
                           this procedure ID in their payload.
             top_k:        Maximum chunks to return (defaults to settings.RAG_TOP_K).
+            scope:        Optional — restrict results to chunks whose payload
+                          ``scope`` field exactly matches this scope code
+                          (e.g. "VN", "VN-HCM", "VN-HCM-26968"). Stacks with
+                          the status and procedure_id filters. When None, no
+                          scope filter is applied.
 
         Returns:
             List of DocumentChunk objects ordered by descending RRF score,
@@ -156,7 +162,7 @@ class QdrantService:
         if top_k is None:
             top_k = settings.RAG_TOP_K
 
-        search_filter = self._build_filter(procedure_id)
+        search_filter = self._build_filter(procedure_id, scope=scope)
 
         # ---- Stage 1: Dense semantic search ----
         embedding = await self.embedder.embed(query)
@@ -250,6 +256,7 @@ class QdrantService:
                     procedure_tags=payload.get("procedure_tags", []),
                     status=payload.get("status", "active"),
                     rrf_score=rrf_scores[pid],
+                    structured_summary=payload.get("structured_summary"),
                 )
             )
 
@@ -355,8 +362,17 @@ class QdrantService:
             must=[FieldCondition(key="status", match=MatchValue(value="active"))]
         )
 
-    def _build_filter(self, procedure_id: str | None) -> Filter:
-        """Build a Qdrant Filter combining status=active with optional procedure_id."""
+    def _build_filter(
+        self,
+        procedure_id: str | None,
+        scope: str | None = None,
+    ) -> Filter:
+        """Build a Qdrant Filter combining status=active with optional filters.
+
+        Args:
+            procedure_id: When set, adds a procedure_tags filter.
+            scope:        When set, adds an exact-match filter on payload["scope"].
+        """
         conditions: list[FieldCondition] = [
             FieldCondition(key="status", match=MatchValue(value="active"))
         ]
@@ -365,6 +381,13 @@ class QdrantService:
                 FieldCondition(
                     key="procedure_tags",
                     match=MatchAny(any=[procedure_id]),
+                )
+            )
+        if scope is not None:
+            conditions.append(
+                FieldCondition(
+                    key="scope",
+                    match=MatchValue(value=scope),
                 )
             )
         return Filter(must=conditions)

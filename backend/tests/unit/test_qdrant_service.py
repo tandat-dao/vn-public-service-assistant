@@ -92,7 +92,7 @@ async def test_search_always_applies_status_active_filter(service, mock_qdrant_c
 
 async def test_search_applies_procedure_id_filter_when_provided(service, mock_qdrant_client):
     """When procedure_id is given, filter must include a procedure_tags condition."""
-    await service.search("query", procedure_id="TTDN-001")
+    await service.search("query", procedure_id="TTHC-001")
 
     call_kwargs = mock_qdrant_client.search.call_args.kwargs
     f = call_kwargs["query_filter"]
@@ -103,7 +103,7 @@ async def test_search_applies_procedure_id_filter_when_provided(service, mock_qd
         if getattr(c, "key", None) == "procedure_tags"
     ]
     assert len(tag_conditions) == 1
-    assert "TTDN-001" in tag_conditions[0].match.any
+    assert "TTHC-001" in tag_conditions[0].match.any
 
 
 # ---------------------------------------------------------------------------
@@ -211,7 +211,7 @@ async def test_upsert_always_sets_status_active(service, mock_qdrant_client, moc
         "document_number": "62/2021/NĐ-CP",
         "article_number": "Điều 5",
         "content": "Some legal text",
-        "procedure_tags": ["TTDN-001"],
+        "procedure_tags": ["TTHC-001"],
         "status": "superseded",  # should be overridden to "active"
     }
     mock_embedder.embed.return_value = [0.1] * 1024

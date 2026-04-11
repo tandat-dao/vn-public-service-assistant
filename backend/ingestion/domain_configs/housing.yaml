@@ -1,0 +1,43 @@
+# Document contains configuration for procedures and related legal articles
+# Articles not listed here will not be tagged with procedure_tags during
+# ingestion. To add articles later, update this file and re-run the
+# ingestion script — re-ingestion handles soft-deprecation automatically.
+
+domain: housing
+
+procedures:
+  - id: "TTHC-001"
+    name: "Đăng ký thường trú"
+    relevant_documents:
+      - document_number: "68/2020/QH14"
+        relevant_articles: ["Điều 20", "Điều 21", "Điều 22", "Điều 23", "Điều 24"]
+      - document_number: "62/2021/NĐ-CP"
+        relevant_articles: ["Điều 5", "Điều 6", "Điều 7"]
+      - document_number: "55/2021/TT-BCA"
+        relevant_articles: ["Điều 7", "Điều 8", "Điều 9", "Điều 11", "Điều 12", "Điều 18", "Điều 20"]
+      - document_number: "104/2022/NĐ-CP"
+        relevant_articles: ["Điều 14"]
+
+  - id: "TTHC-002"
+    name: "Đăng ký tạm trú"
+    relevant_documents:
+      - document_number: "68/2020/QH14"
+        relevant_articles: ["Điều 27", "Điều 28", "Điều 29"]
+      - document_number: "62/2021/NĐ-CP"
+        relevant_articles: ["Điều 5", "Điều 8"]
+      - document_number: "55/2021/TT-BCA"
+        relevant_articles: ["Điều 13", "Điều 14", "Điều 19", "Điều 20"]
+      - document_number: "104/2022/NĐ-CP"
+        relevant_articles: ["Điều 14"]
+
+  - id: "TTHC-003"
+    name: "Xác nhận thông tin về cư trú"
+    relevant_documents:
+      - document_number: "68/2020/QH14"
+        relevant_articles: ["Điều 19", "Điều 33"]
+      - document_number: "62/2021/NĐ-CP"
+        relevant_articles: ["Điều 4"]
+      - document_number: "55/2021/TT-BCA"
+        relevant_articles: ["Điều 17"]
+      - document_number: "104/2022/NĐ-CP"
+        relevant_articles: ["Điều 14"]
