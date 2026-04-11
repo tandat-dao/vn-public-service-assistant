@@ -6,12 +6,19 @@
 
 # DichVuCong AI Assistant — System Context & Architecture
 
+**Version 2.2 | Updated 2026-03-29**
+
+> **What changed in v2.2:** P14 (MMR token diversity) and P15 (cross-encoder reranking) added to §6 as architectural considerations with explicit upgrade conditions. MMR note added to §2.3 RAG pipeline. Feature roadmap updated with token optimization features and cross-encoder condition clarified. Boilerplate removal, Docling hierarchy prefix, threshold-based stopping, and structured summary extraction added to roadmap.
+
+> **What changed in v2.1:** Scientific contribution statement added to System Vision. Hierarchical jurisdiction architecture added as §2.6. AgentState updated with domain and filing_jurisdiction fields. Feature roadmap expanded for multi-domain scope. Known Problems and Architectural Decisions section added (P1–P13).
+
 ## Table of Contents
 1. [System Vision](#1-system-vision)
 2. [System Architecture](#2-system-architecture)
 3. [Technology Stack](#3-technology-stack)
 4. [Feature Roadmap](#4-feature-roadmap)
 5. [Open Questions & Blockers](#5-open-questions--blockers)
+6. [Known Problems & Architectural Decisions](#6-known-problems-and-architectural-decisions)
 
 ---
 
@@ -19,9 +26,36 @@
 
 DichVuCong AI Assistant is a mock Vietnamese government public administration portal that adds a conversational AI layer on top of an otherwise static service directory. The core problem it solves is **navigational complexity**: Vietnamese citizens must complete multiple interdependent administrative procedures in a specific order, and the legal basis for each step is scattered across dozens of decrees and circulars. Today, citizens either hire intermediaries or make repeated trips to government offices due to missing prerequisites. This system removes that friction.
 
-The system is built around a **procedure dependency graph** (DAG) stored in PostgreSQL. All AI capabilities — RAG, OCR, and form auto-fill — exist to serve that graph: RAG answers legal questions about *why* a procedure requires certain documents, OCR extracts personal data from identity documents so it can be *carried forward* into form fields, and form fill automates the tedious transcription of data across multiple government PDF templates. The AI assistant acts as a guide that knows the entire procedural landscape and can route a citizen from their first question to a fully filled form package, citing the exact legal articles at each step.
+The system is built around a **procedure dependency graph** (DAG) stored in PostgreSQL. All AI capabilities — RAG, OCR, and form auto-fill — exist to serve that graph: RAG answers legal questions about *why* a procedure requires certain documents, OCR extracts personal data from identity documents so it can be *carried forward* into form fields, and form fill automates the tedious transcription of data across multiple government PDF templates.
 
-The target audience is Vietnamese citizens interacting with administrative procedures such as birth registration, residence registration, business formation, and land transactions. The primary AI value proposition over a plain portal is threefold: (1) **cited answers** — every legal claim traces to a specific article number in a real decree; (2) **automatic dependency resolution** — the system tells you what you need *before* you need it; (3) **carry-forward form fill** — data extracted from one document (e.g., CCCD) is automatically propagated into every subsequent form in the procedure chain, without the user re-typing it.
+### Scientific Contribution
+
+The system makes the following architectural claim, validated empirically:
+
+**A single unified pipeline architecture is sufficient to handle both procedural dependency resolution (DAG-based) and hierarchical jurisdiction scoping (tree-based) for Vietnamese administrative procedures, and this architecture is domain-agnostic with respect to procedure type.**
+
+This is validated by demonstrating one complete hierarchical branch (national → city → ward scope) per procedure domain across three domains: housing (nhà ở), civil registration (hộ tịch), and business registration (kinh doanh). Each branch uses a single representative procedure. This demonstrates that scaling within a domain (adding more procedures) is a data and ingestion task, not an architectural change, and that scaling across domains requires only router prompt coverage and correctly tagged legal documents.
+
+### Hierarchical Jurisdiction
+
+Vietnamese administrative law operates at multiple geographic levels. A national decree sets the baseline rule. A Ho Chi Minh City circular may override it for city residents. A ward-level decision may further override it for ward residents. According to Luật Ban hành văn bản quy phạm pháp luật 2015, Điều 156, the narrower geographic scope always takes precedence. The system enforces this automatically through jurisdiction-scoped Qdrant filtering — the correct rule reaches the LLM without the LLM needing to adjudicate which jurisdiction applies.
+
+### Current Scope
+
+**Phase 1 (core demo — housing domain):**
+Three residence registration procedures as the primary validation domain:
+- Đăng ký thường trú (TTHC-001)
+- Đăng ký tạm trú (TTHC-002)
+- Xác nhận thông tin về cư trú (TTHC-003)
+
+These three procedures, fully implemented end-to-end with hierarchical jurisdiction support at VN → VN-HCM → VN-HCM-[ward] scope, constitute the runnable demo. All multi-domain and scientific validation work begins after this demo is stable.
+
+**Phase 2 (multi-domain validation — after Phase 1 demo complete):**
+One representative procedure per additional domain, each with a full three-level hierarchical branch:
+- Civil registration (hộ tịch): Đăng ký khai sinh
+- Business registration (kinh doanh): Đăng ký hộ kinh doanh
+
+**Not in scope:** UI/UX design, full national ward coverage, production security hardening, legal correctness certification.
 
 ---
 
@@ -97,14 +131,16 @@ The Router Node decomposes the user message into an ordered `execution_plan: lis
 **AgentState additions for plan_executor topology** — new fields required in `app/agents/state.py`:
 
 ```python
-# New routing control fields (add to existing AgentState TypedDict)
-execution_plan: list[str]    # e.g. ["ocr_fn", "form_filler_fn"] — set by Router, read by plan_executor
-                             # Valid entries: "rag_fn", "ocr_fn", "form_filler_fn" ONLY.
-                             # "procedure_planner_fn" is NOT a valid execution_plan entry —
-                             # procedure resolution happens in enrichment_node before plan_executor.
-plan_cursor: int             # current index into execution_plan — incremented by plan_executor only
-conversation_history: list[dict]  # last 6 turns only — trimmed by RedisService.save_session()
-                                   # each entry: {"role": "user"|"assistant", "content": str}
+    # --- Routing (plan_executor topology) ---
+    execution_plan: list[str]    # e.g. ["ocr_fn", "form_filler_fn"]
+    plan_cursor: int             # incremented by plan_executor only
+    entities: dict[str, Any]
+    domain: str | None           # "housing"|"civil_registration"|
+                                 # "business_registration"|None
+                                 # set by router, None = ambiguous
+    filing_jurisdiction: str | None  # e.g. "VN-HCM-26968"
+                                     # set by confirmed user input,
+                                     # never by raw OCR alone
 ```
 
 Conversation history in `AgentState` holds at most the last 6 turns. Older turns are dropped before the state is passed to any LLM call. The full history is never persisted — only the current window is stored in Redis `SessionData`.
@@ -140,6 +176,8 @@ At query time:
      → Citations not in retrieved chunks are flagged as [unverified: ...], not silently passed
 ```
 
+> **Note on Maximal Marginal Relevance (MMR):** MMR-based result diversification was evaluated as a candidate mechanism to reduce near-duplicate chunk retrieval within the 6,000-token context budget. It was deferred because article-boundary chunking produces naturally distinct chunks per article, making token budget exhaustion the primary bottleneck rather than content redundancy at current corpus size (< 500 chunks). The RRF merge already provides light diversity by combining dense and BM25 rankings. See P14 for the upgrade condition under which MMR should be revisited.
+
 ### 2.4 OCR Pipeline
 
 ```
@@ -168,9 +206,92 @@ PostgreSQL adjacency list (procedure_dependencies table)
   → Returns: ordered list[ProcedureStep] with status (PENDING/COMPLETED/BLOCKED)
 
 Residence procedure dependency edges (required before TASK-09):
-  → TTDN-003 (Xác nhận thông tin cư trú) requires TTDN-001 or TTDN-002
-  → TTDN-001 (Đăng ký thường trú) may follow TTDN-002 under Luật Cư trú 2020 Điều 20
+  → TTHC-003 (Xác nhận thông tin cư trú) requires TTHC-001 or TTHC-002
+  → TTHC-001 (Đăng ký thường trú) may follow TTHC-002 under Luật Cư trú 2020 Điều 20
   → See Q4 resolution notes in Section 5
+```
+
+### 2.6 Hierarchical Jurisdiction Architecture
+
+#### Scope Code Convention
+
+Geographic jurisdiction is encoded as a hyphen-delimited hierarchy following ISO 3166-2 conventions extended to ward level:
+
+- `VN` — national rule (applies everywhere)
+- `VN-HCM` — Ho Chi Minh City rule (overrides VN for city residents)
+- `VN-HCM-[code]` — ward-level rule (overrides VN-HCM for ward residents)
+
+Where `[code]` is the official Ministry of Home Affairs administrative unit code (mã đơn vị hành chính), not the ward name string. Ward names are stored in the `administrative_units` PostgreSQL lookup table and resolved from OCR-parsed address strings via fuzzy matching.
+
+#### Ancestor Chain Expansion
+
+At query time, `rag_fn` calls `expand_scope_hierarchy()` from `app/core/jurisdiction.py` to build the full ancestor list before constructing the Qdrant filter:
+
+```python
+# app/core/jurisdiction.py
+def expand_scope_hierarchy(scope: str) -> list[str]:
+    parts = scope.split("-")
+    return ["-".join(parts[:i+1]) for i in range(len(parts))]
+# "VN-HCM-26968" → ["VN", "VN-HCM", "VN-HCM-26968"]
+```
+
+#### Cascade Fallback
+
+`rag_fn` queries Qdrant in order from most specific to broadest scope, stopping when results are found. Each fallback level is logged. The `scope_used` metadata field is passed to the Synthesizer so the user sees which level of rules applied:
+
+```
+Query with ["VN", "VN-HCM", "VN-HCM-26968"]
+  → Try VN-HCM-26968 first → results found? → use these
+  → No results → try VN-HCM → results found? → use these + log fallback
+  → No results → try VN → use these + log fallback
+  → No results at any level → add to errors[]
+```
+
+User-facing message when fallback occurs: "Chưa tìm thấy quy định cấp phường — đang áp dụng quy định cấp thành phố."
+
+#### Jurisdiction Determination
+
+Filing jurisdiction (`filing_jurisdiction`) is a first-class field in `SessionData`, determined by procedure-driven confirmation — not by raw OCR output alone. When a user selects a procedure, the Synthesizer asks "Bạn đang nộp hồ sơ tại phường/xã nào?" and pre-fills the answer from the OCR-parsed address as a suggestion. The confirmed jurisdiction is stored separately from `PersonalData.permanent_address`.
+
+`filing_jurisdiction` in `SessionData` is always set by explicit user action or confirmed OCR — never by raw OCR parsing alone.
+
+#### Scope Coverage Tracking
+
+The `scope_coverage` PostgreSQL table records which `(location_scope, procedure_id, domain)` combinations have been ingested. The ingestion script upserts a row on every ingest run. This table enables:
+- Knowing which scopes are available before querying Qdrant
+- Distinguishing "no ward rule exists" from "ward rule not ingested yet"
+- Benchmark evaluation: skipping unavailable combinations rather than counting them as pipeline failures
+
+```sql
+scope_coverage (
+    location_scope  VARCHAR(50),
+    procedure_id    UUID REFERENCES procedures(id),
+    domain          VARCHAR(50),
+    chunk_count     INTEGER,
+    last_ingested_at TIMESTAMPTZ,
+    PRIMARY KEY (location_scope, procedure_id)
+)
+```
+
+#### Domain Classification
+
+Each procedure belongs to exactly one domain. Domain is a first-class column on the `procedures` table and a first-class field in `AgentState` and `SessionData`. The router extracts `domain` as a structured output field alongside `execution_plan` and `entities`. If domain is ambiguous from the query alone, the router sets `domain: None` and the Synthesizer asks for clarification.
+
+Valid domain values: `"housing"`, `"civil_registration"`, `"business_registration"`.
+
+#### Ingestion Metadata Per Domain
+
+`procedure_tags` assignment is driven by per-domain configuration files at `ingestion/domain_configs/[domain].yaml`. Each config explicitly maps procedure IDs to the legal document articles relevant to that procedure. This makes tagging auditable and reproducible — the ingestion script never infers tags automatically.
+
+```yaml
+# ingestion/domain_configs/housing.yaml
+domain: housing
+procedures:
+  - id: "TTHC-001"
+    name: "Đăng ký thường trú"
+    relevant_documents:
+      - document_number: "68/2020/QH14"
+        relevant_articles: ["Điều 20", "Điều 21", "Điều 22"]
 ```
 
 ---
@@ -235,7 +356,24 @@ Residence procedure dependency edges (required before TASK-09):
 | Multi-turn conversation history (windowed, last 6 turns — caps input token growth) | 4 | Core |
 | Session persistence across turns (Redis, TTL, encrypted) | 4 | Core |
 | Rate limiting middleware on `/chat` endpoint | 4 | Core |
-| Cross-encoder reranker | 4 | Enhancement |
+| Cross-encoder reranker — implement only if TASK-18 Measurement 5 shows citation recall below 80% and root cause is confirmed as retrieval precision (see P15) | 4 | Enhancement |
+| MMR result diversification — implement only if corpus exceeds 2,000 chunks AND citation recall below 80% AND root cause confirmed as redundant chunk selection (see P14) | 4 | Enhancement |
+| Boilerplate removal before Docling parsing (regex cleanup of headers, footers, preamble) | 2 | Core |
+| Docling hierarchy prefix on chunks (chapter/section context, no LLM call) | 2 | Core |
+| Threshold-based stopping in _apply_token_budget() (min_score_threshold parameter) | 3 | Core |
+| Structured summary field in Qdrant payload (obligation/condition/consequence, offline) | 2 | Core |
+| Hierarchical jurisdiction scope filtering (location_scope metadata) | 3 | Core |
+| Ancestor chain expansion utility (expand_scope_hierarchy) | 3 | Core |
+| Cascade fallback with scope_used metadata | 3 | Core |
+| Administrative units lookup table (name → official code) | 3 | Core |
+| Domain classification in router output | 3 | Core |
+| Domain-diverse router few-shot examples (3 domains) | 3 | Core |
+| scope_coverage tracking table | 3 | Core |
+| Out-of-scope procedure validation in procedure_planner_fn | 2 | Core |
+| verify_citations() format-agnostic chunk payload matching | 3 | Core |
+| Multi-domain ingestion pipeline with domain_configs YAML | 4 | Core |
+| Evaluation dataset — 3 domains, 3 tiers | 4 | Core |
+| Benchmark suite — 8 measurements across all domains | 4 | Core |
 
 ### Frontend
 
@@ -289,12 +427,18 @@ Residence procedure dependency edges (required before TASK-09):
 | Feature | Phase | Core / Enhancement |
 |---|---|---|
 | 3 residence procedures seeded in PostgreSQL | 0 | Core |
-| `procedure_dependencies` edges seeded (TTDN-003 → TTDN-001/002) | 0 | Core |
+| `procedure_dependencies` edges seeded (TTHC-003 → TTHC-001/002) | 0 | Core |
 | Real Vietnamese legal PDFs collected | 2 | Core |
 | Legal documents ingested into Qdrant (with `status: "active"` field) | 2 | Core |
 | Blank PDF form templates collected/created | 3 | Core |
 | Form templates uploaded to MinIO | 3 | Core |
 | Synthetic CCCD mock images generated | 3 | Core |
+| administrative_units lookup table seeded (test wards) | 3 | Core |
+| domain_configs YAML files (3 domains) | 3 | Core |
+| Civil registration legal documents (VN + VN-HCM + ward) | 4 | Core |
+| Business registration legal documents (VN + VN-HCM + ward) | 4 | Core |
+| One representative procedure per new domain seeded | 4 | Core |
+| Evaluation dataset (labeled queries, citation ground truth) | 4 | Core |
 
 ---
 
@@ -305,7 +449,7 @@ Residence procedure dependency edges (required before TASK-09):
 | **Q1** | Which Vietnamese legal PDFs to ingest? | TASK-05, TASK-06 | Collect Luật Cư trú 2020, Nghị định 62/2021/NĐ-CP, Nghị định 144/2021/NĐ-CP from thuvienphapluat.vn. Download today — non-code prerequisite. |
 | **Q2** | Are real blank government PDF form templates available, or must we mock them? | TASK-08, TASK-15 | Create mock AcroForm PDFs using reportlab/pdfrw with realistic Vietnamese field names |
 | **Q3** | ANTHROPIC_API_KEY not set in `.env` | TASK-01, all agent nodes | Add key to `backend/.env` before starting Phase 2 work |
-| **Q4** | `procedure_dependencies` table is empty | TASK-09 | **Resolved (design):** TTDN-003 (Xác nhận thông tin cư trú) depends on TTDN-001 or TTDN-002. TTDN-001 may follow prior tạm trú under Luật Cư trú 2020 Điều 20. Seed edges in TASK-0B. |
+| **Q4** | `procedure_dependencies` table is empty | TASK-09 | **Resolved (design):** TTHC-003 (Xác nhận thông tin cư trú) depends on TTHC-001 or TTHC-002. TTHC-001 may follow prior tạm trú under Luật Cư trú 2020 Điều 20. Seed edges in TASK-0B. |
 | **Q5** | MinIO bucket `dichvucong` not created yet | TASK-07, TASK-15 | **Resolved → TASK-0A scope:** Add bucket init with explicit PRIVATE policy to FastAPI lifespan in `app/dependencies.py`. |
 | **Q6** | PaddleOCR requires CUDA or CPU mode — local hardware unclear | TASK-04 | Default to CPU mode (`use_gpu=False`); document GPU path for later |
 | **Q7** | `bge-m3` model download size (~2.2 GB) — first run will be slow | TASK-02 | Pre-download model in a setup script; cache in `.cache/` via `SENTENCE_TRANSFORMERS_HOME` |
@@ -325,3 +469,121 @@ Residence procedure dependency edges (required before TASK-09):
 | **Q21** | Citation enforcement is prompt-based only — hallucinated article numbers pass silently | TASK-06, `citation_formatter.py` | **Resolved → TASK-06:** `verify_citations(response_text, retrieved_chunks) -> str` cross-checks every `[Điều X, Nghị định YYY]` reference against retrieved payloads. Unverified citations flagged as `[unverified: ...]`. |
 | **Q22** | LangSmith wired in Phase 4 — no observability during routing development | All agent phases | **Resolved → TASK-01:** `LANGCHAIN_TRACING_V2=true` and `LANGCHAIN_API_KEY` wired in `LLMService.__init__()`. Active from first real invocation. |
 | **Q23** | Conversation history grows unboundedly across long sessions, inflating input tokens on every LLM call | All LLM-calling nodes (TASK-01, TASK-06, TASK-10) | **Resolved — Decision 3:** History capped at 6 turns in both `AgentState` and `SessionData`. `RedisService.save_session()` trims before write. Estimated saving: 3–4× reduction in history token spend for sessions beyond 10 turns. |
+
+---
+
+## 6. Known Problems and Architectural Decisions
+
+This section documents design problems identified during architecture review and the decisions made to address them. Each problem includes the chosen approach and the condition under which it should be upgraded.
+
+### P1 — Jurisdiction signal reliability
+OCR-parsed address cannot be the sole signal for filing jurisdiction. Address on CCCD reflects permanent residence, not filing location, and OCR confidence on address fields is not a proxy for address validity.
+
+**Decision:** Procedure-driven confirmation. `filing_jurisdiction` is stored as a first-class `SessionData` field set by explicit user confirmation. OCR address pre-fills the suggestion only.
+
+**Upgrade condition:** When OCR confidence on ward field is measurably above 0.90 for returning users with prior confirmed jurisdiction, skip confirmation silently.
+
+### P2 — Silent failure on empty Qdrant results
+If no documents are ingested for a given scope/procedure combination, Qdrant returns zero chunks and the system either hallucinates or produces an unexplained empty response.
+
+**Decision:** Cascade fallback with explicit logging. Query from most specific scope to broadest. Surface `scope_used` to user. Add to `errors[]` if all scope levels return empty.
+
+**Upgrade condition:** Once TASK-05 ingestion is complete, add `scope_coverage` table to replace cascade trial-and-error with a single lookup.
+
+### P3 — LLM as primary jurisdiction arbiter
+Asking the LLM to apply narrower-scope-wins across conflicting documents is unreliable and unverifiable.
+
+**Decision:** Filter-first architecture. Qdrant filter handles primary jurisdiction selection. Prompt instruction is safety net only. Article-number deduplication added when two chunks from different scopes share the same `(article_number, document_number)` within the same `procedure_tag`.
+
+**Upgrade condition:** Build deduplication only after TASK-17 ingestion is complete and conflicts are observed in >10% of evaluation test cases.
+
+### P4 — Missing ancestor chain computation
+Qdrant filter requires a pre-computed ancestor list. No utility existed.
+
+**Decision:** `expand_scope_hierarchy()` in `app/core/jurisdiction.py`. Pure Python, zero infrastructure dependencies, consistent with CLAUDE.md Rule 5.
+
+**Upgrade condition:** Add validation against `administrative_units` table when scope code count exceeds ~20.
+
+### P5 — Non-standardized ward codes
+Ward names from OCR are ambiguous — "Phường Tân Hòa" exists in multiple cities. Name-based codes are not stable across administrative boundary changes.
+
+**Decision:** Official Ministry of Home Affairs administrative unit codes as canonical identifiers. `administrative_units` PostgreSQL lookup table maps names ↔ codes. OCR-parsed name → fuzzy match → official code.
+
+**Upgrade condition:** Add common abbreviation expansion ("P." → "Phường", "Q." → "Quận", "X." → "Xã") if clean match rate on real OCR output falls below 90%.
+
+### P6 — Out-of-scope procedure validation
+If a user requests a procedure not in the database, `procedure_planner_fn` returns an empty plan silently. `rag_fn` returns empty chunks silently. Neither surfaces a useful error.
+
+**Decision:** Two-layer validation. Layer 1 in `procedure_planner_fn`: existence check, return named error if zero DB results. Layer 2 in `rag_fn`: check for empty chunks after filtering, add to `errors[]` if empty.
+
+**Upgrade condition:** Once three domains are seeded, add supported procedures registry query at session initialization so the Synthesizer can redirect users proactively rather than failing at query time.
+
+### P7 — Router prompt domain bias
+8 few-shot examples, all housing domain. Router accuracy on non-housing queries is untested and likely degraded.
+
+**Decision:** Add 4 domain-diverse examples per new domain before any multi-domain testing. Measure router accuracy per domain against a labeled query set of ~20 queries per domain (Measurement 6).
+
+**Upgrade condition:** If router accuracy on any domain falls below 85% after adding examples, add domain selection at session start as a UX pattern rather than relying on router classification.
+
+### P8 — procedure_tags assignment inconsistency across domains
+Tags inferred automatically may be wrong for non-housing domains. Wrong tags make chunks unretrievable in filtered search silently.
+
+**Decision:** Per-domain YAML configuration files at `ingestion/domain_configs/[domain].yaml` explicitly map procedure IDs to relevant document articles. Ingestion script reads config — never infers tags automatically.
+
+**Upgrade condition:** If procedure count exceeds 50, add LLM-assisted draft tagging at ingestion time with human review before marking chunks `status: "active"`.
+
+### P9 — verify_citations() citation format variation
+Housing decrees use `[Điều X, Nghị định YYY/YYYY/NĐ-CP]`. Luật uses `[Điều X, Luật YYY năm YYYY]`. Older circulars use `[Khoản X, Điều Y, Thông tư Z]`. Format-specific regex produces false positives and false negatives on non-housing domains.
+
+**Decision:** Refactor `verify_citations()` to match against chunk payload `(article_number, document_number)` pairs, not against citation string format. Format-agnostic matching works correctly across all document types.
+
+**Upgrade condition:** None — this refactor should be completed before TASK-17 multi-domain ingestion, not after.
+
+### P10 — Missing domain classification in data model
+No `domain` concept in procedures table, AgentState, or SessionData. Without it, multi-domain disambiguation is impossible and the scope_coverage table cannot be keyed correctly.
+
+**Decision:** `domain` column added to `procedures` table in Alembic migration 0003. `domain` field added to `AgentState` and `SessionData`. Router extended to output `domain` as a structured field.
+
+**Upgrade condition:** If domain count exceeds 10, replace string column with foreign key to a `domains` metadata table.
+
+### P11 — Scope coverage gaps during active development
+During TASK-17, coverage is partial. Test failures are ambiguous — pipeline bug or data gap cannot be distinguished without a coverage map.
+
+**Decision:** `scope_coverage` table built as part of TASK-16, not as a later upgrade. Ingestion script upserts coverage rows on every run. Benchmark evaluation queries coverage table first and skips unavailable combinations rather than counting them as failures.
+
+### P12 — Cross-domain router confusion on ambiguous queries
+"Đăng ký" appears in housing, civil registration, and business registration. Without domain context, router may misclassify intent.
+
+**Decision:** Router outputs `domain: str | None`. When None, Synthesizer asks for clarification before proceeding. Domain stored in `SessionData` for session lifetime after first disambiguation.
+
+**Upgrade condition:** If domain count exceeds 5, add explicit domain selection at session start as primary mechanism, reducing reliance on router classification.
+
+### P13 — Evaluation dataset construction methodology
+Self-labeled ground truth risks circular validation. Need explicit methodology distinguishing what requires legal expertise from what does not.
+
+**Decision:** Three-tier ground truth structure.
+- Tier 1 (self-labelable): router intent, scope selection correctness — deterministic given procedure definition.
+- Tier 2 (document-verifiable): citation ground truth — manually verified against source legal documents, 10 pairs per domain.
+- Tier 3 (requires external validation): legal correctness of guidance — explicitly noted as outside research prototype scope.
+
+Presentation must state clearly which metrics belong to which tier.
+
+### P14 — Token diversity in retrieved context (MMR)
+
+With article-boundary chunking, multiple chunks from closely related articles (e.g. Điều 20 and Điều 21 of the same decree) may be returned in the same retrieval, consuming disproportionate budget on near-duplicate content. Maximal Marginal Relevance (MMR) re-scores candidates by penalizing similarity to already-selected chunks, trading relevance for diversity.
+
+⚠️ CONSIDERATION ONLY — DO NOT IMPLEMENT until upgrade condition is met.
+
+**Decision:** Deferred. At current corpus size (< 500 chunks across 4 documents), article-boundary chunking produces naturally distinct chunks. Budget exhaustion caused by near-duplicate selection has not been observed in evaluation. The RRF merge already provides light diversity by combining dense and BM25 rankings.
+
+**Upgrade condition:** Implement MMR if: (a) corpus exceeds 2,000 chunks AND (b) TASK-18 Measurement 5 shows citation recall below 80% AND (c) root cause is confirmed as redundant chunk selection, not embedding quality or generation failures.
+
+### P15 — Retrieval precision for low-frequency article queries (cross-encoder)
+
+Cross-encoder rerankers improve retrieval precision by jointly encoding query and candidate passage, but require an additional inference call per candidate and add ~200–500ms latency. For Vietnamese legal queries, dense + BM25 RRF already handles article-number exact-match queries (the primary failure mode of semantic-only search). Cross-encoder adds cost without addressing the known failure modes at current scale.
+
+⚠️ CONSIDERATION ONLY — DO NOT IMPLEMENT until upgrade condition is met.
+
+**Decision:** Deferred. The current hybrid retrieval (dense + BM25 RRF) is the correct baseline for Vietnamese legal text. Cross-encoder overhead is not justified until retrieval precision is measured as the bottleneck.
+
+**Upgrade condition:** Implement cross-encoder reranking only if TASK-18 Measurement 5 (citation recall) is below 80% AND root cause analysis confirms the failure is retrieval precision (wrong chunks returned), not generation quality (correct chunks returned but LLM fails to cite). See §4 Feature Roadmap.

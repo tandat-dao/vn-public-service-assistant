@@ -45,7 +45,7 @@ flag the conflict explicitly rather than silently resolving it.
 - `app/rate_limit.py` — shared `Limiter` module (avoids circular import with `main.py`)
 - `app/core/file_validator.py` — MIME whitelist, 5 MB size limit, extension whitelist
 - All 4 ORM models — fully implemented (UUID PKs, TIMESTAMPTZ, JSONB, ARRAY)
-- `ingest_procedures.py` — 3 residence procedures + 2 dependency edges (TTDN-003 → TTDN-001 mandatory, TTDN-003 → TTDN-002 conditional)
+- `ingest_procedures.py` — 3 residence procedures + 2 dependency edges (TTHC-003 → TTHC-001 mandatory, TTHC-003 → TTHC-002 conditional)
 - `qdrant_service.py` — `_active_filter()`, `scroll_by_document_number()`, `batch_set_status()` stubs
 - `ingest_legal_docs.py` — re-ingestion outline with supersede-before-upsert flow
 
@@ -718,3 +718,20 @@ These rules govern how Claude reasons before writing code or marking a task comp
 - **Do not call FormFieldMapper.map() on every form fill.** The LLM semantic field mapping is computed once per PDF template and cached in `form_templates.fields` JSONB. Calling it on every invocation adds 1-2 seconds of latency and burns tokens unnecessarily. See the Form Fill — Implementation Notes section for the cache check pattern.
 - **Do not build the BM25 index from an unfiltered corpus scroll when procedure_id is provided.** If `QdrantService.search()` receives a non-None `procedure_id`, the scroll that populates the BM25 corpus must filter by `procedure_tags` first. Scrolling all chunks and scoring them all is both slower and incorrect — chunks from unrelated procedures will pollute the rankings.
 - **Do not rely solely on save_session() to enforce the 6-turn history cap.** The cap must also be applied when loading history into AgentState. Trimming only on write leaves a window where a stale or externally-written session could bloat the prompt. Apply `[-6:]` slice at both load and save.
+- **Do not use `ps aux` or `grep` to verify running processes on Windows.** 
+  These commands run inside Git Bash (MINGW64/MSYS2) and are blind to native 
+  Windows processes spawned by background agents, IDE terminals, or separate 
+  terminal sessions. A process maxing out the CPU will return empty results. 
+  On Windows, use Task Manager or `tasklist | findstr python` in a native 
+  Command Prompt to verify whether a Python process is actually running before 
+  starting a new one. Never assume a process has stopped just because `ps aux` 
+  returns nothing.
+
+- **Do not start a second ingestion run without first confirming the previous 
+  one has fully terminated.** Long-running scripts like `ingest_legal_docs.py` 
+  spawn subprocesses (Docling workers, PaddleOCR) that outlive the parent 
+  process and are not visible to Git Bash on Windows. Starting a second run 
+  while the first is still alive causes concurrent Qdrant writes and 
+  concurrent soft-deprecation passes on the same document_numbers, producing 
+  an undefined chunk state. Always verify termination via Task Manager before 
+  re-running any ingestion script.
