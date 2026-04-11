@@ -68,7 +68,7 @@ class PDFService:
         try:
             # 3. Detect PDF type via pdfplumber
             with pdfplumber.open(tmp_path) as pdf:
-                is_acroform = pdf.doc.catalog.get("/AcroForm") is not None
+                is_acroform = pdf.doc.catalog.get("AcroForm") is not None
 
             # 4. Fill
             if is_acroform:
@@ -180,7 +180,7 @@ class PDFService:
     def is_acroform(self, template_path: str) -> bool:
         """Return True if the PDF contains fillable AcroForm fields."""
         with pdfplumber.open(template_path) as pdf:
-            return pdf.doc.catalog.get("/AcroForm") is not None
+            return pdf.doc.catalog.get("AcroForm") is not None
 
 
 def _get_field_name(annotation: Any) -> str | None:

@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     CORS_ALLOW_ORIGINS: str = "http://localhost:3000"
     REDIS_PASSWORD: str = ""
     CHAT_RATE_LIMIT: str = "10/minute"
+    UPLOAD_RATE_LIMIT: str = "5/minute"
     REDIS_ENCRYPTION_KEY: str = ""  # 32-byte base64 Fernet key; raise RuntimeError if empty
     MINIO_SECURE: bool = False
 

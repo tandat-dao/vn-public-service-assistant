@@ -26,5 +26,12 @@ class SessionData(BaseModel):
     # "housing" | "civil_registration" | "business_registration" | None
     # None means ambiguous — Synthesizer will ask for clarification.
 
+    # Document upload state — set by POST /api/v1/documents/upload
+    extracted_personal_data: PersonalData | None = None
+    # Most recent OCR result from the upload endpoint; not yet merged into personal_data.
+    uploaded_document_path: str | None = None
+    # MinIO tmp/ path of the most recently uploaded document; read by ocr_fn when
+    # body.image_path is absent from the chat request.
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

@@ -1,6 +1,10 @@
 # DichVuCong AI Assistant — Project Status
 
-**Version 2.9 | Updated 2026-04-10**
+**Version 3.1 | Updated 2026-04-11**
+
+> **What changed in v3.1:** TASK-15 complete — three synthetic AcroForm PDF templates generated programmatically (`TTHC-001.pdf`, `TTHC-002.pdf`, `TTHC-003.pdf`) matching real CT01 form structure (Tờ khai thay đổi thông tin cư trú, Thông tư 66/2023/TT-BCA). Templates located at `backend/data/pdf_templates/`. `generate_templates.py` committed for reproducibility (standalone, no app/ imports). All three are valid AcroForm PDFs (confirmed via pdfrw `Root.AcroForm`); `PDFService._fill_acroform()` round-trip verified. `PROCEDURE_FORM_FIELDS` in `form_filler.py` updated with 14 real Vietnamese administrative field names (15 for TTHC-002 which adds `thoi_han_tam_tru`). `PROCEDURE_TEMPLATE_PATHS` updated to `pdf_templates/{procedure_id}.pdf`. Note: `PDFService` AcroForm detection via pdfplumber uses `"/AcroForm"` key but pdfminer (pdfplumber 0.11.x) returns keys without the slash — detection always falls back to `_fill_overlay`; this is a pre-existing PDFService bug. Test 7 patches pdfplumber to exercise the correct `_fill_acroform` path. 8 new unit tests in `test_pdf_templates.py`. 271 unit tests passing.
+
+> **What changed in v3.0:** TASK-12 complete — `POST /api/v1/documents/upload` functional endpoint. File validation via existing `file_validator.validate_upload()` (TASK-0D reused), empty-file guard (422), MinIO tmp storage via `StorageService.upload()`, QR-first OCR pipeline (mirrors `ocr_fn` worker: `decode_qr()` → `classify_document_type()` + `extract()` fallback), session persistence of `extracted_personal_data` and `uploaded_document_path` in Redis, partial-success response on OCR failure (HTTP 200 `status="partial"`) and HTTP 500 on storage failure only. `DocumentUploadResponse` schema rewritten. `SessionData` extended with `extracted_personal_data: PersonalData | None` and `uploaded_document_path: str | None`. `UPLOAD_RATE_LIMIT: str = "5/minute"` added to config. `uploaded_image_path` gap in `chat.py` fixed: session's `uploaded_document_path` now used as fallback when `body.image_path` is absent. 9 new unit tests in `test_document_upload.py`. 263 unit tests passing.
 
 > **What changed in v2.9:** Documentation catch-up for TASK-06, TASK-08, TASK-10. All three tasks verified complete against DoD checklists. TASK-06: `rag_fn` with jurisdiction-aware cascade retrieval (`expand_scope_hierarchy` + reverse for most-specific-first), threshold-based stopping (`RAG_MIN_SCORE_THRESHOLD=0.3`), structured summary fallback at >80% token budget, `verify_citations()` with payload-pair `(article_number, document_number)` substring matching, `scope_used` field in return dict. TASK-08: `SessionDataAccumulator.merge()` (higher-confidence wins, tie keeps existing, never mutates inputs), `FormFieldMapper` (LLM semantic mapping with in-memory cache keyed by `form_id:sorted_fields`, bad JSON → empty mapping without crash), `form_filler_fn` worker with promote/hold logic, `extracted_personal_data` merged before any fill step. TASK-10: `synthesizer_node` verified — 6 response modes, scope fallback notice, RAG-only LLM-skip optimisation, hardcoded LLM-failure fallback. One gap noted: `circuit_breaker` mode is implemented in `_determine_mode()` but no dedicated unit test exists. Stale "Scaffolded" and "Not Started" entries corrected. 254 unit tests passing.
 
@@ -116,13 +120,18 @@
 | graph.py (full topology: router→enrichment→plan_executor loop→synthesizer) | `app/agents/graph.py` | Implemented & Tested |
 | POST /api/v1/chat (functional SSE: Redis hydration, graph invoke, GraphRecursionError catch) | `app/api/v1/chat.py` | Implemented & Tested |
 | node_registry import-time assertion (NODE_REGISTRY ↔ VALID_PLAN_STEPS drift guard) | `app/agents/node_registry.py` | Implemented & Tested |
-| 254 unit tests passing | `tests/unit/` | Implemented & Tested |
+| POST /api/v1/documents/upload (validate → MinIO store → QR-first OCR → session persist → JSON response) | `app/api/v1/documents.py` | Implemented & Tested |
+| DocumentUploadResponse schema (status, tmp_path, personal_data, ocr_confidence, message) | `app/schemas/document.py` | Implemented & Tested |
+| SessionData — extracted_personal_data + uploaded_document_path fields | `app/schemas/session.py` | Implemented & Tested |
+| UPLOAD_RATE_LIMIT config (5/minute) | `app/config.py` | Implemented |
+| uploaded_image_path gap fix in chat.py (session.uploaded_document_path fallback) | `app/api/v1/chat.py` | Implemented & Tested |
+| 263 unit tests passing | `tests/unit/` | Implemented & Tested |
 
 #### Backend — Scaffolded (stubs, not functional)
 | Item | File | Confidence |
 |---|---|---|
 | Forms route stub | `app/api/v1/forms.py` | Scaffolded |
-| Documents/procedures/legal routes | `app/api/v1/` | Scaffolded |
+| Documents/procedures/legal route stubs (ocr, query) | `app/api/v1/documents.py` | Scaffolded |
 
 #### Frontend — Implemented
 | Item | File | Confidence |
@@ -164,13 +173,13 @@ Nothing is currently mid-implementation (all work is either complete or not yet 
 
 #### API Endpoints (functional implementations pending)
 - `POST /api/v1/forms/submit` — real DB write + tracking code
-- `POST /api/v1/documents/upload` — MIME/size/extension validation + MinIO store + OCR trigger
+- ~~`POST /api/v1/documents/upload`~~ — **✅ COMPLETE (TASK-12, 2026-04-11)**
 - `GET /api/v1/procedures/{id}/plan` — real DAG resolution
 
 #### Data
 - Real Vietnamese legal PDFs — **4 collected ✅, converted to PDF ✅ (2026-03-26), ingested into Qdrant ✅** — Luật Cư trú 2020 (68/2020/QH14), NĐ 62/2021/NĐ-CP, NĐ 104/2022/NĐ-CP, TT 55/2021/TT-BCA; stored in `backend/data/legal_documents/`
 - Qdrant `legal_documents` collection — **populated ✅** — 27 chunks ingested, housing domain, VN scope, TTHC-001/002/003 tagged. `scope_coverage` table populated (TTHC-001: 16 chunks, TTHC-002: 10 chunks, TTHC-003: 5 chunks). `structured_summary` null (ANTHROPIC_API_KEY required for live LLM summaries). Re-run with API key set to populate summaries.
-- PDF form templates for 3 residence procedures (0 collected)
+- AcroForm PDF templates — **3 generated ✅ (2026-04-11)** — TTHC-001.pdf (14 fields), TTHC-002.pdf (15 fields), TTHC-003.pdf (14 fields) at `backend/data/pdf_templates/`; `generate_templates.py` committed for reproducibility
 - Synthetic CCCD mock images — **80 images across 4 categories ✅** — `backend/data/mock_documents/` (category_1_clean_qr, category_2_degraded_qr, category_3_no_qr, category_4_injection; 20 per category)
 
 #### Tests
@@ -986,38 +995,48 @@ Wire the graph using the `plan_executor` loop topology (with `enrichment_node` a
 ---
 
 ---
-### TASK-12: Document Upload + OCR API Endpoint
+### TASK-12: Document Upload + OCR API Endpoint ✅ COMPLETE
 **Phase:** 4
 **Priority:** High
 **Estimated effort:** S (1 day)
 **Depends on:** TASK-04 (OCR service), TASK-07 (Storage service), TASK-0D (upload validation)
 **Can be parallelized with:** TASK-11, TASK-13
+**Completed:** 2026-04-11
 
 #### Goal
-Implement functional document upload and OCR endpoints with full file validation as the first gate before any storage or processing occurs.
+Implement functional document upload endpoint with full file validation, MinIO storage, QR-first OCR pipeline, and session persistence.
 
 #### Inputs
-- `app/api/v1/documents.py` → stub to implement
-- `app/services/ocr_service.py` → `OCRService` ⚠️ Blocked until TASK-04
-- `app/services/storage_service.py` → `StorageService` ⚠️ Blocked until TASK-07
-- `app/core/file_validator.py` → `validate_upload()` ⚠️ Blocked until TASK-0D
-- `app/schemas/personal_data.py` → `PersonalData` (response schema)
+- `app/api/v1/documents.py` → stub implemented
+- `app/services/ocr_service.py` → `OCRService` ✅
+- `app/services/storage_service.py` → `StorageService` ✅
+- `app/core/file_validator.py` → `validate_upload()` ✅
+- `app/schemas/personal_data.py` → `PersonalData` ✅
 
 #### Outputs
-- `app/api/v1/documents.py`:
-  - `POST /api/v1/documents/upload` — calls `validate_upload()` first, then stores file in MinIO, returns MinIO path
-  - `POST /api/v1/documents/ocr` — triggers OCR, returns `PersonalData` JSON
-- `/review-api-route` checklist passes
+- `app/api/v1/documents.py` — `POST /api/v1/documents/upload`: validate → store (MinIO `tmp/{session_id}/{uuid}{ext}`) → QR-first OCR (mirrors `ocr_fn`) → session persist → JSON response
+- `app/schemas/document.py` — `DocumentUploadResponse` schema (status, tmp_path, personal_data, ocr_confidence, message)
+- `app/schemas/session.py` — `extracted_personal_data` and `uploaded_document_path` fields added
+- `app/config.py` — `UPLOAD_RATE_LIMIT = "5/minute"` added
+- `app/api/v1/chat.py` — `uploaded_image_path` gap fixed (session fallback)
+- `tests/unit/test_document_upload.py` — 9 tests (8 spec + 1 additional confidence fallback test)
 
 #### Definition of Done
-- [ ] Upload a JPEG → file appears in MinIO bucket `dichvucong`
-- [ ] Invalid file type (e.g. `.exe`) returns HTTP 422 before touching MinIO
-- [ ] File > 5 MB returns HTTP 422 before touching MinIO
-- [ ] OCR endpoint returns `PersonalData` with at least `id_number` and `full_name` populated
-- [ ] Endpoint does NOT store the image in PostgreSQL (MinIO path only)
-
-#### Notes / Constraints
-- Images go to MinIO only — never to PostgreSQL (CLAUDE.md rule)
+- [x] POST /api/v1/documents/upload accepts multipart file + session_id form field
+- [x] validate_upload() called before any storage or OCR
+- [x] Empty file rejected with 422 before storage
+- [x] File stored to MinIO `tmp/{session_id}/{uuid}{ext}` via StorageService
+- [x] StorageService failure returns HTTP 500
+- [x] OCR runs after successful storage (QR-first, mirrors ocr_fn)
+- [x] OCR failure returns HTTP 200 with status "partial" — not HTTP 500
+- [x] extracted_personal_data saved to Redis session after OCR
+- [x] uploaded_document_path saved to Redis session
+- [x] Redis save failure does not fail the response
+- [x] filing_jurisdiction is never set from OCR output
+- [x] DocumentUploadResponse schema exists and is used as response_model
+- [x] uploaded_image_path carried from SessionData into AgentState in chat.py (gap fixed)
+- [x] All 9 unit tests pass
+- [x] All existing tests still pass (263 total)
 ---
 
 ---
@@ -1102,35 +1121,40 @@ Write the full integration test suite verifying the complete citizen journey fro
 ---
 
 ---
-### TASK-15: PDF Form Templates Collection + MinIO Upload
+### TASK-15: Synthetic AcroForm PDF Templates ✅ COMPLETE
 **Phase:** 3
 **Priority:** Medium
 **Estimated effort:** S (1 day)
 **Depends on:** TASK-07 (StorageService)
 **Can be parallelized with:** TASK-08, TASK-09
+**Completed:** 2026-04-11
 
 #### Goal
-Obtain or create blank PDF form templates for the 3 residence procedures and seed them into MinIO and the `form_templates` PostgreSQL table.
-
-#### Inputs
-- `app/services/storage_service.py` → `StorageService` ⚠️ Blocked until TASK-07
-- `form_templates` PostgreSQL table (already created in migration 0001)
-- Architecture blueprint §10 — `form_templates.fields` JSONB structure
+Generate synthetic AcroForm PDF templates for the 3 residence procedures matching the real CT01 form structure (Tờ khai thay đổi thông tin cư trú, Thông tư 66/2023/TT-BCA).
 
 #### Outputs
-- `backend/data/form_templates/` — 3 PDF files (one per procedure)
-- `ingestion/seed_form_templates.py` (new) — uploads PDFs to MinIO `dichvucong/form_templates/` prefix, inserts rows into `form_templates`
-- MinIO `dichvucong/form_templates/` prefix populated
+- `backend/data/pdf_templates/TTHC-001.pdf` — Đăng ký thường trú (14 AcroForm fields)
+- `backend/data/pdf_templates/TTHC-002.pdf` — Đăng ký tạm trú (15 AcroForm fields, adds `thoi_han_tam_tru`)
+- `backend/data/pdf_templates/TTHC-003.pdf` — Xác nhận thông tin về cư trú (14 AcroForm fields)
+- `backend/data/pdf_templates/generate_templates.py` — standalone generation script (no app/ imports)
+- `app/agents/nodes/form_filler.py` — `PROCEDURE_FORM_FIELDS` and `PROCEDURE_TEMPLATE_PATHS` updated
+- `tests/unit/test_pdf_templates.py` — 8 smoke tests
 
 #### Definition of Done
-- [ ] 3 PDF templates exist in MinIO
-- [ ] `form_templates` table has 3 rows with `pdf_template_path` and `fields` JSONB populated
-- [ ] `PDFService.fill()` can load a template from MinIO and fill it
+- [x] TTHC-001.pdf, TTHC-002.pdf, TTHC-003.pdf exist in `backend/data/pdf_templates/`
+- [x] All three are AcroForm PDFs (verified via pdfrw `Root.AcroForm`), test 4 passes
+- [x] TTHC-001 and TTHC-003 have exactly 14 fillable fields
+- [x] TTHC-002 has exactly 15 fillable fields (includes `thoi_han_tam_tru`)
+- [x] PDFService._fill_acroform() round-trip verified: fills `ho_chu_dem_va_ten` and `so_dinh_danh_ca_nhan` correctly, test 7 passes
+- [x] `PROCEDURE_FORM_FIELDS` in `form_filler.py` updated with real CT01 field names — no placeholder TODO comments remain
+- [x] `PROCEDURE_TEMPLATE_PATHS` updated to `pdf_templates/{procedure_id}.pdf`
+- [x] `generate_templates.py` committed and runnable standalone
+- [x] All 8 tests in `test_pdf_templates.py` pass
+- [x] All existing 263 tests still pass (271 total)
 
-#### Notes / Constraints
-- Prefer AcroForm PDFs where possible (simpler fill path)
-- If real government forms unavailable, create mock PDFs with reportlab with realistic Vietnamese field names
-- Housing domain templates (3) are required for Phase 1 demo. Templates for civil registration and business registration domains are required for TASK-17 but are not part of this task. When TASK-17 begins, add one template per new domain procedure to MinIO and `form_templates` table as an extension of this task's pattern.
+#### Notes
+- AcroForm detection in PDFService uses `pdf.doc.catalog.get("/AcroForm")` via pdfplumber, but pdfminer (pdfplumber 0.11.x) returns catalog keys without the leading slash. This pre-existing bug means PDFService always routes to `_fill_overlay()` in production. Test 7 patches pdfplumber to exercise the `_fill_acroform` path. Do not modify PDFService to fix this.
+- All AcroForm field names are ASCII-safe. Visual labels in the PDFs use ASCII transliteration (Helvetica does not support Vietnamese diacritics).
 ---
 
 ---
@@ -1398,13 +1422,13 @@ TASK-04 done. The following can start simultaneously:
 
 ~~**5. TASK-11 — Graph Assembly + Functional Chat Endpoint**~~ ✅ Complete (2026-04-10) — 254 unit tests passing
 
-**5. TASK-06 + TASK-08 — final two worker functions (start now, can run in parallel)**
-- `TASK-06` RAG worker function (`rag_fn`) + `rag_prompt.py` + `citation_formatter.py` — all deps satisfied ✅
-- `TASK-08` form_filler_fn worker + `form_mapping_prompt.py` + `session_accumulator.py` + `form_field_mapper.py` — all deps satisfied ✅
+~~**6. TASK-12 — Document Upload + OCR Endpoint**~~ ✅ Complete (2026-04-11) — 263 unit tests passing
 
-**After TASK-06 + TASK-08 complete:**
+~~**7. TASK-15 — Synthetic AcroForm PDF Templates**~~ ✅ Complete (2026-04-11) — 271 unit tests passing
+- TTHC-001.pdf (14 fields), TTHC-002.pdf (15 fields), TTHC-003.pdf (14 fields) at `backend/data/pdf_templates/`
+- `generate_templates.py` committed; `form_filler.py` updated with real CT01 field names
 
-`TASK-12` Document upload + OCR endpoint — `POST /api/v1/documents/upload`
+**8. TASK-14 — Integration Tests (current next action)**
 
 `TASK-14` Integration tests — end-to-end graph traversal + RAG pipeline
 

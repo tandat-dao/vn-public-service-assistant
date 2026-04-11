@@ -6,9 +6,11 @@ from app.schemas.personal_data import PersonalData
 
 
 class DocumentUploadResponse(BaseModel):
-    file_path: str
-    document_type: str
-    detected_type: str
+    status: str          # "success" | "partial"
+    tmp_path: str
+    personal_data: PersonalData | None
+    ocr_confidence: float
+    message: str
 
 
 class OCRResponse(BaseModel):

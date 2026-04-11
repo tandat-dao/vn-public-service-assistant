@@ -92,8 +92,11 @@ async def chat(
         "domain": session.domain,
         "personal_data": session.personal_data,
         "completed_procedures": list(session.completed_procedure_ids),
-        # Upload (optional)
-        "uploaded_image_path": body.image_path,
+        # Upload (optional) — prefer explicit path from request body;
+        # fall back to the last uploaded document stored in the session so
+        # ocr_fn can process a document uploaded via /documents/upload in a
+        # prior HTTP request without the client re-sending the file.
+        "uploaded_image_path": body.image_path or session.uploaded_document_path,
         # Routing defaults
         "execution_plan": [],
         "plan_cursor": 0,
