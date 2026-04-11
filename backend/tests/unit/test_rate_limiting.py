@@ -9,7 +9,7 @@ Strategy:
 """
 
 from contextlib import asynccontextmanager
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -50,23 +50,26 @@ def _make_test_app() -> tuple[FastAPI, Limiter]:
 
 @pytest.fixture()
 def rate_limited_client():
-    """TestClient with in-memory rate limiter and mocked chat handler."""
+    """TestClient with in-memory rate limiter and mocked infrastructure."""
     app, test_limiter = _make_test_app()
+
+    mock_graph = MagicMock()
+    mock_graph.ainvoke = AsyncMock(
+        return_value={"final_response": "ok", "response_metadata": {}}
+    )
+    mock_redis = MagicMock()
+    mock_redis.get_session = AsyncMock(return_value=None)
+    mock_redis.save_session = AsyncMock(return_value=None)
 
     # Patch the limiter used by the @limiter.limit() decorator on the chat route
     # so it shares the same in-memory storage as app.state.limiter.
+    # Also mock agent_graph and _get_redis so the real endpoint doesn't hit
+    # real infrastructure (patching `chat` itself doesn't work for already-
+    # registered FastAPI route handlers).
     with patch("app.rate_limit.limiter", test_limiter), \
-         patch("app.api.v1.chat.limiter", test_limiter):
-        # Also patch chat handler to return 200 instead of raising NotImplementedError
-        from fastapi.responses import StreamingResponse
-
-        async def _mock_chat(request, body):
-            return JSONResponse({"ok": True})
-
-        with patch("app.api.v1.chat.chat", _mock_chat):
-            # Re-register routes on the test app with patched handler
-            pass  # routes already included; just verify via TestClient
-
+         patch("app.api.v1.chat.limiter", test_limiter), \
+         patch("app.api.v1.chat.agent_graph", mock_graph), \
+         patch("app.api.v1.chat._get_redis", return_value=mock_redis):
         yield TestClient(app, raise_server_exceptions=False)
 
 
