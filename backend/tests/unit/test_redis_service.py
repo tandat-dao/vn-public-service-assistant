@@ -139,7 +139,7 @@ class TestGetSession:
 
         original = SessionData(
             session_id="s4",
-            completed_procedure_ids=["TTDN-001"],
+            completed_procedure_ids=["TTHC-001"],
             conversation_history=[{"role": "user", "content": "xin chào"}],
         )
 
@@ -155,7 +155,7 @@ class TestGetSession:
 
         assert result is not None
         assert result.session_id == "s4"
-        assert result.completed_procedure_ids == ["TTDN-001"]
+        assert result.completed_procedure_ids == ["TTHC-001"]
 
     async def test_get_session_returns_none_for_missing_key(self):
         """get_session must return None when the key does not exist in Redis."""

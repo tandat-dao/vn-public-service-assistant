@@ -117,35 +117,35 @@ class TestDependencyEdgeColumns:
 # ---------------------------------------------------------------------------
 
 class TestDagSmoke:
-    def test_ttdn003_plan_is_non_trivial(self):
+    def test_tthc003_plan_is_non_trivial(self):
         from app.core.procedure_graph import resolve_execution_plan
         from app.schemas.procedure import ProcedureDependency as DepSchema
 
-        ttdn_001 = str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTDN-001"))
-        ttdn_002 = str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTDN-002"))
-        ttdn_003 = str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTDN-003"))
+        tthc_001 = str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTHC-001"))
+        tthc_002 = str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTHC-002"))
+        tthc_003 = str(uuid.uuid5(uuid.NAMESPACE_DNS, "TTHC-003"))
 
         deps = [
             DepSchema(
-                procedure_id=ttdn_003,
-                depends_on_procedure_id=ttdn_001,
+                procedure_id=tthc_003,
+                depends_on_procedure_id=tthc_001,
                 is_mandatory=True,
             ),
             DepSchema(
-                procedure_id=ttdn_003,
-                depends_on_procedure_id=ttdn_002,
+                procedure_id=tthc_003,
+                depends_on_procedure_id=tthc_002,
                 is_mandatory=False,
                 condition_description="Nếu là cư dân tạm trú",
             ),
         ]
 
-        names = {ttdn_001: "Đăng ký thường trú", ttdn_002: "Đăng ký tạm trú", ttdn_003: "Xác nhận cư trú"}
-        plan = resolve_execution_plan(ttdn_003, deps, completed_ids=set(), procedure_names=names)
+        names = {tthc_001: "Đăng ký thường trú", tthc_002: "Đăng ký tạm trú", tthc_003: "Xác nhận cư trú"}
+        plan = resolve_execution_plan(tthc_003, deps, completed_ids=set(), procedure_names=names)
 
         procedure_ids_in_plan = [step.procedure_id for step in plan.steps]
         # All 3 procedures must appear in the plan
-        assert ttdn_001 in procedure_ids_in_plan
-        assert ttdn_002 in procedure_ids_in_plan
-        assert ttdn_003 in procedure_ids_in_plan
-        # TTDN-003 must come last
-        assert procedure_ids_in_plan.index(ttdn_003) > procedure_ids_in_plan.index(ttdn_001)
+        assert tthc_001 in procedure_ids_in_plan
+        assert tthc_002 in procedure_ids_in_plan
+        assert tthc_003 in procedure_ids_in_plan
+        # TTHC-003 must come last
+        assert procedure_ids_in_plan.index(tthc_003) > procedure_ids_in_plan.index(tthc_001)

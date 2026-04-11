@@ -5,11 +5,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+    model_config = SettingsConfigDict(
+        env_file=["../.env", ".env"],   # project root first, then backend/
+        case_sensitive=False,
+    )
 
     # LLM
     ANTHROPIC_API_KEY: str = ""
     LLM_MODEL: str = "claude-sonnet-4-20250514"
+    LLM_BACKEND: str = "anthropic"  # "anthropic" | "gemini"
+    GOOGLE_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash-lite"
 
     # Databases
     POSTGRES_URL: str = "postgresql+asyncpg://dichvucong:dichvucong@localhost:5432/dichvucong"
@@ -32,6 +38,7 @@ class Settings(BaseSettings):
     QDRANT_VECTOR_SIZE: int = 1024
     RAG_TOP_K: int = 8
     RAG_TOKEN_BUDGET: int = 6000
+    RAG_MIN_SCORE_THRESHOLD: float = 0.3
 
     # Observability
     LANGSMITH_API_KEY: str = ""

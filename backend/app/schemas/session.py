@@ -18,5 +18,13 @@ class SessionData(BaseModel):
     completed_procedure_ids: list[str] = Field(default_factory=list)
     form_fill_state: dict[str, Any] = Field(default_factory=dict)
     conversation_history: list[dict] = Field(default_factory=list)  # trimmed to 6 by save_session()
+    filing_jurisdiction: str | None = None
+    # e.g. "VN-HCM-26968" — set by confirmed user input only,
+    # never by raw OCR alone. None until user confirms jurisdiction.
+
+    domain: str | None = None
+    # "housing" | "civil_registration" | "business_registration" | None
+    # None means ambiguous — Synthesizer will ask for clarification.
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

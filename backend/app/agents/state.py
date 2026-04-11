@@ -33,6 +33,14 @@ class AgentState(TypedDict, total=False):
     plan_cursor: int             # current index into execution_plan — incremented by plan_executor only
     entities: dict[str, Any]
 
+    domain: str | None           # "housing" | "civil_registration" | "business_registration" | None
+                                 # Set by router on every invocation. None = ambiguous query.
+
+    filing_jurisdiction: str | None  # e.g. "VN-HCM-26968"
+                                     # Loaded from SessionData at graph entry.
+                                     # Set by confirmed user input — never by raw OCR alone.
+                                     # None on first invocation until user confirms.
+
     # Conversation history — last 6 turns only.
     # Trimmed by RedisService.save_session() before write.
     # Each entry: {"role": "user" | "assistant", "content": str}
@@ -41,9 +49,11 @@ class AgentState(TypedDict, total=False):
     # RAG
     retrieved_chunks: list[DocumentChunk]
     citations: list[Citation]
+    scope_used: str | None  # scope code that produced results (e.g. "VN", "VN-HCM")
 
     # OCR (this invocation only — persist to Redis after)
-    personal_data: PersonalData | None
+    personal_data: PersonalData | None         # accumulated merged PersonalData (carry-forward)
+    extracted_personal_data: PersonalData | None  # most recent OCR output, not yet merged into personal_data
     document_type: str | None
 
     # Procedure
@@ -55,6 +65,8 @@ class AgentState(TypedDict, total=False):
     form_id: str | None
     filled_fields: dict[str, Any]
     unfilled_required_fields: list[str]
+    filled_form_path: str | None      # MinIO path to filled PDF (tmp/ or forms/ prefix)
+    form_fill_complete: bool           # True only when all required fields filled and form promoted
 
     # Output
     final_response: str
