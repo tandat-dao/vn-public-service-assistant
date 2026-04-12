@@ -68,3 +68,8 @@ desktop.ini
 
 # ── Model caches ─────────────────────────────────────────────
 backend/.cache/
+
+# ── Claude Code / AI dev tooling ─────────────────────────────
+.claude/
+.agents/
+CLAUDE.md
