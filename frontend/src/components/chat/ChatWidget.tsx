@@ -81,11 +81,11 @@ export function ChatWidget() {
       for await (const chunk of streamChat(sessionId, text, uploadedFile?.file)) {
         try {
           const parsed = JSON.parse(chunk)
-          if (parsed.type === 'text') {
+          if ('content' in parsed && typeof parsed.content === 'string') {
             accumulated += parsed.content
             updateMessage(assistantId, { content: accumulated })
-          } else if (parsed.type === 'citations') {
-            updateMessage(assistantId, { citations: parsed.citations as Citation[] })
+          } else if ('metadata' in parsed && Array.isArray(parsed.metadata?.citations)) {
+            updateMessage(assistantId, { citations: parsed.metadata.citations as Citation[] })
           }
         } catch {
           // plain text chunk (non-JSON fallback)

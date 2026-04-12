@@ -528,20 +528,19 @@ class OCRService:
             if filtered_detections
             else 0.5
         )
-
+        
         try:
-            data = json.loads(raw_response)
+            cleaned = raw_response.strip()
+            if cleaned.startswith("```"):
+                import re
+                cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+                cleaned = re.sub(r"\s*```$", "", cleaned.strip())
+            data = json.loads(cleaned)
         except (json.JSONDecodeError, ValueError) as exc:
             logger.warning(
                 "extract: JSON parse failed",
                 error=str(exc),
                 raw_preview=raw_response[:120],
-            )
-            return PersonalData(
-                source_document_type=document_type,
-                source_image_path=image_path,
-                extraction_confidence=0.0,
-                extracted_at=datetime.utcnow(),
             )
 
         # Coerce plain string addresses to Address-compatible dicts

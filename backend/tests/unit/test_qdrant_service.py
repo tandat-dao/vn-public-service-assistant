@@ -40,7 +40,9 @@ def mock_qdrant_client():
         client = AsyncMock()
         mock_cls.return_value = client
         # Safe defaults
-        client.search.return_value = []
+        _default_response = MagicMock()
+        _default_response.points = []
+        client.query_points = AsyncMock(return_value=_default_response)
         client.scroll.return_value = ([], None)
         client.upsert = AsyncMock()
         client.create_collection = AsyncMock()
@@ -70,10 +72,10 @@ def service(mock_qdrant_client, mock_embedder):
 # ---------------------------------------------------------------------------
 
 async def test_search_always_applies_status_active_filter(service, mock_qdrant_client):
-    """QdrantService.search() must pass a status=active filter to client.search()."""
+    """QdrantService.search() must pass a status=active filter to client.query_points()."""
     await service.search("query")
 
-    call_kwargs = mock_qdrant_client.search.call_args.kwargs
+    call_kwargs = mock_qdrant_client.query_points.call_args.kwargs
     f = call_kwargs["query_filter"]
 
     # Inspect must conditions
@@ -94,7 +96,7 @@ async def test_search_applies_procedure_id_filter_when_provided(service, mock_qd
     """When procedure_id is given, filter must include a procedure_tags condition."""
     await service.search("query", procedure_id="TTHC-001")
 
-    call_kwargs = mock_qdrant_client.search.call_args.kwargs
+    call_kwargs = mock_qdrant_client.query_points.call_args.kwargs
     f = call_kwargs["query_filter"]
     must_conditions = f.must
 
@@ -114,7 +116,7 @@ async def test_search_no_procedure_filter_when_none(service, mock_qdrant_client)
     """When procedure_id is None, only the status filter should be present."""
     await service.search("query", procedure_id=None)
 
-    call_kwargs = mock_qdrant_client.search.call_args.kwargs
+    call_kwargs = mock_qdrant_client.query_points.call_args.kwargs
     f = call_kwargs["query_filter"]
     must_conditions = f.must
 
@@ -135,11 +137,13 @@ async def test_rrf_merge_combines_both_result_lists(service, mock_qdrant_client)
     # Dense results: IDs 1, 2, 3
     dense_payload = {"content": "hello world", "document_number": "A", "article_number": "Điều 1",
                      "legal_document_id": "x", "procedure_tags": [], "status": "active"}
-    mock_qdrant_client.search.return_value = [
+    _dense_response = MagicMock()
+    _dense_response.points = [
         _make_scored_point("1", dense_payload),
         _make_scored_point("2", dense_payload),
         _make_scored_point("3", dense_payload),
     ]
+    mock_qdrant_client.query_points.return_value = _dense_response
     # Scroll results: IDs 3, 4, 5 (ID 3 overlaps with dense)
     scroll_payload = {"content": "hello world", "document_number": "A", "article_number": "Điều 1",
                       "legal_document_id": "x", "procedure_tags": [], "status": "active"}
@@ -176,7 +180,9 @@ async def test_token_budget_truncates_results(service, mock_qdrant_client):
 
     scroll_points = [_make_scroll_point(str(i), payload) for i in range(20)]
     mock_qdrant_client.scroll.return_value = (scroll_points, None)
-    mock_qdrant_client.search.return_value = []
+    _empty_response = MagicMock()
+    _empty_response.points = []
+    mock_qdrant_client.query_points.return_value = _empty_response
 
     results = await service.search("query", top_k=20)
     assert len(results) < 20
@@ -191,7 +197,9 @@ async def test_token_budget_log_is_emitted(service, mock_qdrant_client, caplog):
     payload = {"content": "hello", "document_number": "A", "article_number": "Điều 1",
                "legal_document_id": "x", "procedure_tags": [], "status": "active"}
     mock_qdrant_client.scroll.return_value = ([_make_scroll_point("1", payload)], None)
-    mock_qdrant_client.search.return_value = []
+    _empty_response = MagicMock()
+    _empty_response.points = []
+    mock_qdrant_client.query_points.return_value = _empty_response
 
     with caplog.at_level(logging.DEBUG, logger="app.services.qdrant_service"):
         await service.search("test")

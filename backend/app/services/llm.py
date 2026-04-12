@@ -212,6 +212,19 @@ class LLMService:
                 config=config,
             ),
         )
+        if response.text is None:
+            finish_reason = (
+                response.candidates[0].finish_reason
+                if response.candidates
+                else "unknown"
+            )
+            log.warning(
+                "gemini_invoke_empty_response",
+                model=self._model,
+                finish_reason=str(finish_reason),
+                max_tokens=max_tokens,
+            )
+            return ""
         return response.text
 
     async def _gemini_stream(

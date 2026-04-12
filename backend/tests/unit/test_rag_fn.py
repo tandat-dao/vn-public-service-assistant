@@ -227,10 +227,10 @@ def test_verify_citations_luat_format_no_false_flag():
 # ---------------------------------------------------------------------------
 
 async def test_threshold_stopping_drops_low_score_chunks(mock_qdrant, mock_llm):
-    """Chunks with RRF score below RAG_MIN_SCORE_THRESHOLD (0.3) are dropped."""
+    """Chunks with RRF score below RAG_MIN_SCORE_THRESHOLD (0.01) are dropped."""
     chunks = [
         _make_chunk("10", "62/2021/NĐ-CP", rrf_score=0.8),
-        _make_chunk("11", "62/2021/NĐ-CP", rrf_score=0.15),  # below threshold 0.3
+        _make_chunk("11", "62/2021/NĐ-CP", rrf_score=0.005),  # below threshold 0.01
     ]
     mock_qdrant.search.return_value = chunks
     mock_llm.async_invoke.return_value = "Trả lời về đăng ký cư trú."

@@ -135,7 +135,12 @@ class FormFieldMapper:
         )
 
         try:
-            parsed: dict = json.loads(raw_response)
+            cleaned = raw_response.strip()
+            if cleaned.startswith("```"):
+                import re
+                cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+                cleaned = re.sub(r"\s*```$", "", cleaned.strip())
+            parsed: dict = json.loads(cleaned)
         except (json.JSONDecodeError, ValueError):
             log.warning(
                 "FormFieldMapper: LLM returned non-JSON — returning empty mapping",

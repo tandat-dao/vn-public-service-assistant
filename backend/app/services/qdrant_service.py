@@ -166,13 +166,14 @@ class QdrantService:
 
         # ---- Stage 1: Dense semantic search ----
         embedding = await self.embedder.embed(query)
-        dense_results = await self._client.search(
+        _query_response = await self._client.query_points(
             collection_name=settings.QDRANT_COLLECTION,
-            query_vector=embedding,
+            query=embedding,
             limit=top_k * 2,
             query_filter=search_filter,
             with_payload=True,
         )
+        dense_results = _query_response.points
 
         # ---- Stage 2: BM25 over active corpus ----
         scroll_results, _ = await self._client.scroll(
@@ -246,6 +247,15 @@ class QdrantService:
                 break
 
             used_tokens += chunk_tokens
+
+            # structured_summary may be stored as dict/list (ingestion) or str — normalise to str
+            raw_summary = payload.get("structured_summary")
+            if raw_summary is None or isinstance(raw_summary, str):
+                structured_summary: str | None = raw_summary
+            else:
+                import json as _json
+                structured_summary = _json.dumps(raw_summary, ensure_ascii=False)
+
             result.append(
                 DocumentChunk(
                     point_id=pid,
@@ -256,7 +266,7 @@ class QdrantService:
                     procedure_tags=payload.get("procedure_tags", []),
                     status=payload.get("status", "active"),
                     rrf_score=rrf_scores[pid],
-                    structured_summary=payload.get("structured_summary"),
+                    structured_summary=structured_summary,
                 )
             )
 
@@ -386,7 +396,7 @@ class QdrantService:
         if scope is not None:
             conditions.append(
                 FieldCondition(
-                    key="scope",
+                    key="location_scope",
                     match=MatchValue(value=scope),
                 )
             )

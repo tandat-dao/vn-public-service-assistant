@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 
+import re
 from pydantic import ValidationError
 
 from app.agents.node_registry import VALID_PLAN_STEPS
@@ -67,7 +68,7 @@ async def router_node(state: AgentState) -> dict:
         raw = await LLMService().async_invoke(
             system=ROUTER_SYSTEM_PROMPT,
             messages=messages,
-            max_tokens=256,
+            max_tokens=1024,
         )
     except Exception:
         # Network / API errors propagate — do not swallow infrastructure failures.
@@ -75,7 +76,11 @@ async def router_node(state: AgentState) -> dict:
 
     # --- Parse JSON ---
     try:
-        data = json.loads(raw)
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+            cleaned = re.sub(r"\s*```$", "", cleaned.strip())
+        data = json.loads(cleaned)
         output = RouterOutput.model_validate(data)
     except (json.JSONDecodeError, ValidationError) as exc:
         logger.warning(

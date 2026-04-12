@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     QDRANT_VECTOR_SIZE: int = 1024
     RAG_TOP_K: int = 8
     RAG_TOKEN_BUDGET: int = 6000
-    RAG_MIN_SCORE_THRESHOLD: float = 0.3
+    RAG_MIN_SCORE_THRESHOLD: float = 0.01  # RRF scores with k=60 top out at ~0.033; 0.3 was unreachable
 
     # Observability
     LANGSMITH_API_KEY: str = ""

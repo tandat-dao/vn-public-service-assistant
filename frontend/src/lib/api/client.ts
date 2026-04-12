@@ -15,12 +15,14 @@ export async function* streamChat(
   message: string,
   file?: File,
 ): AsyncGenerator<string> {
-  const body = new FormData()
-  body.append('session_id', sessionId)
-  body.append('message', message)
-  if (file) body.append('file', file)
-
-  const res = await fetch(`${BASE}/api/v1/chat`, { method: 'POST', body })
+  const res = await fetch(`${BASE}/api/v1/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      session_id: sessionId,
+      message: message,
+    }),
+  })
   if (!res.ok || !res.body) throw new Error('Chat stream failed')
 
   const reader = res.body.getReader()
