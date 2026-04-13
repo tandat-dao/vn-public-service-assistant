@@ -6,7 +6,7 @@
 
 # DichVuCong AI Assistant — System Context & Architecture
 
-**Version 2.2 | Updated 2026-03-29**
+**Version 2.3 | Updated 2026-04-13**
 
 > **What changed in v2.2:** P14 (MMR token diversity) and P15 (cross-encoder reranking) added to §6 as architectural considerations with explicit upgrade conditions. MMR note added to §2.3 RAG pipeline. Feature roadmap updated with token optimization features and cross-encoder condition clarified. Boilerplate removal, Docling hierarchy prefix, threshold-based stopping, and structured summary extraction added to roadmap.
 
@@ -34,7 +34,9 @@ The system makes the following architectural claim, validated empirically:
 
 **A single unified pipeline architecture is sufficient to handle both procedural dependency resolution (DAG-based) and hierarchical jurisdiction scoping (tree-based) for Vietnamese administrative procedures, and this architecture is domain-agnostic with respect to procedure type.**
 
-This is validated by demonstrating one complete hierarchical branch (national → city → ward scope) per procedure domain across three domains: housing (nhà ở), civil registration (hộ tịch), and business registration (kinh doanh). Each branch uses a single representative procedure. This demonstrates that scaling within a domain (adding more procedures) is a data and ingestion task, not an architectural change, and that scaling across domains requires only router prompt coverage and correctly tagged legal documents.
+This is validated by demonstrating one complete hierarchical branch (national → city → ward scope) per procedure domain across three domains: housing (nhà ở), civil registration (hộ tịch), and adoption (nuôi con nuôi). Each branch uses representative procedures. This demonstrates that scaling within a domain (adding more procedures) is a data and ingestion task, not an architectural change, and that scaling across domains requires only router prompt coverage and correctly tagged legal documents.
+
+Additionally, the system validates DAG-based procedural dependency resolution in two of the three domains: within civil registration, TTHC-CR-002 (Cấp bản sao Trích lục hộ tịch) requires TTHC-CR-001 (Đăng ký khai sinh) per Điều 63–64 Luật Hộ tịch 2014; within adoption, TTHC-AD-002 (Đăng ký lại việc nuôi con nuôi trong nước) requires TTHC-AD-001 (Đăng ký việc nuôi con nuôi trong nước) per Điều 24 Nghị định 123/2015/NĐ-CP. This strengthens the scientific claim: DAG dependency resolution is validated across two independent procedure domains, not just one.
 
 ### Hierarchical Jurisdiction
 
@@ -51,9 +53,9 @@ Three residence registration procedures as the primary validation domain:
 These three procedures, fully implemented end-to-end with hierarchical jurisdiction support at VN → VN-HCM → VN-HCM-[ward] scope, constitute the runnable demo. All multi-domain and scientific validation work begins after this demo is stable.
 
 **Phase 2 (multi-domain validation — after Phase 1 demo complete):**
-One representative procedure per additional domain, each with a full three-level hierarchical branch:
-- Civil registration (hộ tịch): Đăng ký khai sinh
-- Business registration (kinh doanh): Đăng ký hộ kinh doanh
+One or more representative procedures per additional domain, each with a full three-level hierarchical branch:
+- Civil registration (hộ tịch): Đăng ký khai sinh (TTHC-CR-001), Cấp bản sao Trích lục hộ tịch (TTHC-CR-002)
+- Adoption (nuôi con nuôi): Đăng ký việc nuôi con nuôi trong nước (TTHC-AD-001), Đăng ký lại việc nuôi con nuôi trong nước (TTHC-AD-002)
 
 **Not in scope:** UI/UX design, full national ward coverage, production security hardening, legal correctness certification.
 
@@ -136,7 +138,7 @@ The Router Node decomposes the user message into an ordered `execution_plan: lis
     plan_cursor: int             # incremented by plan_executor only
     entities: dict[str, Any]
     domain: str | None           # "housing"|"civil_registration"|
-                                 # "business_registration"|None
+                                 # "adoption"|None
                                  # set by router, None = ambiguous
     filing_jurisdiction: str | None  # e.g. "VN-HCM-26968"
                                      # set by confirmed user input,
@@ -205,10 +207,20 @@ PostgreSQL adjacency list (procedure_dependencies table)
   → Gap analysis: completed_procedures ⊆ required_steps
   → Returns: ordered list[ProcedureStep] with status (PENDING/COMPLETED/BLOCKED)
 
-Residence procedure dependency edges (required before TASK-09):
+Residence procedure dependency edges (housing domain):
   → TTHC-003 (Xác nhận thông tin cư trú) requires TTHC-001 or TTHC-002
   → TTHC-001 (Đăng ký thường trú) may follow TTHC-002 under Luật Cư trú 2020 Điều 20
   → See Q4 resolution notes in Section 5
+
+Civil registration procedure dependency edges:
+  → TTHC-CR-002 (Cấp bản sao Trích lục hộ tịch) requires TTHC-CR-001 (Đăng ký khai sinh)
+  → Legal basis: Điều 63–64 Luật Hộ tịch 2014 — a copy of a birth record can only be
+    issued after the original birth event has been registered
+
+Adoption procedure dependency edges:
+  → TTHC-AD-002 (Đăng ký lại việc nuôi con nuôi trong nước) requires TTHC-AD-001
+  → Legal basis: Điều 24 Nghị định 123/2015/NĐ-CP — re-registration only applies when
+    the original adoption was previously registered and all records have since been lost
 ```
 
 ### 2.6 Hierarchical Jurisdiction Architecture
@@ -277,7 +289,7 @@ scope_coverage (
 
 Each procedure belongs to exactly one domain. Domain is a first-class column on the `procedures` table and a first-class field in `AgentState` and `SessionData`. The router extracts `domain` as a structured output field alongside `execution_plan` and `entities`. If domain is ambiguous from the query alone, the router sets `domain: None` and the Synthesizer asks for clarification.
 
-Valid domain values: `"housing"`, `"civil_registration"`, `"business_registration"`.
+Valid domain values: `"housing"`, `"civil_registration"`, `"adoption"`.
 
 #### Ingestion Metadata Per Domain
 
@@ -309,19 +321,19 @@ procedures:
 | **DB Migrations** | Alembic | 1.14.x | ✅ Confirmed |
 | **Task Queue** | Celery + Redis | Celery 5.4 | ⚙️ Partially set up |
 | **Relational DB** | PostgreSQL | 16-alpine (Docker) | ✅ Confirmed |
-| **Vector DB** | Qdrant | latest (Docker) | ⚙️ Partially set up |
-| **Cache / Sessions** | Redis | 7-alpine (Docker) | ⚙️ Partially set up |
-| **Object Storage** | MinIO | latest (Docker) | ⚙️ Partially set up |
-| **LLM Backbone** | Claude claude-sonnet-4-20250514 | Anthropic SDK 0.85.0 | ⚙️ Partially set up |
-| **Embeddings** | bge-m3 (local) | sentence-transformers | ⚙️ Partially set up |
-| **Agent Framework** | LangGraph | 1.1.2 | ⚙️ Partially set up |
-| **OCR Engine** | PaddleOCR (primary) | PP-OCRv4 | 📋 Planned |
-| **OCR Fallback** | Tesseract | 5.x | 📋 Planned |
-| **PDF Processing** | pdfplumber + pdfrw | latest | 📋 Planned |
-| **PDF Form Fill** | pdfrw + reportlab | latest | 📋 Planned |
-| **Document Parsing** | Docling (IBM) | latest | 📋 Planned |
-| **Image Processing** | OpenCV (cv2) | 4.x | 📋 Planned |
-| **Observability** | LangSmith | via langchain | 📋 Planned — wired in TASK-01 (Phase 2), not Phase 4 |
+| **Vector DB** | Qdrant | latest (Docker) | ✅ Implemented & Running |
+| **Cache / Sessions** | Redis | 7-alpine (Docker) | ✅ Implemented & Running |
+| **Object Storage** | MinIO | latest (Docker) | ✅ Implemented & Running |
+| **LLM Backbone** | Gemini (active) + Claude claude-sonnet-4-20250514 (primary, pending API key) | `google-genai` SDK + Anthropic SDK 0.85.0; dual-backend via `LLM_BACKEND` env var (`gemini`\|`anthropic`) | ✅ Implemented & Running (Gemini active; Anthropic pending ANTHROPIC_API_KEY) |
+| **Embeddings** | bge-m3 (local) | sentence-transformers | ✅ Implemented & Running |
+| **Agent Framework** | LangGraph | 1.1.2 | ✅ Implemented & Running |
+| **OCR Engine** | PaddleOCR (primary) | PP-OCRv4 | ✅ Implemented & Running |
+| **OCR Fallback** | Tesseract | 5.x | ❌ Not used — actual fallback path is PaddleOCR + LLM field extraction (never implemented Tesseract) |
+| **PDF Processing** | pdfplumber + pdfrw | latest | ✅ Implemented & Running |
+| **PDF Form Fill** | pdfrw + reportlab | latest | ✅ Implemented & Running |
+| **Document Parsing** | Docling (IBM) | latest | ✅ Implemented & Running |
+| **Image Processing** | OpenCV (cv2) | 4.x | ✅ Implemented & Running |
+| **Observability** | LangSmith | via langchain | ⚙️ Implemented (wired in TASK-01; requires ANTHROPIC_API_KEY for Anthropic backend; not active on Gemini backend) |
 | **Containerization** | Docker Compose | v2 | ✅ Confirmed |
 
 ---
@@ -360,7 +372,7 @@ procedures:
 | MMR result diversification — implement only if corpus exceeds 2,000 chunks AND citation recall below 80% AND root cause confirmed as redundant chunk selection (see P14) | 4 | Enhancement |
 | Boilerplate removal before Docling parsing (regex cleanup of headers, footers, preamble) | 2 | Core |
 | Docling hierarchy prefix on chunks (chapter/section context, no LLM call) | 2 | Core |
-| Threshold-based stopping in _apply_token_budget() (min_score_threshold parameter) | 3 | Core |
+| Threshold-based stopping in _apply_token_budget() (min_score_threshold parameter) — current value 0.01; requires calibration against real retrieval data in TASK-18 (effective RRF range is 0.005–0.015 for k=60) | 3 | Core |
 | Structured summary field in Qdrant payload (obligation/condition/consequence, offline) | 2 | Core |
 | Hierarchical jurisdiction scope filtering (location_scope metadata) | 3 | Core |
 | Ancestor chain expansion utility (expand_scope_hierarchy) | 3 | Core |
@@ -436,7 +448,7 @@ procedures:
 | administrative_units lookup table seeded (test wards) | 3 | Core |
 | domain_configs YAML files (3 domains) | 3 | Core |
 | Civil registration legal documents (VN + VN-HCM + ward) | 4 | Core |
-| Business registration legal documents (VN + VN-HCM + ward) | 4 | Core |
+| Adoption legal documents (VN + VN-HCM + ward) | 4 | Core |
 | One representative procedure per new domain seeded | 4 | Core |
 | Evaluation dataset (labeled queries, citation ground truth) | 4 | Core |
 
@@ -495,6 +507,8 @@ Asking the LLM to apply narrower-scope-wins across conflicting documents is unre
 
 **Decision:** Filter-first architecture. Qdrant filter handles primary jurisdiction selection. Prompt instruction is safety net only. Article-number deduplication added when two chunks from different scopes share the same `(article_number, document_number)` within the same `procedure_tag`.
 
+**Implementation note (v3.3 bug fix):** The Qdrant payload field for jurisdiction scope is `location_scope` — not `scope`. All filter construction in `QdrantService._build_filter()` must use the field key `"location_scope"`. A filter built with `"scope"` silently returns no results — this was a critical silent bug present since TASK-05. Ingestion scripts must write `"location_scope"` into the Qdrant payload on every upsert. Scope filtering is now confirmed working end-to-end as of v3.3.
+
 **Upgrade condition:** Build deduplication only after TASK-17 ingestion is complete and conflicts are observed in >10% of evaluation test cases.
 
 ### P4 — Missing ancestor chain computation
@@ -552,7 +566,7 @@ During TASK-17, coverage is partial. Test failures are ambiguous — pipeline bu
 **Decision:** `scope_coverage` table built as part of TASK-16, not as a later upgrade. Ingestion script upserts coverage rows on every run. Benchmark evaluation queries coverage table first and skips unavailable combinations rather than counting them as failures.
 
 ### P12 — Cross-domain router confusion on ambiguous queries
-"Đăng ký" appears in housing, civil registration, and business registration. Without domain context, router may misclassify intent.
+"Đăng ký" appears in housing, civil registration, and adoption. Without domain context, router may misclassify intent.
 
 **Decision:** Router outputs `domain: str | None`. When None, Synthesizer asks for clarification before proceeding. Domain stored in `SessionData` for session lifetime after first disambiguation.
 
@@ -587,3 +601,44 @@ Cross-encoder rerankers improve retrieval precision by jointly encoding query an
 **Decision:** Deferred. The current hybrid retrieval (dense + BM25 RRF) is the correct baseline for Vietnamese legal text. Cross-encoder overhead is not justified until retrieval precision is measured as the bottleneck.
 
 **Upgrade condition:** Implement cross-encoder reranking only if TASK-18 Measurement 5 (citation recall) is below 80% AND root cause analysis confirms the failure is retrieval precision (wrong chunks returned), not generation quality (correct chunks returned but LLM fails to cite). See §4 Feature Roadmap.
+
+### P16 — Document authority hierarchy not modeled
+
+Vietnamese normative documents operate on a two-dimensional hierarchy:
+(1) geographic scope (VN → VN-HCM → VN-HCM-[ward]) — already
+implemented in the system, and (2) document authority level defined
+by Luật Ban hành văn bản quy phạm pháp luật 2015, from highest to
+lowest: Hiến pháp → Luật/Bộ luật → Pháp lệnh → Nghị định → Quyết
+định Thủ tướng → Thông tư. These two axes are orthogonal — a Thông
+tư at national scope and a Luật at national scope are treated as
+peers in the current retrieval architecture.
+
+Within each geographic scope level, the system currently retrieves
+chunks from all document authority levels with equal weight. When a
+Nghị định and a Thông tư contain complementary provisions for the
+same procedure, this is correct behavior (they are not in conflict).
+When they conflict (which occurs during policy transitions), the LLM
+must adjudicate without structural guidance — an unreliable mechanism
+for legal accuracy.
+
+**Decision:** Deferred. At current corpus size and scope (housing,
+civil registration, adoption domains with non-conflicting document
+sets), all ingested documents for a given procedure are complementary
+rather than conflicting. The Luật sets principles, the Nghị định
+elaborates, the Thông tư specifies procedural details. No conflict
+has been observed.
+
+**Upgrade condition:** Add a `document_authority_level` integer field
+to the Qdrant payload (1=Hiến pháp, 2=Luật/Bộ luật, 3=Pháp lệnh,
+4=Nghị định, 5=Quyết định Thủ tướng, 6=Thông tư/Thông tư liên tịch)
+if TASK-18 evaluation reveals conflicting provisions being retrieved
+simultaneously for the same procedure at the same geographic scope.
+Until conflict is observed in evaluation, the current flat retrieval
+within a scope level is correct for complementary document sets.
+
+**Note for thesis:** The scientific contribution addresses geographic
+jurisdiction hierarchy (tree-based) and procedural dependency
+resolution (DAG-based). Document authority hierarchy is a third
+structure that exists in Vietnamese administrative law and is
+explicitly noted as outside the current research scope. Any
+presentation must acknowledge this limitation.

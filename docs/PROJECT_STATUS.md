@@ -1,6 +1,12 @@
 # DichVuCong AI Assistant — Project Status
 
-**Version 3.2 | Updated 2026-04-12**
+**Version 3.5 | Updated 2026-04-13**
+
+> **What changed in v3.5:** Documentation full-scale verification and correction. Domain scope corrected throughout: adoption (nuôi con nuôi) replaces business registration as the third domain. Valid domains: `housing`, `civil_registration`, `adoption`. Scientific contribution claim updated to reflect actual three domains including DAG edges now validated in two domains (civil_registration and adoption). TASK-17 and TASK-18 cards updated to remove all `business_registration` references. 4 new procedures confirmed seeded in `ingest_procedures.py`: TTHC-CR-001 (Đăng ký khai sinh), TTHC-CR-002 (Cấp bản sao Trích lục hộ tịch), TTHC-AD-001 (Đăng ký việc nuôi con nuôi trong nước), TTHC-AD-002 (Đăng ký lại việc nuôi con nuôi trong nước) with 2 legally-grounded DAG edges. §1.1 Completed table updated to list all 4 new procedures. Structured summary honest status documented — all chunks have `structured_summary: null`; re-ingestion with `--generate-summaries` required, with rate limit management (~13s sleep between calls on Gemini free tier). Redis response cache documented as dormant infrastructure — `get_cached_response()` and `cache_response()` are implemented but not called by any pipeline node. `RAG_MIN_SCORE_THRESHOLD` TASK-06 DoD note corrected to 0.01. Technology stack table in PROJECT_CONTEXT.md corrected with accurate statuses; Gemini dual-backend reflected; Tesseract noted as never implemented.
+
+> **What changed in v3.4:** Multi-domain expansion scaffolding. 4 new procedures seeded: TTHC-CR-001 (Đăng ký khai sinh), TTHC-CR-002 (Cấp bản sao Trích lục hộ tịch), TTHC-AD-001 (Đăng ký việc nuôi con nuôi trong nước), TTHC-AD-002 (Đăng ký lại việc nuôi con nuôi trong nước). Procedural DAG edges added: TTHC-CR-002 depends on TTHC-CR-001 (Điều 63–64 Luật Hộ tịch 2014); TTHC-AD-002 depends on TTHC-AD-001 (Điều 24 Nghị định 123/2015/NĐ-CP). Domain YAML placeholders created for civil_registration and adoption — article mappings pending human review of source legal documents. Router prompt extended with 8 new domain-diverse few-shot examples (4 civil_registration + 4 adoption). router_queries.json expanded to 60 queries (20 housing + 20 civil_registration + 20 adoption). Text-based mock personal data generated (20 files across 4 procedures) for non-CCCD pipeline testing. P16 (document authority hierarchy) documented as architectural consideration in PROJECT_CONTEXT.md §6. 278 unit tests passing (unchanged — scaffolding only).
+
+> **What changed in v3.3:** Post-demo bug fixes. (A) Qdrant scope filter key corrected: `"scope"` → `"location_scope"` — scope filtering was silently broken since TASK-05. (B) qdrant-client 1.17.1: `client.search()` → `client.query_points()` with `.points` unpack. (C) RAG_MIN_SCORE_THRESHOLD corrected 0.3 → 0.01 — old value exceeded RRF mathematical maximum, silently filtered all chunks. Effective threshold range for this RRF implementation is 0.005–0.015. Revisit calibration in TASK-18. (D) LLMService Gemini None guard on token exhaustion. (E) router_node max_tokens 256 → 1024 for Gemini thinking model headroom. (F) JSON code-fence stripping added to router, form field mapper, and OCR service for Gemini compatibility. (G) ChatWidget.tsx SSE chunk parsing fixed: `type === 'text'` → `'content' in parsed`. (H) streamChat fixed: FormData → JSON body with correct Content-Type. Housing domain demo verified working end-to-end. 278 unit tests passing (7 new: 4 forms endpoint + 3 rag_fn query rewriting). Five workstreams added: (1) this documentation catch-up, (2) forms submit endpoint with tracking code + DB write, (3) OCR upload UI card on all 3 procedure pages, (4) query rewriting in rag_fn for short follow-up queries, (5) TASK-18 benchmark harness scaffolding.
 
 > **What changed in v3.2:** TASK-14 complete — integration tests for the RAG pipeline and agent graph. `tests/integration/conftest.py` added with session-scoped `require_qdrant` (autouse, httpx reachability check), `require_postgres` (psycopg2 reachability check), `qdrant_service`, `embedder_service`, `tthc001_uuid` (live PostgreSQL query), and `base_agent_state` fixtures. All 8 integration tests skip cleanly when Docker services are not running — no connection-error failures. `tests/integration/test_rag_pipeline.py`: 4 tests covering (1) rag_fn real Qdrant retrieval with mocked LLM, (2) procedure_id filter verifying TTHC-001 chunk tags, (3) verify_citations against real payload data with hallucinated Điều 99 flagged as `[unverified: ...]`, (4) jurisdiction cascade fallback from VN-HCM-26968 ward to VN national scope. `tests/integration/test_agent_graph.py`: 4 tests covering (5) full graph rag-only path with mocked LLM, (6) empty plan produces fallback mode, (7) circuit-breaker at MAX_PLAN_STEPS does not crash and sets mode=error, (8) filing_jurisdiction cascade in full graph sets scope_notice_included=True. `pyproject.toml` updated with `integration` marker. Lazy singleton `_llm_svc` and `_qdrant_svc` reset around each graph call to prevent mock bleed-through. 271 unit tests still passing. 8 integration tests passing (all skip when Docker not running).
 
@@ -66,7 +72,9 @@
 | Docker Compose (postgres, redis, qdrant, minio) | `docker-compose.yml` | Implemented & Running |
 | PostgreSQL 7-table schema | `alembic/versions/0001_initial_schema.py` | Implemented & Tested |
 | Alembic migration applied | (live DB, run `alembic upgrade head`) | Implemented & Running |
-| 3 residence procedures seeded | `ingestion/ingest_procedures.py` | Implemented & Running |
+| 3 residence procedures seeded (TTHC-001, TTHC-002, TTHC-003) + 2 housing DAG edges | `ingestion/ingest_procedures.py` | Implemented & Running |
+| 4 new multi-domain procedures seeded: TTHC-CR-001 (Đăng ký khai sinh), TTHC-CR-002 (Cấp bản sao Trích lục hộ tịch), TTHC-AD-001 (Đăng ký việc nuôi con nuôi trong nước), TTHC-AD-002 (Đăng ký lại việc nuôi con nuôi trong nước) | `ingestion/ingest_procedures.py` | Implemented & Running |
+| 2 cross-domain DAG edges seeded: TTHC-CR-002 → TTHC-CR-001 (Điều 63–64 Luật Hộ tịch 2014 — bản sao trích lục requires prior khai sinh registration); TTHC-AD-002 → TTHC-AD-001 (Điều 24 Nghị định 123/2015/NĐ-CP — re-registration requires original registration to have existed) | `ingestion/ingest_procedures.py` | Implemented & Running |
 | Python venv with all deps | `backend/.venv/` | Implemented |
 
 #### Backend — Implemented
@@ -180,7 +188,7 @@ Nothing is currently mid-implementation (all work is either complete or not yet 
 
 #### Data
 - Real Vietnamese legal PDFs — **4 collected ✅, converted to PDF ✅ (2026-03-26), ingested into Qdrant ✅** — Luật Cư trú 2020 (68/2020/QH14), NĐ 62/2021/NĐ-CP, NĐ 104/2022/NĐ-CP, TT 55/2021/TT-BCA; stored in `backend/data/legal_documents/`
-- Qdrant `legal_documents` collection — **populated ✅** — 27 chunks ingested, housing domain, VN scope, TTHC-001/002/003 tagged. `scope_coverage` table populated (TTHC-001: 16 chunks, TTHC-002: 10 chunks, TTHC-003: 5 chunks). `structured_summary` null (ANTHROPIC_API_KEY required for live LLM summaries). Re-run with API key set to populate summaries.
+- Qdrant `legal_documents` collection — **populated ✅** — 27 chunks ingested, housing domain, VN scope, TTHC-001/002/003 tagged. `scope_coverage` table populated (TTHC-001: 16 chunks, TTHC-002: 10 chunks, TTHC-003: 5 chunks). **`structured_summary: null` for all ingested chunks across all domains.** The ingestion pipeline supports `--generate-summaries` flag which calls LLMService per chunk at ingestion time. Re-run each domain with this flag to populate. Requires rate limit management: add ~13s sleep between per-chunk calls when using Gemini free tier (5 req/min). `rag_fn` structured summary fallback (>80% token budget guard) is implemented and will activate automatically once summaries are populated. **Note: Redis response cache is dormant infrastructure** — `get_cached_response()` and `cache_response()` methods exist in `RedisService` but are not called by any pipeline node or endpoint. Cache key design decisions have not been made. Deferred.
 - AcroForm PDF templates — **3 generated ✅ (2026-04-11)** — TTHC-001.pdf (14 fields), TTHC-002.pdf (15 fields), TTHC-003.pdf (14 fields) at `backend/data/pdf_templates/`; `generate_templates.py` committed for reproducibility
 - Synthetic CCCD mock images — **80 images across 4 categories ✅** — `backend/data/mock_documents/` (category_1_clean_qr, category_2_degraded_qr, category_3_no_qr, category_4_injection; 20 per category)
 
@@ -435,7 +443,7 @@ Implement the Anthropic LLM client wrapper, wire LangSmith tracing from day one,
 - LLM calls in unit tests **must** be mocked — no real API calls in `tests/unit/` (CLAUDE.md rule)
 - Valid `execution_plan` strings must exactly match `NODE_REGISTRY` keys — define them as a constant and import into the prompt template to prevent typo drift
 - Do not use Claude Vision as fallback for OCR — document type classification is the only permitted vision call
-- **Router prompt must include domain-diverse few-shot examples before any multi-domain testing begins.** Add 4 examples per new domain (civil registration, business registration) — 2 simple single-intent queries and 2 compound queries per domain. Total examples: ~16. This is a prerequisite for TASK-17, not a separate task. The router output schema must be extended to include `domain: str | None` as a structured output field alongside `execution_plan` and `entities`. Valid domain values: `'housing'`, `'civil_registration'`, `'business_registration'`, `None` (ambiguous).
+- **Router prompt must include domain-diverse few-shot examples before any multi-domain testing begins.** ✅ Already complete — router_prompt.py has 8 domain-diverse examples (4 civil_registration + 4 adoption) plus 8 housing examples. Valid domain values: `'housing'`, `'civil_registration'`, `'adoption'`, `None` (ambiguous).
 ---
 
 ---
@@ -681,7 +689,7 @@ Implement the offline ingestion script with soft-deprecation on re-ingestion. Ev
 #### Notes / Constraints
 - **Never ingest without procedure_tags** — untagged chunks are unretrievable in filtered search (CLAUDE.md rule)
 - Chunk at article boundaries — never split mid-article
-- `structured_summary` is null in this run — `ANTHROPIC_API_KEY` not set. Re-run with key to populate.
+- `structured_summary` is null for all currently ingested chunks. The `--generate-summaries` flag calls LLMService per chunk at ingestion time. Re-run each domain with this flag and a live LLM API key to populate. Requires rate limit management: add ~13s sleep between per-chunk LLM calls when using Gemini free tier (5 req/min). `rag_fn` structured summary fallback is implemented (>80% token budget guard) and activates automatically once summaries are populated — it has never fired in production because all summaries are null.
 - SQL fix applied: `CAST(:proc_id AS UUID)` replaces `:proc_id::uuid` in `upsert_scope_coverage` (asyncpg param mixing issue)
 ---
 
@@ -731,7 +739,7 @@ Additionally, `rag_fn` must implement jurisdiction-aware retrieval: call `expand
 - [x] `QdrantService.search()` accepts `scope` parameter and filters correctly ✅
 - [x] `rag-agent.md` rewritten and accurate ✅
 - [x] No real API calls in any test — all LLM and Qdrant calls mocked ✅
-- [x] Threshold-based stopping implemented with `RAG_MIN_SCORE_THRESHOLD` — `test_threshold_stopping_drops_low_score_chunks` ✅
+- [x] Threshold-based stopping implemented with `RAG_MIN_SCORE_THRESHOLD` (current value: 0.01, corrected from 0.3 — original value exceeded RRF mathematical maximum of ~0.033; effective range for this implementation is 0.005–0.015) — `test_threshold_stopping_drops_low_score_chunks` ✅
 - [x] Structured summary fallback activates beyond 80% of token budget — `used_tokens > max_tokens * 0.8` guard in rag.py ✅
 
 #### Notes / Constraints
@@ -1230,40 +1238,49 @@ Implement all jurisdiction infrastructure required for hierarchical scope filter
 **Sequence gate:** Must NOT begin until TASK-11 (housing demo) is complete and stable. All housing domain work must be verified working end-to-end before multi-domain expansion begins.
 
 #### Goal
-Extend the ingestion pipeline and seed data to cover two additional domains — civil registration (hộ tịch) and business registration (kinh doanh) — each with one representative procedure and a full three-level hierarchical branch (VN → VN-HCM → VN-HCM-[ward_code]). This task is the data foundation for the scientific contribution claim. It does not change any pipeline code — only ingestion configuration, seed data, and legal documents.
+Extend the ingestion pipeline and seed data to cover two additional domains — civil registration (hộ tịch) and adoption (nuôi con nuôi) — each with representative procedures and a full three-level hierarchical branch (VN → VN-HCM → VN-HCM-[ward_code]). This task is the data foundation for the scientific contribution claim. It does not change any pipeline code — only ingestion configuration, seed data, and legal documents.
 
 This task validates the claim that "extending to a new domain requires only ingestion and data tasks, not pipeline changes." If any pipeline code change is required to ingest a new domain, that is a finding that must be documented and addressed before TASK-18.
 
+**Scaffolding already complete (from v3.4):**
+- `ingestion/domain_configs/civil_registration.yaml` — placeholder exists with article mappings for TTHC-CR-001 and TTHC-CR-002; article selections pending human verification against source documents
+- `ingestion/domain_configs/adoption.yaml` — placeholder exists with article mappings for TTHC-AD-001 and TTHC-AD-002; article selections pending human verification
+- `ingestion/ingest_procedures.py` — already seeds TTHC-CR-001, TTHC-CR-002, TTHC-AD-001, TTHC-AD-002 with correct `domain` classification and DAG edges
+- Router prompt already extended with 8 domain-diverse few-shot examples (4 civil_registration + 4 adoption)
+- `router_queries.json` already has 60 labeled queries (20 per domain)
+
+The remaining work for this task is: (1) human verification of YAML article mappings against source documents, (2) downloading remaining legal documents for civil_registration and adoption domains, and (3) running ingestion with each domain config.
+
 #### Inputs
-- `ingestion/ingest_legal_docs.py` → extend to read `location_scope` from domain config
-- `ingestion/domain_configs/` → new YAML files for two domains
-- Legal documents for civil registration: Luật Hộ tịch 2014, Nghị định 123/2015/NĐ-CP, plus any Ho Chi Minh City or ward-level circular for the same procedure — must be collected before this task begins
-- Legal documents for business registration: Luật Doanh nghiệp 2020, Nghị định 01/2021/NĐ-CP, plus Ho Chi Minh City/ward-level equivalents — must be collected before this task begins
-- TASK-16 complete (administrative_units seeded, domain column exists)
+- `ingestion/ingest_legal_docs.py` → existing implementation (reads `location_scope` from domain config)
+- `ingestion/domain_configs/civil_registration.yaml` → ⚠️ article mappings require human verification against source documents before ingestion
+- `ingestion/domain_configs/adoption.yaml` → ⚠️ article mappings require human verification against source documents before ingestion
+- Legal documents for civil registration: Luật Hộ tịch 2014 (60/2014/QH13), Nghị định 123/2015/NĐ-CP, Thông tư 15/2015/TT-BTP, Thông tư 04/2020/TT-BTP, Nghị định 120/2025/NĐ-CP — download from thuvienphapluat.vn; some PDFs may already be in `backend/data/legal_documents/`
+- Legal documents for adoption: Luật Nuôi con nuôi 2010 (52/2010/QH12), Nghị định 19/2011/NĐ-CP, Nghị định 24/2019/NĐ-CP, Nghị định 120/2025/NĐ-CP — download from thuvienphapluat.vn
+- TASK-16 complete ✅ (administrative_units seeded, domain column exists)
 
 #### Outputs
-- `ingestion/domain_configs/civil_registration.yaml` — explicit article mappings for Đăng ký khai sinh (TTHC-CR-001), three scope levels
-- `ingestion/domain_configs/business_registration.yaml` — explicit article mappings for Đăng ký hộ kinh doanh (TTHC-BZ-001), three scope levels
-- `ingestion/ingest_procedures.py` — updated to seed one procedure per new domain with correct `domain` classification
-- Qdrant `legal_documents` collection populated with chunks for all three domains at all three scope levels
+- `ingestion/domain_configs/civil_registration.yaml` — article mappings verified against source documents
+- `ingestion/domain_configs/adoption.yaml` — article mappings verified against source documents
+- Qdrant `legal_documents` collection populated with chunks for all three domains
 - `scope_coverage` table populated for all ingested (location_scope, procedure_id, domain) combinations
-- `administrative_units` table extended with ward codes for the specific wards used in civil registration and business registration test branches
+- `administrative_units` table extended with ward codes for the specific wards used in civil registration and adoption test branches (if different from housing domain ward codes)
 
 #### Definition of Done
-- [ ] Civil registration legal documents ingested at VN, VN-HCM, and VN-HCM-[ward] scope levels — chunks visible in Qdrant
-- [ ] Business registration legal documents ingested at VN, VN-HCM, and VN-HCM-[ward] scope levels — chunks visible in Qdrant
+- [ ] Civil registration legal documents ingested at VN scope level — chunks visible in Qdrant for TTHC-CR-001 and TTHC-CR-002
+- [ ] Adoption legal documents ingested at VN scope level — chunks visible in Qdrant for TTHC-AD-001 and TTHC-AD-002
 - [ ] `scope_coverage` table has rows for all three domains at all ingested scope levels
 - [ ] `QdrantService.search("đăng ký khai sinh", procedure_id="TTHC-CR-001", domain="civil_registration")` returns relevant chunks
-- [ ] `QdrantService.search("đăng ký hộ kinh doanh", procedure_id="TTHC-BZ-001", domain="business_registration")` returns relevant chunks
+- [ ] `QdrantService.search("đăng ký nuôi con nuôi", procedure_id="TTHC-AD-001", domain="adoption")` returns relevant chunks
 - [ ] **No pipeline code changes were required** to support new domains — if any were needed, document them explicitly before marking this done
-- [ ] `domain_configs/*.yaml` files have been manually verified — article mappings checked against source legal documents
-- [ ] Router prompt updated with domain-diverse few-shot examples (4 per new domain) before running any multi-domain retrieval tests
+- [ ] `domain_configs/civil_registration.yaml` article mappings manually verified against source legal documents
+- [ ] `domain_configs/adoption.yaml` article mappings manually verified against source legal documents
 - [ ] `verify_citations()` tested against citation formats from all three domains — no false-flagging on correct citations
 
 #### Notes / Constraints
-- Collect all legal documents before starting implementation — data collection is the blocking activity, not coding
+- Data collection (downloading and converting legal PDFs) is the blocking activity, not coding — the pipeline code is already complete
 - Use the same scope code convention as housing: `VN-HCM-[official_ward_code]` — do not use ward name strings
-- If any domain's legal documents use citation formats not covered by the refactored `verify_citations()`, document the format and update the matching logic before ingesting
+- If any domain's legal documents use citation formats not covered by the current `verify_citations()` implementation, document the format and update the matching logic before ingesting
 - This task must be completed before TASK-18 can begin
 
 ---
@@ -1276,25 +1293,31 @@ This task validates the claim that "extending to a new domain requires only inge
 **Estimated effort:** M (3 days)
 **Depends on:** TASK-17 (multi-domain data), TASK-11 (full graph), TASK-14 (integration tests)
 **Can be parallelized with:** Nothing — requires all above complete
-**Sequence gate:** Must NOT begin until TASK-17 is verified complete and all three domains have confirmed data in Qdrant.
+**Sequence gate:** Must NOT begin until TASK-17 is verified complete and all three domains (housing, civil_registration, adoption) have confirmed data in Qdrant.
 
 #### Goal
-Construct the labeled evaluation dataset and implement the benchmark suite that validates the scientific contribution claim. The benchmark measures eight properties across three domains. Ground truth is constructed using a three-tier methodology — self-labelable tier, document-verifiable tier, and an explicitly noted external-validation tier that is outside this research prototype's scope.
+Construct the labeled evaluation dataset and implement the benchmark suite that validates the scientific contribution claim. The benchmark measures eight properties across three domains: housing (nhà ở), civil registration (hộ tịch), and adoption (nuôi con nuôi). Ground truth is constructed using a three-tier methodology — self-labelable tier, document-verifiable tier, and an explicitly noted external-validation tier that is outside this research prototype's scope.
 
 This task produces the evidence that supports or challenges the claim: "The architecture is domain-agnostic and validates across DAG-based and hierarchical-based procedure structures."
 
+**Scaffolding already complete (from v3.4):**
+- `tests/evaluation/` directory exists
+- `tests/evaluation/datasets/router_queries.json` — already has 60 labeled queries (20 housing + 20 civil_registration + 20 adoption); covers all three correct domains. No changes needed.
+- `tests/evaluation/run_benchmark.py` — benchmark harness scaffolded (dry-run mode available)
+
+The remaining work is: (1) completing Tier 2 citation ground truth labeling (requires reading source legal documents), (2) completing scope_selection_cases.json, and (3) running the benchmark with live Qdrant data after TASK-17 completes.
+
 #### Inputs
-- All three domains ingested in Qdrant (TASK-17 complete)
-- Full graph running (TASK-11 complete)
-- Integration tests passing (TASK-14 complete)
+- All three domains ingested in Qdrant (TASK-17 complete) — housing, civil_registration, adoption
+- Full graph running (TASK-11 complete ✅)
+- Integration tests passing (TASK-14 complete ✅)
 - Source legal documents for all three domains (for Tier 2 labeling)
 
 #### Outputs
-- `tests/evaluation/` — new directory
-- `tests/evaluation/datasets/router_queries.json` — labeled query set, 20 queries per domain (60 total), each with known correct `execution_plan`, `domain`, `target_procedure_id`
-- `tests/evaluation/datasets/citation_ground_truth.json` — 10 question/correct-article pairs per domain (30 total), manually verified against source legal documents
+- `tests/evaluation/datasets/router_queries.json` — ✅ already complete (60 queries, 20 per domain across housing, civil_registration, adoption)
+- `tests/evaluation/datasets/citation_ground_truth.json` — 10 question/correct-article pairs per domain (30 total), manually verified against source legal documents for housing, civil_registration, and adoption
 - `tests/evaluation/datasets/scope_selection_cases.json` — test cases: `(filing_jurisdiction, procedure_id)` → expected scope filter and expected `scope_used`
-- `tests/evaluation/run_benchmark.py` — script running all 8 measurements and producing a results report
+- `tests/evaluation/run_benchmark.py` — ✅ scaffolded; script running all 8 measurements and producing a results report
 - `tests/evaluation/BENCHMARK_RESULTS.md` — filled in after running, documents results per domain with explicit tier labeling
 
 #### The 8 measurements
@@ -1324,18 +1347,21 @@ Given unknown procedure IDs and queries with no matching documents, does the sys
 Given two users in the same ward but different domains, do they receive chunks exclusively from their respective domains? Threshold: 100% — verifiable by inspecting retrieved chunk payloads.
 
 #### Definition of Done
-- [ ] All three labeled datasets constructed and stored in `tests/evaluation/datasets/`
-- [ ] Tier 2 citation ground truth manually verified against source documents — not inferred
+- [ ] `router_queries.json` — ✅ already has 60 labeled queries (20 per domain) covering housing, civil_registration, adoption
+- [ ] Tier 2 citation ground truth (`citation_ground_truth.json`) manually verified against source documents for housing, civil_registration, and adoption — not inferred
+- [ ] `scope_selection_cases.json` completed with test cases for all three domains
 - [ ] `run_benchmark.py` executes all 8 measurements without manual intervention
-- [ ] `BENCHMARK_RESULTS.md` filled in with actual numbers per domain
+- [ ] `BENCHMARK_RESULTS.md` filled in with actual numbers per domain (housing, civil_registration, adoption)
 - [ ] Each metric labeled with its tier (1, 2, or 3) in the results report
 - [ ] Results for Measurement 1 and 2 (router accuracy) are ≥85% per domain — if not, router prompt must be updated and benchmark rerun before task is marked complete
 - [ ] Results for Measurements 3, 4, 7, 8 are 100% — these are deterministic and any failure indicates a pipeline bug, not a quality issue
 - [ ] BENCHMARK_RESULTS.md explicitly states: "Tier 3 legal correctness validation (whether the system's guidance is legally accurate) is outside the scope of this research prototype and requires external legal review"
 
 #### Notes / Constraints
+- Domains are: housing, civil_registration, adoption — NOT business_registration
+- `router_queries.json` is already complete — 20 queries per domain, all three correct domains covered. Do not rebuild it.
 - Tier 1 labels can be self-constructed — they are deterministic given the procedure definition and configuration
-- Tier 2 labels require reading source legal documents — budget time for this; it cannot be automated
+- Tier 2 labels require reading source legal documents for all three domains — budget time for this; it cannot be automated
 - Do not run the benchmark before TASK-17 is confirmed complete — empty coverage for a domain must not be counted as a pipeline failure
 - The benchmark script must query `scope_coverage` table first and skip test cases for unavailable (domain, scope) combinations, logging which combinations were skipped
 
@@ -1438,16 +1464,12 @@ TASK-04 done. The following can start simultaneously:
 - `tests/integration/test_rag_pipeline.py` (4 tests): real Qdrant retrieval, procedure filter, citation verification, jurisdiction cascade
 - `tests/integration/test_agent_graph.py` (4 tests): rag-only path, empty plan fallback, circuit-breaker, scope_notice_included
 
-**9. Next: Verify end-to-end demo (housing domain)**
+~~**9. Verify end-to-end demo (housing domain)**~~ ✅ Complete (2026-04-12) — integration tests pass, SSE chat endpoint verified working with Gemini backend.
 
-Start Docker services and run the full integration suite against live infrastructure:
-```
-docker compose up -d
-cd backend && PYTHONPATH=. .venv/Scripts/pytest tests/integration/ -m integration -v
-```
+**10. TASK-17 — Multi-domain ingestion (CURRENT)**
 
-**After housing demo stable (TASK-11 + TASK-06 + TASK-08 verified end-to-end):**
+Collect legal documents for civil registration and adoption domains. Data collection is the blocking activity (non-code prerequisite). Pipeline code and YAML placeholder files already exist from v3.4 scaffolding. YAML article mappings require human verification against source documents before ingestion runs.
 
-`TASK-17` Multi-domain ingestion — collect legal documents for civil registration and business registration domains first (non-code prerequisite). Data collection is the blocking activity.
+**11. TASK-18 — Evaluation dataset and benchmark (CURRENT, after TASK-17)**
 
-`TASK-18` Evaluation dataset and benchmark — begins only after TASK-17 complete. Budget 3 days. Tier 2 labeling against source documents is the most time-consuming step.
+Benchmark harness scaffolding is complete (`tests/evaluation/`). Fill in labeled datasets and run `run_benchmark.py --domain housing --dry-run` to verify setup. Tier 2 citation ground truth labeling against source documents is the most time-consuming step. Budget 3 days.
