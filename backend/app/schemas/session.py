@@ -33,5 +33,11 @@ class SessionData(BaseModel):
     # MinIO tmp/ path of the most recently uploaded document; read by ocr_fn when
     # body.image_path is absent from the chat request.
 
+    # Guided procedure completion wizard — TASK-APP-18
+    # None = not in guided mode; "TTHC-001" | "TTHC-002" | "TTHC-003" = active guided procedure
+    guided_procedure_id: str | None = None
+    # 0=INTRO, 1=AWAIT_CCCD, 2=FORM_FILLING, 3=COMPLETE; None when guided_procedure_id is None
+    guided_step: int | None = None
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

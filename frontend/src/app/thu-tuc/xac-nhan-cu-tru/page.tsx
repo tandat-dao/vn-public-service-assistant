@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
@@ -11,6 +11,8 @@ import { useChatStore } from '@/lib/stores/chatStore'
 import { api } from '@/lib/api/client'
 
 const FORM_TYPE = 'xac-nhan' as const
+
+type OcrStatus = 'idle' | 'loading' | 'success' | 'partial' | 'error'
 
 const GIOI_TINH_OPTIONS = [
   { value: 'Nam', label: 'Nam' },
@@ -27,6 +29,57 @@ export default function XacNhanCuTruPage() {
   const store = useFormStore()
   const { sessionId } = useChatStore()
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  // OCR upload state
+  const [ocrStatus, setOcrStatus] = useState<OcrStatus>('idle')
+  const [ocrMessage, setOcrMessage] = useState<string>('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleOcrUpload(file: File) {
+    setOcrStatus('loading')
+    setOcrMessage('')
+    try {
+      const result = await api.documents.upload(file, sessionId)
+      if (result.status === 'success' && result.personal_data) {
+        const pd = result.personal_data
+        const confidence = result.ocr_confidence ?? 0
+
+        let formattedDob = ''
+        if (pd.date_of_birth) {
+          const parts = String(pd.date_of_birth).split('-')
+          if (parts.length === 3) formattedDob = `${parts[2]}/${parts[1]}/${parts[0]}`
+        }
+
+        const extracted: Record<string, { value: string; confidence: number }> = {}
+        if (pd.full_name) extracted.ho_ten = { value: pd.full_name, confidence }
+        if (formattedDob) extracted.ngay_sinh = { value: formattedDob, confidence }
+        if (pd.gender) extracted.gioi_tinh = { value: pd.gender, confidence }
+        if (pd.id_number) extracted.so_cccd = { value: pd.id_number, confidence }
+        // xac-nhan: no direct address mapping — the confirmation address is
+        // the registered address the user wants confirmed, not their OCR address.
+
+        store.applyAIExtraction(FORM_TYPE, extracted)
+        setOcrStatus('success')
+        setOcrMessage(`Đã trích xuất thông tin. Độ chính xác: ${Math.round(confidence * 100)}%`)
+      } else if (result.status === 'partial') {
+        setOcrStatus('partial')
+        setOcrMessage('⚠️ Không đọc được thông tin từ ảnh. Vui lòng chụp ảnh rõ hơn (đủ sáng, không mờ, thẻ căn cước nằm thẳng) và thử lại.')
+      } else {
+        setOcrStatus('error')
+        setOcrMessage('❌ Lỗi máy chủ khi xử lý ảnh. Vui lòng thử lại.')
+      }
+    } catch (err: any) {
+      const status = err?.status
+      setOcrStatus('error')
+      if (status === 422) {
+        setOcrMessage('❌ Tệp không hợp lệ. Chỉ chấp nhận ảnh JPG, PNG, WebP dưới 5MB.')
+      } else if (status === 500) {
+        setOcrMessage('❌ Lỗi máy chủ khi xử lý ảnh. Vui lòng thử lại.')
+      } else {
+        setOcrMessage('❌ Không thể kết nối đến máy chủ. Kiểm tra kết nối mạng.')
+      }
+    }
+  }
 
   const {
     register,
@@ -63,8 +116,15 @@ export default function XacNhanCuTruPage() {
         status: result.status as 'received' | 'processing' | 'completed',
       })
       router.push(`/tra-cuu-ho-so?ma=${encodeURIComponent(result.ma_ho_so)}`)
-    } catch {
-      setSubmitError('Đã xảy ra lỗi khi nộp hồ sơ. Vui lòng thử lại.')
+    } catch (err: any) {
+      const status = err?.status
+      if (status === 422) {
+        setSubmitError('Vui lòng kiểm tra lại thông tin đã nhập.')
+      } else if (status === 500) {
+        setSubmitError('Lỗi hệ thống khi nộp hồ sơ. Vui lòng thử lại sau.')
+      } else {
+        setSubmitError('Không thể kết nối. Kiểm tra kết nối mạng.')
+      }
     } finally {
       store.setSubmitting(FORM_TYPE, false)
     }
@@ -85,9 +145,51 @@ export default function XacNhanCuTruPage() {
       <h1 className="text-xl font-bold text-[#1E2F41] mt-4 mb-1">
         Xác nhận thông tin về cư trú
       </h1>
-      <p className="text-sm text-[#555] mb-6">
+      <p className="text-sm text-[#555] mb-4">
         Thủ tục xác nhận tình trạng cư trú (thường trú hoặc tạm trú) phục vụ các mục đích hành chính.
       </p>
+
+      {/* ── OCR Upload Card ── */}
+      <div className="border-2 border-dashed border-[#DDDDDD] rounded p-4 mb-6 bg-[#FAFAFA]">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1 text-sm text-[#555]">
+            {ocrStatus === 'idle' && 'Tải lên ảnh CCCD để điền thông tin tự động'}
+            {ocrStatus === 'loading' && (
+              <span className="text-[#1E2F41]">Đang đọc thông tin CCCD...</span>
+            )}
+            {ocrStatus === 'success' && (
+              <span className="text-[#28A745]">{ocrMessage}</span>
+            )}
+            {ocrStatus === 'partial' && (
+              <span className="text-[#D97706]">{ocrMessage}</span>
+            )}
+            {ocrStatus === 'error' && (
+              <span className="text-[#CC0000]">{ocrMessage}</span>
+            )}
+          </div>
+          <div className="flex-shrink-0">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleOcrUpload(file)
+                e.target.value = ''
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={ocrStatus === 'loading'}
+              className="bg-[#1E2F41] text-white hover:bg-[#2a3f57] font-medium px-4 py-2 rounded text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
+            >
+              {ocrStatus === 'loading' ? 'Đang đọc thông tin CCCD...' : 'Tải lên CCCD để điền tự động'}
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* ── Form ── */}

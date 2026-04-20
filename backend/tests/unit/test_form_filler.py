@@ -224,6 +224,109 @@ async def test_form_filler_fn_merges_extracted_personal_data():
     assert result["personal_data"].full_name == "New Correct Name"
 
 
+# — TTHC-002 field mapping returns filled_fields for tạm trú
+@pytest.mark.asyncio
+async def test_form_filler_tthc002_field_mapping():
+    """form_filler_fn for TTHC-002 populates ho_chu_dem_va_ten and ngay_thang_nam_sinh."""
+    pd = PersonalData(
+        full_name="Trần Thị B",
+        date_of_birth=None,
+        source_document_type="cccd",
+        source_image_path="path/cccd.jpg",
+        extraction_confidence=0.9,
+        field_confidences={"full_name": 0.9},
+        extracted_at=datetime(2024, 1, 1),
+    )
+    state = _base_state(personal_data=pd, procedure_id="TTHC-002")
+    mock_storage = _mock_storage_svc()
+    mock_pdf = _mock_pdf_svc(tmp_path="tmp/test-session-123/TTHC-002.pdf")
+
+    # Return all 15 TTHC-002 fields with the two key fields populated
+    tthc002_fields = {
+        "ho_chu_dem_va_ten": "Trần Thị B",
+        "ngay_thang_nam_sinh": "01/01/1990",
+        "gioi_tinh": "",
+        "dan_toc": "",
+        "so_dinh_danh_ca_nhan": "",
+        "que_quan": "",
+        "noi_thuong_tru": "",
+        "noi_o_hien_tai": "",
+        "nghe_nghiep": "",
+        "noi_lam_viec": "",
+        "ho_ten_chu_ho": "",
+        "quan_he_voi_chu_ho": "",
+        "so_dinh_danh_chu_ho": "",
+        "noi_dung_de_nghi": "",
+        "thoi_han_tam_tru": "",
+    }
+    mapper_class, _ = _mock_mapper(tthc002_fields)
+
+    with patch("app.agents.nodes.form_filler._get_llm_svc", return_value=MagicMock()), \
+         patch("app.agents.nodes.form_filler._get_storage_svc", return_value=mock_storage), \
+         patch("app.agents.nodes.form_filler._get_pdf_svc", return_value=mock_pdf), \
+         patch("app.agents.nodes.form_filler.FormFieldMapper", mapper_class):
+
+        result = await form_filler_fn(state)
+
+    # Key fields are filled — procedure routed and PDF service called
+    assert result["filled_form_path"] is not None
+    mock_pdf.fill.assert_called_once()
+    # Unfilled fields exist (not all 15 were filled), but no error
+    assert "errors" not in result or result.get("errors") == []
+    assert result["personal_data"].full_name == "Trần Thị B"
+
+
+# — TTHC-003 field mapping returns filled_fields for xác nhận cư trú
+@pytest.mark.asyncio
+async def test_form_filler_tthc003_field_mapping():
+    """form_filler_fn for TTHC-003 populates ho_chu_dem_va_ten and ngay_thang_nam_sinh."""
+    pd = PersonalData(
+        full_name="Lê Văn C",
+        date_of_birth=None,
+        source_document_type="cccd",
+        source_image_path="path/cccd.jpg",
+        extraction_confidence=0.88,
+        field_confidences={"full_name": 0.88},
+        extracted_at=datetime(2024, 3, 15),
+    )
+    state = _base_state(personal_data=pd, procedure_id="TTHC-003")
+    mock_storage = _mock_storage_svc()
+    mock_pdf = _mock_pdf_svc(tmp_path="tmp/test-session-123/TTHC-003.pdf")
+
+    # Return all 14 TTHC-003 fields with the two key fields populated
+    tthc003_fields = {
+        "ho_chu_dem_va_ten": "Lê Văn C",
+        "ngay_thang_nam_sinh": "15/03/1985",
+        "gioi_tinh": "",
+        "dan_toc": "",
+        "so_dinh_danh_ca_nhan": "",
+        "que_quan": "",
+        "noi_thuong_tru": "",
+        "noi_o_hien_tai": "",
+        "nghe_nghiep": "",
+        "noi_lam_viec": "",
+        "ho_ten_chu_ho": "",
+        "quan_he_voi_chu_ho": "",
+        "so_dinh_danh_chu_ho": "",
+        "noi_dung_de_nghi": "",
+    }
+    mapper_class, _ = _mock_mapper(tthc003_fields)
+
+    with patch("app.agents.nodes.form_filler._get_llm_svc", return_value=MagicMock()), \
+         patch("app.agents.nodes.form_filler._get_storage_svc", return_value=mock_storage), \
+         patch("app.agents.nodes.form_filler._get_pdf_svc", return_value=mock_pdf), \
+         patch("app.agents.nodes.form_filler.FormFieldMapper", mapper_class):
+
+        result = await form_filler_fn(state)
+
+    # Key fields are filled — procedure routed and PDF service called
+    assert result["filled_form_path"] is not None
+    mock_pdf.fill.assert_called_once()
+    # Unfilled fields exist (not all 14 were filled), but no error
+    assert "errors" not in result or result.get("errors") == []
+    assert result["personal_data"].full_name == "Lê Văn C"
+
+
 # — unknown procedure_id returns error without calling PDFService
 @pytest.mark.asyncio
 async def test_form_filler_fn_unknown_procedure_returns_error():

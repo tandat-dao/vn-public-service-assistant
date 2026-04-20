@@ -16,6 +16,7 @@ import structlog
 from cryptography.fernet import Fernet, InvalidToken
 
 from app.config import settings
+from app.schemas.personal_data import PersonalData
 from app.schemas.session import SessionData
 
 logger = structlog.get_logger(__name__)
@@ -114,7 +115,7 @@ class RedisService:
         await self._client.delete(f"session:{session_id}")
 
     # ------------------------------------------------------------------
-    # Response cache (short-lived, not encrypted — no PII)
+    # Response cache (short-lived, encrypted for consistency — no PII)
     # ------------------------------------------------------------------
 
     async def get_cached_response(self, cache_key: str) -> str | None:
@@ -131,3 +132,52 @@ class RedisService:
     async def cache_response(self, cache_key: str, value: str, ttl: int = 300) -> None:
         ciphertext = self._fernet.encrypt(value.encode())
         await self._client.set(f"cache:{cache_key}", ciphertext, ex=ttl)
+
+    # ------------------------------------------------------------------
+    # Citizen personal data — cross-session carry-forward
+    # ------------------------------------------------------------------
+
+    async def get_citizen_personal_data(self, citizen_id: str) -> PersonalData | None:
+        """Load PersonalData saved under a citizen_id key.
+
+        Returns None if absent or if decryption / parse fails.
+        Key format: citizen:{citizen_id}:personal_data
+        """
+        raw: bytes | None = await self._client.get(f"citizen:{citizen_id}:personal_data")
+        if raw is None:
+            return None
+        try:
+            plaintext = self._fernet.decrypt(raw)
+            data = json.loads(plaintext, object_hook=_datetime_decoder)
+            return PersonalData.model_validate(data)
+        except (InvalidToken, json.JSONDecodeError, Exception) as exc:
+            logger.warning(
+                "Failed to decrypt/parse citizen personal data — returning None",
+                citizen_id=citizen_id,
+                error=str(exc),
+            )
+            return None
+
+    async def save_citizen_personal_data(
+        self,
+        citizen_id: str,
+        data: PersonalData,
+        ttl: int = 86400,
+    ) -> None:
+        """Save PersonalData under a citizen_id key with a 24-hour TTL.
+
+        Key format: citizen:{citizen_id}:personal_data
+        Uses Fernet encryption identical to save_session.
+        Failure is non-fatal — logs a WARNING and returns without raising.
+        """
+        try:
+            payload = data.model_dump(mode="python")
+            plaintext = json.dumps(payload, cls=_DatetimeEncoder).encode()
+            ciphertext = self._fernet.encrypt(plaintext)
+            await self._client.set(f"citizen:{citizen_id}:personal_data", ciphertext, ex=ttl)
+        except Exception as exc:
+            logger.warning(
+                "Failed to save citizen personal data — continuing without carry-forward",
+                citizen_id=citizen_id,
+                error=str(exc),
+            )

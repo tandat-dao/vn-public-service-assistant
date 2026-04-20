@@ -281,3 +281,92 @@ async def test_confidence_scoring_low(mock_qdrant, mock_llm):
     result = await rag_fn(_base_state())
 
     assert result["response_metadata"]["rag_confidence"] == "low"
+
+
+# ---------------------------------------------------------------------------
+# Tests 11–13 — Query rewriting (_build_search_query)
+# ---------------------------------------------------------------------------
+
+async def test_short_followup_uses_augmented_query(mock_qdrant, mock_llm):
+    """Short follow-up (<10 words) with prior history augments the Qdrant query
+    with the last assistant message (first 200 chars)."""
+    chunks = [_make_chunk("20", "62/2021/NĐ-CP", rrf_score=0.9)]
+    mock_qdrant.search.return_value = chunks
+    mock_llm.async_invoke.return_value = "Trả lời về phường khác."
+
+    prior_assistant = (
+        "Theo quy định tại Điều 20, Nghị định 62/2021/NĐ-CP, hồ sơ đăng ký thường trú "
+        "cần có CCCD và giấy tờ chứng minh chỗ ở hợp pháp."
+    )
+    state = _base_state(
+        user_message="Thế còn phường khác thì sao?",  # 5 words — short follow-up
+        conversation_history=[
+            {"role": "user", "content": "Hồ sơ đăng ký thường trú gồm những gì?"},
+            {"role": "assistant", "content": prior_assistant},
+        ],
+    )
+
+    from app.agents.nodes.rag import rag_fn
+
+    await rag_fn(state)
+
+    # Qdrant.search must have been called with a query that contains the assistant context
+    call_args = mock_qdrant.search.call_args
+    actual_query: str = call_args.kwargs.get("query") or call_args.args[0]
+    assert "phường khác thì sao" in actual_query, (
+        f"User message must be in augmented query, got: {actual_query!r}"
+    )
+    assert prior_assistant[:50] in actual_query, (
+        f"Prior assistant context must be prepended, got: {actual_query!r}"
+    )
+
+
+async def test_long_query_not_augmented(mock_qdrant, mock_llm):
+    """Queries with 10+ words are sent to Qdrant as-is, without history context."""
+    chunks = [_make_chunk("20", "62/2021/NĐ-CP", rrf_score=0.9)]
+    mock_qdrant.search.return_value = chunks
+    mock_llm.async_invoke.return_value = "Trả lời."
+
+    long_message = (
+        "Tôi muốn biết điều kiện để đăng ký thường trú tại thành phố Hồ Chí Minh là gì?"
+    )  # 16 words — long, self-contained
+    state = _base_state(
+        user_message=long_message,
+        conversation_history=[
+            {"role": "user", "content": "Câu hỏi trước."},
+            {"role": "assistant", "content": "Câu trả lời trước rất dài và chi tiết."},
+        ],
+    )
+
+    from app.agents.nodes.rag import rag_fn
+
+    await rag_fn(state)
+
+    call_args = mock_qdrant.search.call_args
+    actual_query: str = call_args.kwargs.get("query") or call_args.args[0]
+    assert actual_query == long_message, (
+        f"Long query must not be augmented. Expected:\n{long_message!r}\nGot:\n{actual_query!r}"
+    )
+
+
+async def test_no_history_uses_raw_query(mock_qdrant, mock_llm):
+    """Empty conversation_history: search query is user_message without augmentation."""
+    chunks = [_make_chunk("20", "62/2021/NĐ-CP", rrf_score=0.9)]
+    mock_qdrant.search.return_value = chunks
+    mock_llm.async_invoke.return_value = "Trả lời."
+
+    short_message = "Điều kiện là gì?"  # short but no history
+    state = _base_state(
+        user_message=short_message,
+        conversation_history=[],  # no prior turns
+    )
+
+    from app.agents.nodes.rag import rag_fn
+
+    await rag_fn(state)
+
+    call_args = mock_qdrant.search.call_args
+    actual_query: str = call_args.kwargs.get("query") or call_args.args[0]
+    assert actual_query == short_message, (
+        f"No history → raw query. Expected {short_message!r}, got {actual_query!r}"
+    )

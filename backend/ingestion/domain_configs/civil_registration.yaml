@@ -1,0 +1,48 @@
+# Civil Registration domain configuration
+# Ministry: Bộ Tư pháp
+# Primary law: Luật Hộ tịch 2014 (60/2014/QH13)
+#
+
+domain: civil_registration
+
+procedures:
+  - id: "TTHC-CR-001"
+    name: "Đăng ký khai sinh"
+    relevant_documents:
+      - document_number: "60/2014/QH13"
+        location_scope: "VN"
+        relevant_articles: ["Điều 11", "Điều 12", "Điều 13", "Điều 14", "Điều 15", "Điều 16", "Điều 35", "Điều 36"]
+      - document_number: "123/2015/NĐ-CP"
+        location_scope: "VN"
+        relevant_articles: ["Điều 2", "Điều 3", "Điều 4", "Điều 9", "Điều 14", "Điều 15", "Điều 16", "Điều 17", "Điều 29"]
+      - document_number: "87/2020/NĐ-CP"
+        location_scope: "VN"
+        relevant_articles: ["Điều 12"]
+      - document_number: "07/2025/NĐ-CP"
+        location_scope: "VN"
+        relevant_articles: ["Điều 2"]
+      - document_number: "04/2020/TT-BTP"
+        location_scope: "VN"
+        relevant_articles: ["Điều 6", "Điều 7", "Điều 8", "Điều 15"]
+      - document_number: "01/2022/TT-BTP"
+        location_scope: "VN"
+        relevant_articles: ["Điều 6"]
+
+  - id: "TTHC-CR-002"
+    name: "Cấp bản sao Trích lục hộ tịch"
+    relevant_documents:
+      - document_number: "60/2014/QH13"
+        location_scope: "VN"
+        relevant_articles: ["Điều 63", "Điều 64"]
+      - document_number: "123/2015/NĐ-CP"
+        location_scope: "VN"
+        relevant_articles: ["Điều 2"]
+      - document_number: "18/2026/NĐ-CP"
+        location_scope: "VN"
+        relevant_articles: ["Điều 13"]
+      - document_number: "87/2020/NĐ-CP"
+        location_scope: "VN"
+        relevant_articles: ["Điều 8", "Điều 13"]
+      - document_number: "04/2020/TT-BTP"
+        location_scope: "VN"
+        relevant_articles: ["Điều 2", "Điều 23", "Điều 30"]

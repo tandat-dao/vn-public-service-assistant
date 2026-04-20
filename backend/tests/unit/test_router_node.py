@@ -240,3 +240,89 @@ class TestRouterNode:
         with _mock_llm({"execution_plan": ["rag_fn"], "entities": {}}):
             result = await router_node(_state("test"))
         assert set(result.keys()) == {"execution_plan", "entities", "plan_cursor"}
+
+
+# ---------------------------------------------------------------------------
+# Guided procedure wizard — TASK-APP-18
+# ---------------------------------------------------------------------------
+
+class TestRouterGuidedMode:
+    async def test_guided_intent_housing_sets_guided_state(self):
+        """start_guided intent for a housing procedure activates guided mode at step 0."""
+        with _mock_llm({
+            "execution_plan": [],
+            "entities": {"procedure": "đăng ký tạm trú"},
+            "intent": "start_guided",
+            "procedure_id": "TTHC-002",
+        }):
+            result = await router_node(_state("Giúp tôi đăng ký tạm trú từ đầu đến cuối"))
+        assert result["guided_procedure_id"] == "TTHC-002"
+        assert result["guided_step"] == 0  # INTRO
+        assert result["execution_plan"] == ["rag_fn"]
+        assert result["plan_cursor"] == 0
+
+    async def test_guided_intent_non_housing_returns_unsupported(self):
+        """start_guided for a non-housing procedure returns unsupported message, clears guided mode."""
+        with _mock_llm({
+            "execution_plan": [],
+            "entities": {},
+            "intent": "start_guided",
+            "procedure_id": "TTHC-CR-001",
+        }):
+            result = await router_node(_state("Giúp tôi đăng ký khai sinh"))
+        assert result["guided_procedure_id"] is None
+        assert result["guided_step"] is None
+        # Must contain an explanation that guided mode only supports housing
+        assert "chỉ hỗ trợ" in result.get("final_response", "")
+
+    async def test_router_draft_document_intent_sets_document_type(self):
+        """draft_document intent with a supported document_type sets document_type in state."""
+        with _mock_llm({
+            "execution_plan": [],
+            "entities": {"document": "đơn xin xác nhận cư trú"},
+            "intent": "draft_document",
+            "document_type": "don_xac_nhan_cu_tru",
+        }):
+            result = await router_node(_state("Giúp tôi viết đơn xin xác nhận thông tin cư trú"))
+
+        assert result["document_type"] == "don_xac_nhan_cu_tru"
+        assert result["execution_plan"] == []
+        assert result["plan_cursor"] == 0
+        # Must NOT set guided state — this is not a guided flow
+        assert "guided_procedure_id" not in result or result.get("guided_procedure_id") is None
+        assert "guided_step" not in result or result.get("guided_step") is None
+
+    async def test_router_draft_document_unsupported_type_returns_message(self):
+        """draft_document intent with an unknown document_type returns the supported-types message."""
+        with _mock_llm({
+            "execution_plan": [],
+            "entities": {},
+            "intent": "draft_document",
+            "document_type": "don_khong_ton_tai",
+        }):
+            result = await router_node(_state("Soạn đơn lạ cho tôi"))
+
+        assert result.get("document_type") is None
+        assert "Xin lỗi" in result.get("final_response", "")
+        # Must list supported types in the message
+        assert "xác nhận" in result.get("final_response", "").lower()
+
+    async def test_guided_step2_bypasses_llm(self):
+        """When guided_step==2, router returns form fill plan WITHOUT calling the LLM."""
+        mock_llm_cls = MagicMock()
+        mock_instance = MagicMock()
+        mock_instance.async_invoke = AsyncMock(return_value="{}")
+        mock_llm_cls.return_value = mock_instance
+
+        state = _state("ảnh CCCD của tôi đây", image="/tmp/cccd.jpg")
+        state["guided_procedure_id"] = "TTHC-001"
+        state["guided_step"] = 2
+
+        with patch("app.agents.nodes.router.LLMService", mock_llm_cls):
+            result = await router_node(state)
+
+        # LLM must NOT have been called
+        mock_instance.async_invoke.assert_not_called()
+        assert result["execution_plan"] == ["ocr_fn", "form_filler_fn"]
+        assert result["guided_step"] == 2
+        assert result["guided_procedure_id"] == "TTHC-001"

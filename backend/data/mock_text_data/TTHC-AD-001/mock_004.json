@@ -1,0 +1,31 @@
+{
+  "full_name": "Phan Thị Mỹ Dung",
+  "full_name_latin": "Phan Thi My Dung",
+  "date_of_birth": "1979-03-06",
+  "gender": "Nữ",
+  "nationality": "Việt Nam",
+  "id_number": "079179004567",
+  "id_issue_date": "2021-09-28",
+  "id_issue_place": "Cục Cảnh sát QLHC về TTXH",
+  "permanent_address": {
+    "street": "200 Cách Mạng Tháng Tám",
+    "ward": "Phường 10",
+    "district": "Quận 3",
+    "province": "Thành phố Hồ Chí Minh",
+    "city": "Thành phố Hồ Chí Minh",
+    "country": "Việt Nam"
+  },
+  "temporary_address": null,
+  "raw_address": "200 Cách Mạng Tháng Tám, Phường 10, Quận 3, Thành phố Hồ Chí Minh",
+  "source_document_type": "text_input",
+  "source_image_path": "data/mock_text_data/TTHC-AD-001/mock_004.json",
+  "extraction_confidence": 0.75,
+  "field_confidences": {
+    "full_name": 0.8,
+    "date_of_birth": 0.8,
+    "gender": 0.8,
+    "id_number": 0.8,
+    "permanent_address": 0.75
+  },
+  "extracted_at": "2026-04-12T09:00:00Z"
+}

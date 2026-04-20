@@ -1,0 +1,31 @@
+{
+  "full_name": "Lê Minh Tuấn",
+  "full_name_latin": "Le Minh Tuan",
+  "date_of_birth": "1985-11-30",
+  "gender": "Nam",
+  "nationality": "Việt Nam",
+  "id_number": "079085003456",
+  "id_issue_date": "2020-09-05",
+  "id_issue_place": "Cục Cảnh sát QLHC về TTXH",
+  "permanent_address": {
+    "street": "88 Điện Biên Phủ",
+    "ward": "Phường 15",
+    "district": "Quận Bình Thạnh",
+    "province": "Thành phố Hồ Chí Minh",
+    "city": "Thành phố Hồ Chí Minh",
+    "country": "Việt Nam"
+  },
+  "temporary_address": null,
+  "raw_address": "88 Điện Biên Phủ, Phường 15, Quận Bình Thạnh, Thành phố Hồ Chí Minh",
+  "source_document_type": "text_input",
+  "source_image_path": "data/mock_text_data/TTHC-CR-001/mock_003.json",
+  "extraction_confidence": 0.8,
+  "field_confidences": {
+    "full_name": 0.8,
+    "date_of_birth": 0.8,
+    "gender": 0.8,
+    "id_number": 0.8,
+    "permanent_address": 0.8
+  },
+  "extracted_at": "2026-04-12T09:00:00Z"
+}

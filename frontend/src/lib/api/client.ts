@@ -1,3 +1,5 @@
+import type { DocumentUploadResponse } from '@/lib/types'
+
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -5,7 +7,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     headers: { 'Content-Type': 'application/json', ...init?.headers },
     ...init,
   })
-  if (!res.ok) throw new Error(`API ${path} → ${res.status}`)
+  if (!res.ok) throw Object.assign(new Error(`API ${path} → ${res.status}`), { status: res.status })
   return res.json()
 }
 
@@ -13,17 +15,23 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 export async function* streamChat(
   sessionId: string,
   message: string,
-  file?: File,
+  imagePath?: string,
+  citizenId?: string,
 ): AsyncGenerator<string> {
+  const body: Record<string, string> = { session_id: sessionId, message }
+  if (imagePath) body.image_path = imagePath
+  if (citizenId) body.citizen_id = citizenId
   const res = await fetch(`${BASE}/api/v1/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      session_id: sessionId,
-      message: message,
-    }),
+    body: JSON.stringify(body),
   })
-  if (!res.ok || !res.body) throw new Error('Chat stream failed')
+  if (!res.ok || !res.body) {
+    throw Object.assign(
+      new Error('Chat stream failed'),
+      { status: res.status },
+    )
+  }
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
@@ -64,10 +72,15 @@ export const api = {
       apiFetch<any>(`/api/v1/quality-index?${new URLSearchParams(p)}`),
   },
   documents: {
-    upload: (file: File) => {
+    upload: (file: File, sessionId: string, citizenId?: string) => {
       const fd = new FormData()
       fd.append('file', file)
-      return apiFetch<any>('/api/v1/documents/upload', { method: 'POST', body: fd, headers: {} })
+      fd.append('session_id', sessionId)
+      if (citizenId) fd.append('citizen_id', citizenId)
+      return apiFetch<DocumentUploadResponse>(
+        '/api/v1/documents/upload',
+        { method: 'POST', body: fd, headers: {} },
+      )
     },
   },
   forms: {

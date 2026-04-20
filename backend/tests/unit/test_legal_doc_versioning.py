@@ -36,11 +36,11 @@ class TestReIngestionSupersedes:
     """Verify the versioning contract: existing chunks are superseded before
     new chunks are upserted."""
 
-    @patch("app.services.qdrant_service.EmbedderService")
-    async def test_reingest_calls_batch_set_status_before_upsert(self, mock_embedder_cls):
+    @patch("app.services.qdrant_service._get_embedder")
+    async def test_reingest_calls_batch_set_status_before_upsert(self, mock_get_embedder):
         """scroll_by_document_number → batch_set_status("superseded") must
         happen before upsert_chunks in the re-ingestion flow."""
-        mock_embedder_cls.return_value = MagicMock()
+        mock_get_embedder.return_value = MagicMock()
         svc = QdrantService()
 
         call_order: list[str] = []
@@ -70,10 +70,10 @@ class TestReIngestionSupersedes:
             "supersede must happen before upsert"
         )
 
-    @patch("app.services.qdrant_service.EmbedderService")
-    async def test_first_ingest_skips_supersede(self, mock_embedder_cls):
+    @patch("app.services.qdrant_service._get_embedder")
+    async def test_first_ingest_skips_supersede(self, mock_get_embedder):
         """When no existing chunks are found, batch_set_status must NOT be called."""
-        mock_embedder_cls.return_value = MagicMock()
+        mock_get_embedder.return_value = MagicMock()
         svc = QdrantService()
 
         supersede_called = False

@@ -247,3 +247,48 @@ class TestResponseCache:
         await svc.cache_response("k1", "hello world", ttl=300)
         result = await svc.get_cached_response("k1")
         assert result == "hello world"
+
+
+# ---------------------------------------------------------------------------
+# Test: citizen personal data carry-forward
+# ---------------------------------------------------------------------------
+
+class TestCitizenPersonalData:
+    async def test_get_citizen_personal_data_returns_none_when_absent(self):
+        """get_citizen_personal_data must return None (not raise) when key absent."""
+        key = _make_fernet_key()
+        svc, mock_client = _make_service(key)
+
+        mock_client.get = AsyncMock(return_value=None)
+
+        result = await svc.get_citizen_personal_data("test-citizen-id")
+        assert result is None
+
+    async def test_save_and_get_citizen_personal_data_roundtrip(self):
+        """PersonalData must survive Fernet encrypt → decrypt roundtrip under citizen key."""
+        key = _make_fernet_key()
+        svc, mock_client = _make_service(key)
+
+        store: dict[str, bytes] = {}
+
+        async def _set(k, v, ex=None):
+            store[k] = v
+
+        async def _get(k):
+            return store.get(k)
+
+        mock_client.set = _set
+        mock_client.get = _get
+
+        pd = _make_personal_data()
+        await svc.save_citizen_personal_data("test-citizen-id", pd)
+
+        # Verify key format
+        expected_key = "citizen:test-citizen-id:personal_data"
+        assert expected_key in store
+
+        result = await svc.get_citizen_personal_data("test-citizen-id")
+
+        assert result is not None
+        assert result.full_name == "Nguyễn Văn A"
+        assert result.id_number == "012345678901"

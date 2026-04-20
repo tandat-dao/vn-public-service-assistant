@@ -11,6 +11,7 @@ class ChatRequest(BaseModel):
     message: str
     session_id: str
     image_path: str | None = None
+    citizen_id: str | None = None
 
 
 class Citation(BaseModel):

@@ -59,18 +59,48 @@ DOMAIN_CONFIGS_DIR = Path(__file__).parent / "domain_configs"
 # Explicit mapping: document_number string → filename on disk.
 # Do not infer from filenames — Vietnamese filenames use romanised encodings.
 DOCUMENT_FILE_MAP: dict[str, str] = {
+    # Housing domain
     "68/2020/QH14":   "68_2020_QH14_435315.pdf",
     "62/2021/NĐ-CP":  "62_2021_ND-CP_473325.pdf",
     "104/2022/NĐ-CP": "104_2022_ND-CP_544177.pdf",
     "55/2021/TT-BCA": "55_2021_TT-BCA_466836.pdf",
+    # Civil registration domain
+    "60/2014/QH13":   "60.2014.QH13.pdf",
+    "123/2015/NĐ-CP": "123.2015.ND.CP.pdf",
+    "87/2020/NĐ-CP":  "87.2020.ND.CP.pdf",
+    "04/2020/TT-BTP": "04.2020.TT.BTP.pdf",
+    "01/2022/TT-BTP": "01.2022.TT.BTP.pdf",
+    "07/2025/NĐ-CP":  "07.2025.ND.CP.pdf",
+    "18/2026/NĐ-CP":  "18.2026.ND.CP.pdf",
+    # Adoption domain
+    "52/2010/QH12":   "52_2010_QH12_108082.pdf",
+    "19/2011/NĐ-CP":  "19_2011_ND-CP_120635.pdf",
+    "24/2019/NĐ-CP":  "24_2019_ND-CP_392822.pdf",
+    # Shared across civil_registration + adoption (2025 decree)
+    "120/2025/NĐ-CP": "120_2025_ND-CP_660588.pdf",
 }
 
 # Human-readable document names for hierarchy prefix.
 DOCUMENT_NAME_MAP: dict[str, str] = {
+    # Housing domain
     "68/2020/QH14":   "Luật Cư trú 2020",
     "62/2021/NĐ-CP":  "Nghị định 62/2021/NĐ-CP",
     "104/2022/NĐ-CP": "Nghị định 104/2022/NĐ-CP",
     "55/2021/TT-BCA": "Thông tư 55/2021/TT-BCA",
+    # Civil registration domain
+    "60/2014/QH13":   "Luật Hộ tịch 2014",
+    "123/2015/NĐ-CP": "Nghị định 123/2015/NĐ-CP",
+    "87/2020/NĐ-CP":  "Nghị định 87/2020/NĐ-CP",
+    "04/2020/TT-BTP": "Thông tư 04/2020/TT-BTP",
+    "01/2022/TT-BTP": "Thông tư 01/2022/TT-BTP",
+    "07/2025/NĐ-CP":  "Nghị định 07/2025/NĐ-CP",
+    "18/2026/NĐ-CP":  "Nghị định 18/2026/NĐ-CP",
+    # Adoption domain
+    "52/2010/QH12":   "Luật Nuôi con nuôi 2010",
+    "19/2011/NĐ-CP":  "Nghị định 19/2011/NĐ-CP",
+    "24/2019/NĐ-CP":  "Nghị định 24/2019/NĐ-CP",
+    # Shared
+    "120/2025/NĐ-CP": "Nghị định 120/2025/NĐ-CP",
 }
 
 # Regex to detect Vietnamese article headings: "Điều 1", "Điều 20", etc.
@@ -535,17 +565,23 @@ def build_hierarchy_prefix(
 async def deprecate_existing_chunks(
     qdrant: QdrantService,
     document_number: str,
+    domain: str,
 ) -> int:
-    """Mark all existing active chunks for document_number as superseded.
+    """Mark existing active chunks for (document_number, domain) as superseded.
+
+    Scoping by domain ensures that when a document is shared across domains
+    (e.g. 120/2025/NĐ-CP is referenced by both housing and adoption), only
+    the calling domain's prior chunks are superseded — never another domain's.
 
     Returns count of deprecated chunks.
     """
-    existing_ids = await qdrant.scroll_by_document_number(document_number)
+    existing_ids = await qdrant.scroll_by_document_number(document_number, domain=domain)
     if existing_ids:
         await qdrant.batch_set_status(existing_ids, "superseded")
         log.info(
             "deprecated_existing_chunks",
             document_number=document_number,
+            domain=domain,
             count=len(existing_ids),
         )
     return len(existing_ids)
@@ -665,7 +701,7 @@ async def ingest_document(
     # Stage 2: Soft-deprecate existing chunks
     deprecated_count = 0
     if not dry_run:
-        deprecated_count = await deprecate_existing_chunks(qdrant, document_number)
+        deprecated_count = await deprecate_existing_chunks(qdrant, document_number, domain)
     else:
         log.info("dry_run_skip_deprecation", document_number=document_number)
 

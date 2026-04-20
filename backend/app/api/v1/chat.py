@@ -76,10 +76,37 @@ async def chat(
     if session is None:
         session = SessionData(session_id=body.session_id)
 
+    # ---- Carry-forward: load citizen PersonalData when session has none ----
+    # If the client provides a citizen_id and this session has no extracted
+    # personal data yet, try to load previously saved PersonalData from the
+    # citizen key (24-hour TTL, cross-session). This lets citizens skip
+    # re-uploading their CCCD on a new session if they uploaded before.
+    if body.citizen_id and session.extracted_personal_data is None:
+        try:
+            citizen_pd = await redis.get_citizen_personal_data(body.citizen_id)
+            if citizen_pd is not None:
+                session = session.model_copy(update={"extracted_personal_data": citizen_pd})
+        except Exception as exc:
+            logger.warning("chat: citizen personal data load failed: %s", exc)
+
     # ---- Step 2: Build initial AgentState ----
     # Conversation history is trimmed to 6 turns at save time by RedisService,
     # but slice here as a defensive guard (CLAUDE.md Rule §4).
     capped_history = (session.conversation_history or [])[-6:]
+
+    # Guided mode State 1 → State 2 auto-advance:
+    # If we were waiting for a CCCD upload (State 1) and the upload has now
+    # happened (uploaded_document_path set in session), advance to FORM_FILLING.
+    # This must happen BEFORE building initial_state so the correct guided_step
+    # is hydrated into the graph from the start of this turn.
+    # NOTE: guided mode state is lost on page navigation until TASK-APP-20
+    # (sessionStorage persistence) is implemented.
+    if (
+        session.guided_procedure_id is not None
+        and session.guided_step == 1
+        and session.uploaded_document_path is not None
+    ):
+        session = session.model_copy(update={"guided_step": 2})
 
     initial_state: dict = {
         # Required
@@ -97,6 +124,9 @@ async def chat(
         # ocr_fn can process a document uploaded via /documents/upload in a
         # prior HTTP request without the client re-sending the file.
         "uploaded_image_path": body.image_path or session.uploaded_document_path,
+        # Guided procedure wizard — hydrated from session (TASK-APP-18)
+        "guided_procedure_id": session.guided_procedure_id,
+        "guided_step": session.guided_step,
         # Routing defaults
         "execution_plan": [],
         "plan_cursor": 0,
@@ -151,9 +181,16 @@ async def chat(
         {"role": "user", "content": body.message},
         {"role": "assistant", "content": final_response},
     ]
-    updated_session = session.model_copy(
-        update={"conversation_history": updated_history}
-    )
+    # Write back guided mode state from the final graph result so the next
+    # turn starts with the correct wizard step.  synthesizer_node writes the
+    # updated guided_step into both response_metadata AND the result dict —
+    # read from result dict for session persistence.
+    session_updates: dict = {
+        "conversation_history": updated_history,
+        "guided_procedure_id": result.get("guided_procedure_id"),
+        "guided_step": result.get("guided_step"),
+    }
+    updated_session = session.model_copy(update=session_updates)
     try:
         await redis.save_session(body.session_id, updated_session)
     except Exception as exc:
@@ -164,11 +201,14 @@ async def chat(
 
     # ---- Step 6 + 7: Stream SSE response ----
     async def generate():
-        words = final_response.split(" ")
-        for i, word in enumerate(words):
-            chunk = word if i == len(words) - 1 else word + " "
+        # Split into 3-char Unicode code-point groups.
+        # Python str slicing is by code point, not byte — Vietnamese diacritics
+        # (e.g. ữ = U+1EEF) are single code points and will not be split mid-character.
+        # Last group may be 1–2 chars if len(final_response) is not divisible by 3.
+        chunks = [final_response[i:i+3] for i in range(0, len(final_response), 3)]
+        for chunk in chunks:
             yield f"data: {json.dumps({'content': chunk})}\n\n"
-            await asyncio.sleep(0.02)
+            await asyncio.sleep(0.008)
         # Send metadata before [DONE]
         yield f"data: {json.dumps({'metadata': response_metadata})}\n\n"
         yield "data: [DONE]\n\n"

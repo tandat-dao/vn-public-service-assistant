@@ -1,0 +1,604 @@
+[
+  {
+    "id": "RQ-001",
+    "domain": "housing",
+    "query": "Tôi muốn đăng ký thường trú tại quận 1 thành phố Hồ Chí Minh",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-001",
+    "tier": 1,
+    "notes": "Clear thuong-tru intent, housing domain"
+  },
+  {
+    "id": "RQ-002",
+    "domain": "housing",
+    "query": "Làm thế nào để đăng ký tạm trú? Tôi mới chuyển lên Sài Gòn làm việc",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-002",
+    "tier": 1,
+    "notes": "Tam-tru intent with context"
+  },
+  {
+    "id": "RQ-003",
+    "domain": "housing",
+    "query": "Tôi cần xác nhận thông tin cư trú để làm hồ sơ vay vốn ngân hàng",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-003",
+    "tier": 1,
+    "notes": "Xac-nhan cu-tru intent with stated purpose"
+  },
+  {
+    "id": "RQ-004",
+    "domain": "housing",
+    "query": "Đăng ký thường trú cần những giấy tờ gì?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-001",
+    "tier": 1,
+    "notes": "Short direct question about required documents for thuong-tru"
+  },
+  {
+    "id": "RQ-005",
+    "domain": "housing",
+    "query": "Tôi vừa chuyển về HCM từ Hà Nội và muốn chuyển hộ khẩu, cần chuẩn bị gì?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-001",
+    "tier": 1,
+    "notes": "Longer descriptive question, thuong-tru via 'hộ khẩu'"
+  },
+  {
+    "id": "RQ-006",
+    "domain": "housing",
+    "query": "Thủ tục đăng ký tạm trú mất bao nhiêu ngày?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-002",
+    "tier": 1,
+    "notes": "Direct question about processing time for tam-tru"
+  },
+  {
+    "id": "RQ-007",
+    "domain": "housing",
+    "query": "Điều 20 Luật Cư trú 2020 quy định gì về điều kiện đăng ký thường trú?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-001",
+    "tier": 1,
+    "notes": "Direct legal article citation query, housing domain"
+  },
+  {
+    "id": "RQ-008",
+    "domain": "housing",
+    "query": "Tôi đang thuê nhà ở quận 7 từ 2 tháng rồi, tôi có thể đăng ký tạm trú không?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-002",
+    "tier": 1,
+    "notes": "Situation-based eligibility question for tam-tru"
+  },
+  {
+    "id": "RQ-009",
+    "domain": "housing",
+    "query": "Xác nhận cư trú dùng để làm gì?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-003",
+    "tier": 1,
+    "notes": "Purpose question about xac-nhan cu-tru"
+  },
+  {
+    "id": "RQ-010",
+    "domain": "housing",
+    "query": "Tôi cần đăng ký thường trú và tạm trú, thủ tục nào cần làm trước?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Compound question spanning two procedures; no single target_procedure_id"
+  },
+  {
+    "id": "RQ-011",
+    "domain": "housing",
+    "query": "Nghị định 62/2021/NĐ-CP hướng dẫn Luật Cư trú có quy định gì về hồ sơ tạm trú?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-002",
+    "tier": 1,
+    "notes": "Specific decree query for tam-tru — BM25 critical"
+  },
+  {
+    "id": "RQ-012",
+    "domain": "housing",
+    "query": "Tôi là sinh viên ở ký túc xá có cần đăng ký tạm trú không?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-002",
+    "tier": 1,
+    "notes": "Special case question — student dormitory and tam-tru"
+  },
+  {
+    "id": "RQ-013",
+    "domain": "housing",
+    "query": "Phòng công an phường có quyền từ chối đăng ký thường trú không?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-001",
+    "tier": 1,
+    "notes": "Legal rights question about thuong-tru refusal"
+  },
+  {
+    "id": "RQ-014",
+    "domain": "housing",
+    "query": "Xin chào, tôi cần giúp đỡ",
+    "expected_execution_plan": [],
+    "expected_domain": null,
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Greeting with vague intent — empty plan expected"
+  },
+  {
+    "id": "RQ-015",
+    "domain": null,
+    "query": "Xin chào",
+    "expected_execution_plan": [],
+    "expected_domain": null,
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Pure greeting — empty plan expected"
+  },
+  {
+    "id": "RQ-016",
+    "domain": null,
+    "query": "Tôi cần đăng ký kết hôn, làm ở đâu?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": null,
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Out-of-scope procedure (marriage registration) — no housing/CR/adoption target"
+  },
+  {
+    "id": "RQ-017",
+    "domain": "housing",
+    "query": "Thông tư 55/2021/TT-BCA điều chỉnh gì về thủ tục đăng ký thường trú?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-001",
+    "tier": 1,
+    "notes": "Circular-level query for thuong-tru — BM25 critical"
+  },
+  {
+    "id": "RQ-018",
+    "domain": "housing",
+    "query": "Người nước ngoài có được đăng ký thường trú ở Việt Nam không?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-001",
+    "tier": 1,
+    "notes": "Eligibility edge case — foreign national and thuong-tru"
+  },
+  {
+    "id": "RQ-019",
+    "domain": "housing",
+    "query": "Đăng ký tạm trú online được không hay phải đến tận nơi?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-002",
+    "tier": 1,
+    "notes": "Online vs in-person question for tam-tru"
+  },
+  {
+    "id": "RQ-020",
+    "domain": "housing",
+    "query": "Để xác nhận thông tin cư trú phải chuẩn bị hồ sơ gì và nộp ở đâu?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "housing",
+    "expected_target_procedure_id": "TTHC-003",
+    "tier": 1,
+    "notes": "Documents and filing location question for xac-nhan cu-tru"
+  },
+
+  {
+    "id": "RQ-021",
+    "domain": "civil_registration",
+    "query": "Tôi muốn đăng ký khai sinh cho con, cần làm những gì?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-001",
+    "tier": 1,
+    "notes": "Direct khai-sinh registration intent"
+  },
+  {
+    "id": "RQ-022",
+    "domain": "civil_registration",
+    "query": "Đăng ký khai sinh cần giấy tờ gì?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-001",
+    "tier": 1,
+    "notes": "Short document question for khai-sinh"
+  },
+  {
+    "id": "RQ-023",
+    "domain": "civil_registration",
+    "query": "Làm sao để xin bản sao giấy khai sinh?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-002",
+    "tier": 1,
+    "notes": "Requesting certified copy of birth certificate — TTHC-CR-002"
+  },
+  {
+    "id": "RQ-024",
+    "domain": "civil_registration",
+    "query": "Trích lục hộ tịch là gì và làm thế nào để xin cấp?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-002",
+    "tier": 1,
+    "notes": "Definition + procedure question for trich-luc-ho-tich"
+  },
+  {
+    "id": "RQ-025",
+    "domain": "civil_registration",
+    "query": "Con tôi sinh tại bệnh viện Từ Dũ, đăng ký khai sinh ở đâu?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-001",
+    "tier": 1,
+    "notes": "Jurisdiction question for khai-sinh — hospital birth"
+  },
+  {
+    "id": "RQ-026",
+    "domain": "civil_registration",
+    "query": "Thủ tục làm giấy khai sinh cho trẻ bị bỏ rơi không rõ cha mẹ",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-001",
+    "tier": 1,
+    "notes": "Edge case — abandoned child with unknown parents"
+  },
+  {
+    "id": "RQ-027",
+    "domain": "civil_registration",
+    "query": "Đăng ký khai sinh cần giấy tờ gì và trích lục hộ tịch dùng để làm gì?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Compound question spanning CR-001 and CR-002 — no single target"
+  },
+  {
+    "id": "RQ-028",
+    "domain": "civil_registration",
+    "query": "Luật Hộ tịch 2014 quy định thời hạn đăng ký khai sinh là bao nhiêu ngày?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-001",
+    "tier": 1,
+    "notes": "Specific legal timeline question — Luật Hộ tịch 60/2014/QH13"
+  },
+  {
+    "id": "RQ-029",
+    "domain": "civil_registration",
+    "query": "Con tôi sinh ở nước ngoài, về Việt Nam có cần đăng ký khai sinh lại không?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-001",
+    "tier": 1,
+    "notes": "Edge case — child born abroad, re-registration in Vietnam"
+  },
+  {
+    "id": "RQ-030",
+    "domain": "civil_registration",
+    "query": "Xin bản sao trích lục khai sinh mất bao lâu?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-002",
+    "tier": 1,
+    "notes": "Processing time question for TTHC-CR-002"
+  },
+  {
+    "id": "RQ-031",
+    "domain": "civil_registration",
+    "query": "Cần những giấy tờ gì để xin bản sao trích lục hộ tịch về khai sinh?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-002",
+    "tier": 1,
+    "notes": "Document requirements for trich-luc issuance"
+  },
+  {
+    "id": "RQ-032",
+    "domain": "civil_registration",
+    "query": "Cha không có mặt khi đăng ký khai sinh, mẹ có thể đăng ký một mình không?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-001",
+    "tier": 1,
+    "notes": "Single-parent khai-sinh edge case"
+  },
+  {
+    "id": "RQ-033",
+    "domain": "civil_registration",
+    "query": "Nghị định 123/2015/NĐ-CP quy định gì về hồ sơ đăng ký khai sinh?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-001",
+    "tier": 1,
+    "notes": "Specific decree query — BM25 critical for Nghị định 123/2015"
+  },
+  {
+    "id": "RQ-034",
+    "domain": null,
+    "query": "Xin chào, bạn có thể giúp gì cho tôi không?",
+    "expected_execution_plan": [],
+    "expected_domain": null,
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Greeting with open question — empty plan expected"
+  },
+  {
+    "id": "RQ-035",
+    "domain": null,
+    "query": "Tôi muốn đăng ký kết hôn, thủ tục thế nào?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": null,
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Out-of-scope — marriage registration not in system"
+  },
+  {
+    "id": "RQ-036",
+    "domain": "civil_registration",
+    "query": "Trẻ em khai sinh quá hạn 60 ngày có bị phạt không?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-001",
+    "tier": 1,
+    "notes": "Penalty question for late khai-sinh — legal compliance query"
+  },
+  {
+    "id": "RQ-037",
+    "domain": "civil_registration",
+    "query": "Tôi cần bản sao giấy khai sinh để làm hồ sơ đi học nước ngoài",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-002",
+    "tier": 1,
+    "notes": "Stated purpose (overseas study) pointing to TTHC-CR-002"
+  },
+  {
+    "id": "RQ-038",
+    "domain": "civil_registration",
+    "query": "Điều 13 Luật Hộ tịch quy định quyền đăng ký hộ tịch như thế nào?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Legal article query — general civil registration, not procedure-specific"
+  },
+  {
+    "id": "RQ-039",
+    "domain": null,
+    "query": "Làm sao để nhập quốc tịch Việt Nam?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": null,
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Out-of-scope — nationality registration not in system"
+  },
+  {
+    "id": "RQ-040",
+    "domain": "civil_registration",
+    "query": "Con tôi 5 tuổi vẫn chưa có giấy khai sinh, giờ đăng ký có được không và cần làm gì?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "civil_registration",
+    "expected_target_procedure_id": "TTHC-CR-001",
+    "tier": 1,
+    "notes": "Late registration scenario — child already 5 years old"
+  },
+
+  {
+    "id": "RQ-041",
+    "domain": "adoption",
+    "query": "Tôi muốn nhận nuôi một đứa trẻ, cần làm thủ tục gì?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-001",
+    "tier": 1,
+    "notes": "Direct domestic adoption registration intent"
+  },
+  {
+    "id": "RQ-042",
+    "domain": "adoption",
+    "query": "Điều kiện để nhận con nuôi trong nước là gì?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-001",
+    "tier": 1,
+    "notes": "Eligibility conditions question for domestic adoption"
+  },
+  {
+    "id": "RQ-043",
+    "domain": "adoption",
+    "query": "Hồ sơ đăng ký nuôi con nuôi gồm những giấy tờ gì?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-001",
+    "tier": 1,
+    "notes": "Document requirements for adoption registration"
+  },
+  {
+    "id": "RQ-044",
+    "domain": "adoption",
+    "query": "Thời gian giải quyết hồ sơ nhận con nuôi trong nước là bao lâu?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-001",
+    "tier": 1,
+    "notes": "Processing time question — 30 days per Nghị định 19/2011"
+  },
+  {
+    "id": "RQ-045",
+    "domain": "adoption",
+    "query": "Giấy tờ nuôi con nuôi bị mất hết, làm lại thế nào?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-002",
+    "tier": 1,
+    "notes": "Re-registration due to lost records — TTHC-AD-002"
+  },
+  {
+    "id": "RQ-046",
+    "domain": "adoption",
+    "query": "Đăng ký lại việc nuôi con nuôi khi Sổ hộ tịch bị mất cần chuẩn bị gì?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-002",
+    "tier": 1,
+    "notes": "Specific re-registration scenario with lost sổ hộ tịch"
+  },
+  {
+    "id": "RQ-047",
+    "domain": "adoption",
+    "query": "Hồ sơ đăng ký nuôi con nuôi gồm những gì và thời gian giải quyết bao lâu?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-001",
+    "tier": 1,
+    "notes": "Compound question about documents and timeline for TTHC-AD-001"
+  },
+  {
+    "id": "RQ-048",
+    "domain": "adoption",
+    "query": "Luật Nuôi con nuôi 2010 quy định độ tuổi tối thiểu của người nhận nuôi là bao nhiêu?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-001",
+    "tier": 1,
+    "notes": "Specific legal age requirement — Luật Nuôi con nuôi 52/2010/QH12"
+  },
+  {
+    "id": "RQ-049",
+    "domain": "adoption",
+    "query": "Nghị định 19/2011/NĐ-CP quy định gì về trình tự thủ tục nhận nuôi con nuôi trong nước?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-001",
+    "tier": 1,
+    "notes": "Specific decree query — BM25 critical for Nghị định 19/2011"
+  },
+  {
+    "id": "RQ-050",
+    "domain": "adoption",
+    "query": "Vợ chồng tôi muốn nhận nuôi cháu của mình, có khác gì so với nhận nuôi người ngoài không?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-001",
+    "tier": 1,
+    "notes": "Intra-family adoption eligibility question"
+  },
+  {
+    "id": "RQ-051",
+    "domain": "adoption",
+    "query": "Người độc thân có được nhận con nuôi không?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-001",
+    "tier": 1,
+    "notes": "Single person eligibility question for adoption"
+  },
+  {
+    "id": "RQ-052",
+    "domain": "adoption",
+    "query": "Đăng ký lại nuôi con nuôi và đăng ký lần đầu khác nhau như thế nào?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Comparison question spanning AD-001 and AD-002"
+  },
+  {
+    "id": "RQ-053",
+    "domain": "adoption",
+    "query": "UBND xã có thẩm quyền đăng ký nuôi con nuôi trong nước không?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-001",
+    "tier": 1,
+    "notes": "Jurisdiction / competent authority question for adoption"
+  },
+  {
+    "id": "RQ-054",
+    "domain": null,
+    "query": "Tôi muốn nhận con nuôi từ nước ngoài, thủ tục thế nào?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "International adoption — out-of-scope for current domain but adoption domain correct; no procedure ID since international adoption not seeded"
+  },
+  {
+    "id": "RQ-055",
+    "domain": null,
+    "query": "Xin chào, tôi cần tư vấn về thủ tục hành chính",
+    "expected_execution_plan": [],
+    "expected_domain": null,
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Vague greeting — empty plan expected"
+  },
+  {
+    "id": "RQ-056",
+    "domain": "adoption",
+    "query": "Điều 14 Luật Nuôi con nuôi quy định quyền của trẻ được nhận nuôi như thế nào?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Legal article query — general adoption rights, not procedure-specific"
+  },
+  {
+    "id": "RQ-057",
+    "domain": "adoption",
+    "query": "Sau khi đăng ký nuôi con nuôi, con nuôi có được đổi họ tên không?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-001",
+    "tier": 1,
+    "notes": "Post-adoption name change consequence question"
+  },
+  {
+    "id": "RQ-058",
+    "domain": "adoption",
+    "query": "Sổ hộ tịch nuôi con nuôi và bản chính đều bị mất do hỏa hoạn, làm thủ tục gì?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": "TTHC-AD-002",
+    "tier": 1,
+    "notes": "Re-registration scenario with specific cause (fire) — TTHC-AD-002"
+  },
+  {
+    "id": "RQ-059",
+    "domain": null,
+    "query": "Tôi muốn làm giấy chứng tử cho người thân",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": null,
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Out-of-scope — death registration not in system"
+  },
+  {
+    "id": "RQ-060",
+    "domain": "adoption",
+    "query": "Nghị định 24/2019/NĐ-CP đã thay đổi gì về thủ tục nuôi con nuôi so với Nghị định 19/2011?",
+    "expected_execution_plan": ["rag_fn"],
+    "expected_domain": "adoption",
+    "expected_target_procedure_id": null,
+    "tier": 1,
+    "notes": "Comparative legal query between two decrees — BM25 critical"
+  }
+]

@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     LLM_BACKEND: str = "anthropic"  # "anthropic" | "gemini"
     GOOGLE_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash-lite"
+    CLAUDE_MODEL: str = ""  # reserved for future Claude-direct integration
 
     # Databases
     POSTGRES_URL: str = "postgresql+asyncpg://dichvucong:dichvucong@localhost:5432/dichvucong"

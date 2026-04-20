@@ -39,7 +39,7 @@ from rank_bm25 import BM25Okapi
 
 from app.config import settings
 from app.schemas.rag import DocumentChunk
-from app.services.embedder import EmbedderService
+from app.services.embedder import _get_embedder
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class QdrantService:
 
     def __init__(self) -> None:
         self._client = AsyncQdrantClient(url=settings.QDRANT_URL)
-        self.embedder = EmbedderService()
+        self.embedder = _get_embedder()
 
     # ------------------------------------------------------------------
     # Collection management
@@ -301,7 +301,9 @@ class QdrantService:
         await self.batch_set_status(point_ids, new_status)
         return len(point_ids)
 
-    async def scroll_by_document_number(self, document_number: str) -> list[str]:
+    async def scroll_by_document_number(
+        self, document_number: str, domain: str | None = None
+    ) -> list[str]:
         """Return all point IDs whose payload.document_number matches.
 
         Used by the re-ingestion path to find existing chunks before
@@ -310,18 +312,29 @@ class QdrantService:
 
         Args:
             document_number: e.g. "123/2021/NĐ-CP"
+            domain:          When provided, only chunks whose payload.domain
+                             matches are returned.  This prevents a shared
+                             document (e.g. 120/2025/NĐ-CP used by both
+                             housing and adoption) from superseding another
+                             domain's chunks during re-ingestion.
 
         Returns:
             List of Qdrant point UUID strings.
         """
-        doc_filter = Filter(
-            must=[
+        conditions: list[FieldCondition] = [
+            FieldCondition(
+                key="document_number",
+                match=MatchValue(value=document_number),
+            )
+        ]
+        if domain is not None:
+            conditions.append(
                 FieldCondition(
-                    key="document_number",
-                    match=MatchValue(value=document_number),
+                    key="domain",
+                    match=MatchValue(value=domain),
                 )
-            ]
-        )
+            )
+        doc_filter = Filter(must=conditions)
         results, _ = await self._client.scroll(
             collection_name=settings.QDRANT_COLLECTION,
             scroll_filter=doc_filter,

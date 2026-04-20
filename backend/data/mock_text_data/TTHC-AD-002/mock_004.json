@@ -1,0 +1,31 @@
+{
+  "full_name": "Chu Văn Đạt",
+  "full_name_latin": "Chu Van Dat",
+  "date_of_birth": "1965-07-21",
+  "gender": "Nam",
+  "nationality": "Việt Nam",
+  "id_number": "079065004567",
+  "id_issue_date": "2022-01-06",
+  "id_issue_place": "Cục Cảnh sát QLHC về TTXH",
+  "permanent_address": {
+    "street": "200 Cách Mạng Tháng Tám",
+    "ward": "Phường 10",
+    "district": "Quận 3",
+    "province": "Thành phố Hồ Chí Minh",
+    "city": "Thành phố Hồ Chí Minh",
+    "country": "Việt Nam"
+  },
+  "temporary_address": null,
+  "raw_address": "200 Cách Mạng Tháng Tám, Phường 10, Quận 3, Thành phố Hồ Chí Minh",
+  "source_document_type": "text_input",
+  "source_image_path": "data/mock_text_data/TTHC-AD-002/mock_004.json",
+  "extraction_confidence": 0.75,
+  "field_confidences": {
+    "full_name": 0.8,
+    "date_of_birth": 0.8,
+    "gender": 0.8,
+    "id_number": 0.8,
+    "permanent_address": 0.75
+  },
+  "extracted_at": "2026-04-12T09:00:00Z"
+}

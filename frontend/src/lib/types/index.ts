@@ -9,6 +9,12 @@ export interface BreadcrumbItem {
   href?: string
 }
 
+export interface RetrievedSource {
+  article_number: string
+  document_number: string
+  content: string
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -16,6 +22,27 @@ export interface ChatMessage {
   citations?: Citation[]
   timestamp: Date
   isStreaming?: boolean
+  filledFormPath?: string
+  retrievedSources?: RetrievedSource[]
+  /** Response mode from synthesizer — used to select the render path (e.g. "document_draft") */
+  messageMode?: string
+}
+
+/** Metadata carried in the SSE metadata event from the backend. */
+export interface ChatMetadata {
+  mode?: string
+  scope_used?: string | null
+  scope_notice_included?: boolean
+  rag_confidence?: string | null
+  filled_form_path?: string | null
+  citations?: Citation[]
+  /** Guided procedure wizard fields — TASK-APP-18 */
+  guided_procedure_id?: string | null
+  guided_step?: number | null
+  /** Retrieved chunk content for citation hover tooltips — TASK-APP-17 */
+  retrieved_sources?: RetrievedSource[]
+  /** Administrative document drafting — TASK-APP-22 */
+  document_type?: string | null
 }
 
 export interface Citation {
@@ -130,5 +157,45 @@ export interface FormSubmissionResponse {
   form_type: FormType
   submitted_at: string
   status: 'received' | 'processing' | 'completed'
+  message: string
+}
+
+// ── Document Upload / OCR Types ───────────────────────────────────────────────
+
+export interface PersonalDataAddress {
+  street: string | null
+  ward: string | null
+  district: string | null
+  province: string | null
+  city: string | null
+  country: string
+}
+
+/** Mirrors backend PersonalData schema from app/schemas/personal_data.py */
+export interface PersonalData {
+  full_name: string | null
+  full_name_latin: string | null
+  date_of_birth: string | null   // ISO date string, e.g. "2000-01-15"
+  gender: 'Nam' | 'Nữ' | null
+  nationality: string
+  id_number: string | null
+  id_issue_date: string | null
+  id_issue_place: string | null
+  permanent_address: PersonalDataAddress | null
+  temporary_address: PersonalDataAddress | null
+  raw_address: string | null
+  source_document_type: string
+  source_image_path: string
+  extraction_confidence: number
+  field_confidences: Record<string, number>
+  extracted_at: string
+}
+
+/** Mirrors backend DocumentUploadResponse schema from app/schemas/document.py */
+export interface DocumentUploadResponse {
+  status: 'success' | 'partial'
+  tmp_path: string
+  personal_data: PersonalData | null
+  ocr_confidence: number
   message: string
 }

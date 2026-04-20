@@ -1,0 +1,26 @@
+[
+  {
+    "id": "CT-001",
+    "domain": "housing",
+    "query": "Điều kiện để đăng ký thường trú tại thành phố Hồ Chí Minh là gì?",
+    "expected_articles": [
+      {"document_number": "68/2020/QH14", "article_number": "20"},
+      {"document_number": "62/2021/NĐ-CP", "article_number": "5"}
+    ],
+    "tier": 2,
+    "verified_against_source": true,
+    "notes": "Luật Cư trú 2020 Điều 20 and Nghị định 62/2021 Điều 5 define thuong-tru eligibility"
+  },
+  {
+    "id": "CT-002",
+    "domain": "housing",
+    "query": "Thời hạn đăng ký tạm trú là bao lâu và có thể gia hạn không?",
+    "expected_articles": [
+      {"document_number": "68/2020/QH14", "article_number": "27"},
+      {"document_number": "62/2021/NĐ-CP", "article_number": "8"}
+    ],
+    "tier": 2,
+    "verified_against_source": false,
+    "notes": "TODO: Verify exact article numbers against source documents before marking verified_against_source=true"
+  }
+]

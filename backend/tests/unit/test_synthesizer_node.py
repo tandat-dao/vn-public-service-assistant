@@ -272,3 +272,210 @@ async def test_synthesizer_llm_failure_returns_hardcoded_fallback():
     assert "final_response" in result
     assert result["final_response"] == _HARDCODED_FALLBACK
     assert result["response_metadata"]["mode"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# Guided procedure wizard — TASK-APP-18
+# ---------------------------------------------------------------------------
+
+async def test_synthesizer_guided_step_mode_detected(mock_llm):
+    """guided_step mode fires when guided_step is set; step advances 0 → 1 after INTRO."""
+    from app.agents.nodes.synthesizer import synthesizer_node
+
+    state = _base_state(
+        guided_step=0,
+        guided_procedure_id="TTHC-001",
+        errors=[],
+        retrieved_chunks=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+    )
+
+    result = await synthesizer_node(state)
+
+    assert result["response_metadata"]["mode"] == "guided_step"
+    # INTRO (step 0) → next step is 1 (AWAIT_CCCD)
+    assert result["response_metadata"]["guided_step"] == 1
+    assert result["response_metadata"]["guided_procedure_id"] == "TTHC-001"
+    assert "final_response" in result
+    mock_llm.async_invoke.assert_called_once()
+
+
+async def test_synthesizer_includes_retrieved_sources_in_metadata(mock_llm):
+    """response_metadata includes retrieved_sources for rag_only mode (no scope notice).
+
+    DoD checks:
+    - retrieved_sources is present and is a list
+    - length matches number of chunks with non-empty article_number + document_number
+    - no content entry exceeds 600 characters (backend cap)
+    - article_number and document_number match the corresponding chunk fields
+    """
+    from app.agents.nodes.synthesizer import synthesizer_node
+    from app.schemas.rag import DocumentChunk
+
+    chunk_short = DocumentChunk(
+        point_id="pt-19",
+        legal_document_id="doc-001",
+        document_number="62/2021/NĐ-CP",
+        article_number="19",
+        content="Nội dung điều 19 về đăng ký thường trú.",
+        procedure_tags=["TTHC-001"],
+        status="active",
+        rrf_score=0.9,
+    )
+    # content longer than 600 chars — must be capped
+    chunk_long = DocumentChunk(
+        point_id="pt-5",
+        legal_document_id="doc-002",
+        document_number="104/2022/NĐ-CP",
+        article_number="5",
+        content="X" * 700,
+        procedure_tags=["TTHC-002"],
+        status="active",
+        rrf_score=0.7,
+    )
+
+    rag_answer = "Theo [Điều 19, Nghị định 62/2021/NĐ-CP], hồ sơ gồm..."
+    state = _base_state(
+        retrieved_chunks=[chunk_short, chunk_long],
+        final_response=rag_answer,
+        response_metadata={"rag_confidence": "high"},
+        # Same scope → no scope notice → LLM not called (fast path)
+        scope_used="VN",
+        filing_jurisdiction="VN",
+        errors=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+    )
+
+    result = await synthesizer_node(state)
+
+    assert result["response_metadata"]["mode"] == "rag_only"
+    sources = result["response_metadata"]["retrieved_sources"]
+    assert isinstance(sources, list)
+    # Both chunks have non-empty article_number and document_number → both included
+    assert len(sources) == 2
+    # Content cap enforced
+    for source in sources:
+        assert len(source["content"]) <= 600
+    article_numbers = {s["article_number"] for s in sources}
+    doc_numbers = {s["document_number"] for s in sources}
+    assert "19" in article_numbers
+    assert "5" in article_numbers
+    assert "62/2021/NĐ-CP" in doc_numbers
+    assert "104/2022/NĐ-CP" in doc_numbers
+    # LLM must NOT be called in the no-scope-notice optimisation path
+    mock_llm.async_invoke.assert_not_called()
+
+
+async def test_synthesizer_guided_step3_clears_guided_mode(mock_llm):
+    """At step 3 (COMPLETE), guided mode ends — guided_procedure_id and guided_step become None."""
+    from app.agents.nodes.synthesizer import synthesizer_node
+
+    state = _base_state(
+        guided_step=3,
+        guided_procedure_id="TTHC-002",
+        errors=[],
+        retrieved_chunks=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+    )
+
+    result = await synthesizer_node(state)
+
+    assert result["response_metadata"]["mode"] == "guided_step"
+    assert result["response_metadata"]["guided_procedure_id"] is None
+    assert result["response_metadata"]["guided_step"] is None
+    assert "final_response" in result
+
+
+# ---------------------------------------------------------------------------
+# Administrative document drafting — TASK-APP-22
+# ---------------------------------------------------------------------------
+
+async def test_synthesizer_document_draft_mode_detected(mock_llm):
+    """document_draft mode fires when document_type is a draft type (no guided_step)."""
+    from app.agents.nodes.synthesizer import _determine_mode, synthesizer_node
+
+    state = _base_state(
+        document_type="don_dang_ky_tam_tru",
+        guided_step=None,
+        guided_procedure_id=None,
+        errors=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+        retrieved_chunks=[],
+    )
+
+    # _determine_mode must return "document_draft"
+    assert _determine_mode(state) == "document_draft"
+
+    result = await synthesizer_node(state)
+
+    assert isinstance(result, dict)
+    assert result["response_metadata"]["mode"] == "document_draft"
+    assert result["response_metadata"]["document_type"] == "don_dang_ky_tam_tru"
+    assert "final_response" in result
+    # LLM must have been called for the body
+    mock_llm.async_invoke.assert_called_once()
+
+
+async def test_synthesizer_document_draft_uses_personal_data(mock_llm):
+    """document_draft mode injects personal data into the assembled document."""
+    from app.schemas.personal_data import PersonalData
+    from datetime import date, datetime
+    from app.agents.nodes.synthesizer import synthesizer_node
+
+    pd = PersonalData(
+        full_name="Nguyễn Văn A",
+        id_number="012345678901",
+        date_of_birth=date(1990, 1, 15),
+        source_document_type="cccd",
+        source_image_path="tmp/test.jpg",
+        extraction_confidence=0.95,
+        extracted_at=datetime(2026, 1, 1),
+    )
+
+    state = _base_state(
+        document_type="don_xac_nhan_cu_tru",
+        extracted_personal_data=pd,
+        personal_data=None,
+        guided_step=None,
+        errors=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+        retrieved_chunks=[],
+    )
+
+    # LLM returns a fixed body so we can verify the full document contains personal data
+    mock_llm.async_invoke.return_value = "Nội dung đơn xin xác nhận."
+
+    result = await synthesizer_node(state)
+
+    assert result["response_metadata"]["mode"] == "document_draft"
+    final = result["final_response"]
+    # Personal data fields must be injected into the assembled document
+    assert "Nguyễn Văn A" in final
+    assert "012345678901" in final
+    # Standard structural elements must be present
+    assert "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM" in final
+    assert "Trân trọng kính trình" in final
+
+
+def test_synthesizer_ocr_document_type_does_not_trigger_draft_mode():
+    """OCR-set document types ('cccd') must NOT trigger document_draft mode."""
+    from app.agents.nodes.synthesizer import _determine_mode
+
+    # OCR sets document_type to 'cccd' — should fall through to fallback
+    state = _base_state(
+        document_type="cccd",
+        errors=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+        retrieved_chunks=[],
+        guided_step=None,
+    )
+    mode = _determine_mode(state)
+    assert mode == "fallback", (
+        f"OCR document type 'cccd' must NOT trigger document_draft mode; got {mode!r}"
+    )

@@ -140,10 +140,11 @@ def _form_fill_complete_prompt(context: dict) -> str:
 Thủ tục: {procedure_name}
 {scope_section}
 Hãy:
-- Thông báo cho người dùng rằng biểu mẫu đã được điền thành công và sẵn sàng để nộp.
-- Đề cập tên thủ tục nếu có.
+- Thông báo cho người dùng rằng tờ khai {procedure_name} đã được điền đầy đủ thông tin từ CCCD.
+- Hướng dẫn người dùng bấm vào **nút tải xuống bên dưới** để lấy tờ khai đã điền.
+- Nhắc người dùng kiểm tra lại thông tin trước khi nộp.
 - KHÔNG tiết lộ đường dẫn MinIO, đường dẫn file nội bộ, hoặc bất kỳ đường dẫn kỹ thuật nào.
-- Hướng dẫn bước tiếp theo (ví dụ: kiểm tra lại biểu mẫu và tiến hành nộp)."""
+- Hướng dẫn bước tiếp theo ngắn gọn (ví dụ: kiểm tra, in ra và nộp tại cơ quan có thẩm quyền)."""
 
 
 def _form_fill_partial_prompt(context: dict) -> str:
@@ -210,16 +211,242 @@ def _fallback_prompt(context: dict) -> str:
 
 ## Nhiệm vụ: Hướng dẫn người dùng
 {user_section}
-Hệ thống này hỗ trợ ba thủ tục đăng ký và xác nhận cư trú tại Việt Nam:
+Hệ thống này hỗ trợ 7 thủ tục hành chính thuộc 3 lĩnh vực tại Việt Nam:
+
+**Nhà ở:**
 1. Đăng ký thường trú (TTHC-001) — đăng ký hộ khẩu thường trú
 2. Đăng ký tạm trú (TTHC-002) — đăng ký nơi tạm trú
-3. Xác nhận thông tin cư trú (TTHC-003) — xin xác nhận thông tin cư trú
+3. Xác nhận thông tin về cư trú (TTHC-003) — xin xác nhận thông tin cư trú
+
+**Hộ tịch:**
+4. Đăng ký khai sinh (TTHC-CR-001) — đăng ký khai sinh cho trẻ
+5. Cấp bản sao Trích lục hộ tịch (TTHC-CR-002) — yêu cầu hoàn thành TTHC-CR-001 trước
+
+**Nuôi con nuôi:**
+6. Đăng ký việc nuôi con nuôi trong nước (TTHC-AD-001)
+7. Đăng ký lại việc nuôi con nuôi trong nước (TTHC-AD-002) — yêu cầu hoàn thành TTHC-AD-001 trước
 
 Hãy:
 - Chào hỏi người dùng lịch sự.
-- Giới thiệu ngắn gọn ba thủ tục trên.
+- Giới thiệu ngắn gọn 7 thủ tục trên, nhóm theo lĩnh vực (nhà ở, hộ tịch, nuôi con nuôi).
 - Hỏi người dùng muốn được hỗ trợ thủ tục nào hoặc có câu hỏi gì về các thủ tục này.
-- Giữ thông điệp ngắn gọn, thân thiện (không quá 150 từ)."""
+- Giữ thông điệp ngắn gọn, thân thiện (không quá 200 từ)."""
+
+
+# ---------------------------------------------------------------------------
+# Guided procedure completion wizard prompts — TASK-APP-18
+# ---------------------------------------------------------------------------
+
+# Hardcoded document lists used as fallback when RAG returns no results.
+# Sourced from the ingested legal corpus — must not be invented.
+_GUIDED_DOCS_FALLBACK: dict[str, list[str]] = {
+    "TTHC-001": [
+        "CCCD/CMND bản gốc",
+        "Tờ khai thay đổi thông tin cư trú CT01 (hệ thống điền tự động)",
+        "Giấy tờ chứng minh chỗ ở hợp pháp (hợp đồng thuê nhà công chứng hoặc giấy tờ sở hữu nhà)",
+        "Sổ hộ khẩu (nếu có)",
+    ],
+    "TTHC-002": [
+        "CCCD/CMND bản gốc",
+        "Tờ khai thay đổi thông tin cư trú CT01 (hệ thống điền tự động)",
+        "Hợp đồng thuê nhà/phòng trọ có công chứng hoặc xác nhận của chủ nhà",
+        "Văn bản đồng ý của chủ hộ (nếu ở nhờ)",
+    ],
+    "TTHC-003": [
+        "CCCD/CMND bản gốc",
+        "Đơn đề nghị xác nhận thông tin cư trú",
+    ],
+}
+
+_GUIDED_PROCEDURE_NAMES: dict[str, str] = {
+    "TTHC-001": "Đăng ký thường trú",
+    "TTHC-002": "Đăng ký tạm trú",
+    "TTHC-003": "Xác nhận thông tin về cư trú",
+}
+
+
+def build_guided_prompt(state: dict) -> str:
+    """Build the system prompt for the guided procedure completion wizard.
+
+    Called by synthesizer_node when mode == "guided_step".
+    Dispatches to per-step sub-builders based on state["guided_step"].
+
+    Args:
+        state: The full AgentState dict (or a compatible dict for tests).
+
+    Returns:
+        Complete system prompt string.
+    """
+    step = state.get("guided_step", 0)
+    procedure_id = state.get("guided_procedure_id") or "TTHC-001"
+    procedure_name = _GUIDED_PROCEDURE_NAMES.get(procedure_id, procedure_id)
+
+    if step == 0:
+        return _guided_intro_prompt(state, procedure_id, procedure_name)
+    elif step == 1:
+        return _guided_await_cccd_prompt(state, procedure_id, procedure_name)
+    elif step == 2:
+        return _guided_form_filling_prompt(state, procedure_id, procedure_name)
+    else:  # step == 3 or any unexpected value — complete
+        return _guided_complete_prompt(state, procedure_id, procedure_name)
+
+
+def _guided_intro_prompt(state: dict, procedure_id: str, procedure_name: str) -> str:
+    """State 0 — INTRO: introduce the procedure and ask for CCCD upload."""
+    # Use RAG-fetched content from final_response if available; otherwise
+    # fall back to the hardcoded document list.
+    rag_docs = state.get("final_response") or ""
+    docs = _GUIDED_DOCS_FALLBACK.get(procedure_id, [])
+    docs_list = "\n".join(f"• {d}" for d in docs)
+
+    rag_section = ""
+    if rag_docs:
+        rag_section = f"""
+Thông tin pháp lý liên quan đã được tra cứu:
+<rag_context>
+{rag_docs[:800]}
+</rag_context>
+
+Sử dụng thông tin trên (nếu có) để mô tả hồ sơ cần chuẩn bị.
+Nếu thông tin trên không rõ hoặc trống, sử dụng danh sách mặc định sau:
+"""
+    else:
+        rag_section = "\nDanh sách hồ sơ cần chuẩn bị:\n"
+
+    return f"""{_BASE_RULES}
+
+## Nhiệm vụ: Hướng dẫn thủ tục từng bước — Bước giới thiệu (Bước 1/3)
+
+Thủ tục: **{procedure_name}** ({procedure_id})
+{rag_section}
+{docs_list}
+
+Hãy:
+1. Chào hỏi người dùng và giới thiệu ngắn gọn về thủ tục **{procedure_name}**.
+2. Liệt kê rõ ràng những hồ sơ cần chuẩn bị (dùng danh sách gạch đầu dòng).
+3. Thông báo rằng hệ thống sẽ hướng dẫn từng bước để hoàn thành thủ tục.
+4. Yêu cầu người dùng **tải lên ảnh CCCD** để bắt đầu (đây là Bước 1 của quy trình).
+5. Ghi chú: hệ thống sẽ đọc thông tin từ CCCD và điền tờ khai tự động.
+
+Giữ ngắn gọn, thân thiện. Không quá 250 từ."""
+
+
+def _guided_await_cccd_prompt(state: dict, procedure_id: str, procedure_name: str) -> str:
+    """State 1 — AWAIT_CCCD: remind user to upload CCCD, answer questions briefly."""
+    rag_docs = state.get("final_response") or ""
+    rag_section = ""
+    if rag_docs:
+        rag_section = f"""
+Nếu người dùng hỏi câu hỏi pháp lý, hãy trả lời ngắn gọn dựa trên:
+<rag_context>
+{rag_docs[:600]}
+</rag_context>
+"""
+
+    return f"""{_BASE_RULES}
+
+## Nhiệm vụ: Hướng dẫn thủ tục từng bước — Đang chờ CCCD (Bước 1/3)
+
+Thủ tục: **{procedure_name}** ({procedure_id})
+{rag_section}
+Hệ thống đang chờ người dùng tải lên ảnh CCCD.
+
+Hãy:
+1. Nếu người dùng hỏi câu hỏi liên quan đến thủ tục, trả lời ngắn gọn (1-2 câu) rồi nhắc lại yêu cầu tải CCCD.
+2. Nếu người dùng chưa tải CCCD, nhắc nhở lịch sự: "Để tiếp tục, vui lòng tải lên ảnh CCCD của bạn bằng nút đính kèm tệp."
+3. KHÔNG chuyển sang bước tiếp theo — việc chuyển bước được xử lý tự động khi CCCD được tải lên.
+4. Giữ tông giọng hướng dẫn, kiên nhẫn."""
+
+
+def _guided_form_filling_prompt(state: dict, procedure_id: str, procedure_name: str) -> str:
+    """State 2 — FORM_FILLING: report form fill status within guided context."""
+    form_complete = state.get("form_fill_complete", False)
+    missing_fields = state.get("unfilled_required_fields") or []
+    filled_path = state.get("filled_form_path") or ""
+
+    if form_complete:
+        return f"""{_BASE_RULES}
+
+## Nhiệm vụ: Hướng dẫn thủ tục từng bước — Điền tờ khai thành công (Bước 2/3)
+
+Thủ tục: **{procedure_name}** ({procedure_id})
+
+Hệ thống đã đọc thông tin từ CCCD và điền tờ khai thành công.
+
+Hãy:
+1. Thông báo thành công: "Bước 2/3 hoàn thành — Tờ khai {procedure_name} đã được điền đầy đủ."
+2. Hướng dẫn bấm nút **Tải xuống tờ khai đã điền** (xuất hiện bên dưới tin nhắn này).
+3. Nhắc kiểm tra lại thông tin trước khi in.
+4. Chuẩn bị chuyển sang bước cuối: hướng dẫn nộp hồ sơ.
+5. KHÔNG tiết lộ đường dẫn file nội bộ.
+
+Ngắn gọn, tích cực, không quá 150 từ."""
+
+    elif missing_fields:
+        missing_list = "\n".join(f"- {f}" for f in missing_fields)
+        return f"""{_BASE_RULES}
+
+## Nhiệm vụ: Hướng dẫn thủ tục từng bước — Thiếu thông tin (Bước 2/3)
+
+Thủ tục: **{procedure_name}** ({procedure_id})
+
+Các trường bắt buộc chưa được điền:
+<missing_fields>
+{missing_list}
+</missing_fields>
+
+Hãy:
+1. Bắt đầu với "Bước 2/3:" để duy trì ngữ cảnh hướng dẫn.
+2. Liệt kê rõ ràng từng trường còn thiếu bằng tiếng Việt thông thường.
+3. Yêu cầu người dùng cung cấp thông tin bổ sung.
+4. Chỉ đề cập các trường CÒN THIẾU."""
+
+    else:
+        return f"""{_BASE_RULES}
+
+## Nhiệm vụ: Hướng dẫn thủ tục từng bước — Đang xử lý tờ khai (Bước 2/3)
+
+Thủ tục: **{procedure_name}** ({procedure_id})
+
+Hệ thống đang đọc thông tin từ CCCD và điền tờ khai.
+
+Hãy thông báo ngắn gọn rằng đang xử lý và sẽ có kết quả ngay sau đây.
+Bắt đầu với "Bước 2/3:". Không quá 50 từ."""
+
+
+def _guided_complete_prompt(state: dict, procedure_id: str, procedure_name: str) -> str:
+    """State 3 — COMPLETE: congratulate, show download + documents to bring."""
+    rag_docs = state.get("final_response") or ""
+    docs_fallback = _GUIDED_DOCS_FALLBACK.get(procedure_id, [])
+    docs_list_fallback = "\n".join(f"• {d}" for d in docs_fallback)
+
+    rag_section = ""
+    if rag_docs:
+        rag_section = f"""
+Thông tin pháp lý về yêu cầu nộp hồ sơ:
+<rag_context>
+{rag_docs[:600]}
+</rag_context>
+Sử dụng thông tin trên để liệt kê giấy tờ cần mang theo. Nếu không đủ chi tiết, bổ sung từ danh sách mặc định:
+{docs_list_fallback}
+"""
+    else:
+        rag_section = f"\nGiấy tờ cần mang theo khi nộp hồ sơ:\n{docs_list_fallback}\n"
+
+    return f"""{_BASE_RULES}
+
+## Nhiệm vụ: Hướng dẫn thủ tục từng bước — Hoàn thành! (Bước 3/3)
+
+Thủ tục: **{procedure_name}** ({procedure_id})
+{rag_section}
+Hãy:
+1. Chúc mừng người dùng đã hoàn thành các bước chuẩn bị.
+2. Nhắc bấm **Tải xuống tờ khai đã điền** và kiểm tra trước khi in.
+3. Liệt kê giấy tờ cần mang theo khi đến nộp hồ sơ (dùng gạch đầu dòng).
+4. Thông báo địa điểm: "Mang hồ sơ đến UBND phường/xã nơi bạn đăng ký cư trú trong giờ hành chính (7:30–11:30, 13:30–17:00, thứ Hai đến thứ Sáu)."
+5. Thông báo hướng dẫn kết thúc: chế độ hướng dẫn đã hoàn thành; người dùng có thể tiếp tục đặt câu hỏi.
+
+Không quá 250 từ. Tích cực, thân thiện."""
 
 
 # ---------------------------------------------------------------------------

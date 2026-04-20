@@ -1,0 +1,35 @@
+# Adoption domain configuration
+# Ministry: Bộ Tư pháp
+# Primary law: Luật Nuôi con nuôi 2010 (52/2010/QH12)
+#
+# Legal documents to ingest (download from thuvienphapluat.vn):
+#   - 52/2010/QH12:   Luật Nuôi con nuôi 2010
+#   - 19/2011/NĐ-CP:  Nghị định hướng dẫn thi hành Luật Nuôi con nuôi
+#   - 24/2019/NĐ-CP:  Nghị định sửa đổi NĐ 19/2011
+#   - 120/2025/NĐ-CP: Nghị định mới nhất (2025), Điều 11 liên quan nuôi con nuôi
+
+domain: adoption
+
+procedures:
+  - id: "TTHC-AD-001"
+    name: "Đăng ký việc nuôi con nuôi trong nước"
+    relevant_documents:
+      - document_number: "52/2010/QH12"
+        location_scope: "VN"
+        relevant_articles: ["Điều 9", "Điều 14", "Điều 17", "Điều 18", "Điều 19", "Điều 20", "Điều 21", "Điều 22"]
+      - document_number: "19/2011/NĐ-CP"
+        location_scope: "VN"
+        relevant_articles: ["Điều 2", "Điều 6", "Điều 7", "Điều 8", "Điều 9", "Điều 10", "Điều 23", "Điều 24", "Điều 25"]
+      - document_number: "24/2019/NĐ-CP"
+        location_scope: "VN"
+        relevant_articles: ["Điều 1"]
+      - document_number: "120/2025/NĐ-CP"
+        location_scope: "VN"
+        relevant_articles: ["Điều 11"]
+
+  - id: "TTHC-AD-002"
+    name: "Đăng ký lại việc nuôi con nuôi trong nước"
+    relevant_documents:
+      - document_number: "19/2011/NĐ-CP"
+        location_scope: "VN"
+        relevant_articles: ["Điều 29"]

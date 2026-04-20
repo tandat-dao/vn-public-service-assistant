@@ -5,7 +5,7 @@ import {
   CheckCircle2, Clock, Lock, MessageSquare,
 } from 'lucide-react'
 import { useChatStore } from '@/lib/stores/chatStore'
-import { streamChat } from '@/lib/api/client'
+import { streamChat, api } from '@/lib/api/client'
 import type { Citation, ProcedureStep } from '@/lib/types'
 
 /* ─── Citation chips ────────────────────────────────────────── */
@@ -155,6 +155,7 @@ export default function ChatPage() {
 
   const [input, setInput]               = useState('')
   const [showPlan, setShowPlan]         = useState(false)
+  const [lastUploadedPath, setLastUploadedPath] = useState<string | null>(null)
   const bottomRef  = useRef<HTMLDivElement>(null)
   const fileRef    = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -186,16 +187,47 @@ export default function ChatPage() {
     })
 
     setStreaming(true)
+
+    // Step 1: upload file if attached
+    let imagePath: string | null = lastUploadedPath
+    if (uploadedFile) {
+      try {
+        const uploadResult = await api.documents.upload(uploadedFile.file, sessionId)
+        setUploadedFile(null)
+        imagePath = uploadResult.tmp_path
+        setLastUploadedPath(uploadResult.tmp_path)
+      } catch {
+        updateMessage(assistantId, {
+          content: 'Không thể tải lên tệp. Vui lòng thử lại.',
+          isStreaming: false,
+        })
+        setStreaming(false)
+        return
+      }
+    }
+
+    if (!uploadedFile) setLastUploadedPath(null)
+
+    // Step 2: stream chat
     try {
       let accumulated = ''
-      for await (const chunk of streamChat(sessionId, text, uploadedFile?.file)) {
+      for await (const chunk of streamChat(sessionId, text, imagePath ?? undefined)) {
         try {
           const parsed = JSON.parse(chunk)
-          if (parsed.type === 'text') {
+          if ('content' in parsed && typeof parsed.content === 'string') {
             accumulated += parsed.content
             updateMessage(assistantId, { content: accumulated })
-          } else if (parsed.type === 'citations') {
-            updateMessage(assistantId, { citations: parsed.citations as Citation[] })
+          } else if ('metadata' in parsed) {
+            if (Array.isArray(parsed.metadata?.citations)) {
+              updateMessage(assistantId, { citations: parsed.metadata.citations as Citation[] })
+            }
+            if (
+              parsed.metadata?.mode === 'form_fill_complete' &&
+              typeof parsed.metadata?.filled_form_path === 'string' &&
+              parsed.metadata.filled_form_path
+            ) {
+              updateMessage(assistantId, { filledFormPath: parsed.metadata.filled_form_path as string })
+            }
           }
         } catch {
           accumulated += chunk
@@ -210,9 +242,8 @@ export default function ChatPage() {
     } finally {
       updateMessage(assistantId, { isStreaming: false })
       setStreaming(false)
-      setUploadedFile(null)
     }
-  }, [input, isStreaming, sessionId, uploadedFile, addMessage, updateMessage, setStreaming, setUploadedFile])
+  }, [input, isStreaming, sessionId, uploadedFile, lastUploadedPath, addMessage, updateMessage, setStreaming, setUploadedFile])
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -307,6 +338,20 @@ export default function ChatPage() {
 
                 {msg.role === 'assistant' && msg.citations && (
                   <CitationChips citations={msg.citations} />
+                )}
+
+                {msg.role === 'assistant' && !msg.isStreaming && msg.filledFormPath && (
+                  <div className="mt-2">
+                    <a
+                      href={`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/v1/documents/download?path=${encodeURIComponent(msg.filledFormPath)}&session_id=${encodeURIComponent(sessionId)}`}
+                      download
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded
+                                 bg-[#CE7A58] text-white text-sm font-medium
+                                 hover:bg-[#B8694A] transition-colors"
+                    >
+                      📄 Tải xuống tờ khai đã điền
+                    </a>
+                  </div>
                 )}
 
                 <span className="text-[10px] text-[#CCC] mt-1">

@@ -26,6 +26,41 @@ from app.schemas.rag import DocumentChunk
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# Query augmentation for short follow-up messages
+# ---------------------------------------------------------------------------
+
+def _build_search_query(state: AgentState) -> str:
+    """Return an augmented Qdrant search query for short follow-up messages.
+
+    Short messages (< 10 words) that follow a prior assistant turn are assumed
+    to be context-dependent follow-ups (e.g. "Thế còn phường Tân Hưng thì sao?").
+    In that case, the last assistant message is prepended (truncated to 200 chars)
+    to give the embedding enough signal for meaningful retrieval.
+
+    Longer messages are assumed to be self-contained and sent as-is.
+    The LLM generation step always uses state["user_message"] directly — only
+    the Qdrant retrieval query is augmented by this function.
+    """
+    user_msg: str = state["user_message"]
+    history: list[dict] = state.get("conversation_history") or []
+
+    if len(user_msg.split()) < 10:
+        # Find the last assistant message in history (search in reverse order)
+        last_assistant: str | None = None
+        for turn in reversed(history):
+            if turn.get("role") == "assistant":
+                last_assistant = turn.get("content", "")
+                break
+
+        if last_assistant:
+            context = last_assistant[:200]
+            return f"{context} {user_msg}"
+
+    return user_msg
+
+
 # ---------------------------------------------------------------------------
 # Lazy singletons — created on first call.
 # Replace in tests: patch("app.agents.nodes.rag._get_qdrant", return_value=mock)
@@ -81,6 +116,11 @@ async def rag_fn(state: AgentState) -> dict:
     target_procedure_id: str | None = state.get("target_procedure_id")
     filing_jurisdiction: str | None = state.get("filing_jurisdiction")
 
+    # Build augmented query for Qdrant retrieval. Short follow-up messages
+    # get context prepended from the last assistant turn. The LLM generation
+    # step (Step 4) always uses user_message directly — not the augmented query.
+    search_query: str = _build_search_query(state)
+
     # ---- Step 1: Build scope list, most-specific first ----
     # expand_scope_hierarchy returns most-general first (e.g. ["VN", "VN-HCM", "VN-HCM-070"])
     # Reverse so cascade attempts the narrowest jurisdiction first.
@@ -96,7 +136,7 @@ async def rag_fn(state: AgentState) -> dict:
     try:
         for scope in scope_list:
             chunks = await qdrant.search(
-                query=user_message,
+                query=search_query,
                 procedure_id=target_procedure_id,
                 scope=scope,
                 top_k=8,

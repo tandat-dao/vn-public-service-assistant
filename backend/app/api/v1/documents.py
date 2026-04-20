@@ -8,6 +8,7 @@ from statistics import mean
 
 import structlog
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -72,6 +73,7 @@ async def upload_document(
     request: Request,
     file: UploadFile = File(...),
     session_id: str = Form(...),
+    citizen_id: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
 ) -> DocumentUploadResponse:
     """Validate, store, and OCR an uploaded identity document.
@@ -153,6 +155,12 @@ async def upload_document(
         # Redis save failure must not fail the response.
         logger.warning("upload_document: Redis session save failed", error=str(exc))
 
+    # ---- Step 5b: Write citizen carry-forward key on full OCR success ----
+    # Only write when OCR produced usable data (not partial/None). The method
+    # is non-fatal internally — no try/except needed here.
+    if citizen_id and ocr_result is not None:
+        await redis.save_citizen_personal_data(citizen_id, ocr_result)
+
     # ---- Step 6: Return JSON response ----
     if ocr_result is not None:
         confidence = _compute_ocr_confidence(ocr_result)
@@ -173,4 +181,66 @@ async def upload_document(
             "Tệp đã được lưu nhưng không thể đọc thông tin. "
             "Vui lòng thử ảnh rõ hơn."
         ),
+    )
+
+
+@router.get("/download")
+@limiter.limit(settings.UPLOAD_RATE_LIMIT)
+async def download_filled_form(
+    request: Request,
+    path: str,
+    session_id: str,
+) -> Response:
+    """Serve a filled PDF form stored in MinIO.
+
+    Security: the ``path`` must belong to the requesting ``session_id``.
+    MinIO paths are structured as ``tmp/{session_id}/...`` or
+    ``forms/{session_id}/...``.  The session_id component is extracted from
+    the path and compared to the ``session_id`` query parameter — mismatches
+    return HTTP 403.
+
+    On missing file: HTTP 404.
+    On match: returns the PDF bytes with Content-Disposition: attachment.
+    """
+    # ---- Step 1: Security — verify path belongs to this session ----
+    # Expected path formats:
+    #   tmp/{session_id}/TTHC-001.pdf
+    #   forms/{session_id}/TTHC-001.pdf
+    path_parts = path.split("/")
+    if len(path_parts) < 3 or path_parts[0] not in ("tmp", "forms"):
+        raise HTTPException(
+            status_code=403,
+            detail="Bạn không có quyền truy cập tệp này.",
+        )
+    path_session_id = path_parts[1]
+    if path_session_id != session_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Bạn không có quyền truy cập tệp này.",
+        )
+
+    # ---- Step 2: Retrieve file from MinIO ----
+    # StorageService.download() is already async — it wraps the blocking
+    # MinIO SDK call internally in asyncio.get_running_loop().run_in_executor().
+    storage = _get_storage()
+    try:
+        file_bytes = await storage.download(path)
+    except (StorageError, Exception) as exc:
+        logger.warning("download_filled_form: MinIO download failed", path=path, error=str(exc))
+        raise HTTPException(
+            status_code=404,
+            detail="Không tìm thấy tệp. Tệp có thể đã hết hạn.",
+        )
+
+    # ---- Step 3: Derive filename from path ----
+    # Extract procedure ID from path, e.g. "forms/abc/TTHC-001.pdf" → "TTHC-001"
+    filename_part = Path(path).stem  # e.g. "TTHC-001"
+    download_filename = f"to-khai-{filename_part}.pdf" if filename_part else "to-khai.pdf"
+
+    return Response(
+        content=file_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{download_filename}"',
+        },
     )

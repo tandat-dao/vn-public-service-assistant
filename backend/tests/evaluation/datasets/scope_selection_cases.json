@@ -1,0 +1,22 @@
+[
+  {
+    "id": "SC-001",
+    "filing_jurisdiction": "VN-HCM-26968",
+    "procedure_id": "TTHC-001",
+    "domain": "housing",
+    "expected_scope_used": "VN",
+    "expected_scope_notice": true,
+    "tier": 1,
+    "notes": "Ward VN-HCM-26968 has no specific chunks ingested; expect cascade to VN scope"
+  },
+  {
+    "id": "SC-002",
+    "filing_jurisdiction": "VN",
+    "procedure_id": "TTHC-001",
+    "domain": "housing",
+    "expected_scope_used": "VN",
+    "expected_scope_notice": false,
+    "tier": 1,
+    "notes": "National scope: no cascade needed, no scope notice expected"
+  }
+]

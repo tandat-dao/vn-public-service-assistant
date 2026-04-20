@@ -1,6 +1,6 @@
 # DichVuCong AI Assistant — Application Improvement Tasks
 
-**Version 1.0 | Created: 2026-04-13**
+**Version 2.0 | Updated: 2026-04-17**
 
 This file tracks application-quality tasks separate from the core
 pipeline tasks in PROJECT_STATUS.md. These tasks focus on demo
@@ -14,21 +14,28 @@ readiness, documentation requirements, and user experience.
 ## Task Index
 | ID | Title | Priority | Status |
 |---|---|---|---|
-| TASK-APP-01 | Eager model loading | High | 📋 Not Started |
-| TASK-APP-02 | Form fill end-to-end | Critical | 📋 Not Started |
+| TASK-APP-01 | Eager model loading | High | ✅ Complete |
+| TASK-APP-02 | Form fill end-to-end | Critical | ✅ Complete |
 | TASK-APP-03 | Authentication gate | High | 📋 Not Started |
-| TASK-APP-04 | Streaming speed | Medium | 📋 Not Started |
-| TASK-APP-05 | UI error messages | High | 📋 Not Started |
+| TASK-APP-04 | Streaming speed | Medium | ✅ Complete |
+| TASK-APP-05 | UI error messages | High | ✅ Complete |
 | TASK-APP-06 | Loading indicators | Medium | 📋 Not Started |
-| TASK-APP-07 | Citation bolding | Medium | 📋 Not Started |
+| TASK-APP-07 | Citation bolding | Medium | ✅ Complete |
 | TASK-APP-08 | Use case documentation | High | 📋 Not Started |
 | TASK-APP-09 | API documentation | High | 📋 Not Started |
 | TASK-APP-10 | Performance baseline | Medium | 📋 Not Started |
-| TASK-APP-11 | README.md | Critical | 📋 Not Started |
+| TASK-APP-11 | README.md | Critical | ✅ Complete |
 | TASK-APP-12 | Installation + User guides | High | 📋 Not Started |
-| TASK-APP-13 | Fix image upload (widget + procedure pages) | Critical | 📋 Not Started |
+| TASK-APP-13 | Fix image upload + OCR pipeline audit | Critical | ✅ Complete |
 | TASK-APP-14 | Procedures plan API endpoint | High | 📋 Not Started |
 | TASK-APP-15 | Conversation history compaction | Medium | 📋 Not Started |
+| TASK-APP-16 | Extend form fill to TTHC-002 and TTHC-003 | High | ✅ Complete |
+| TASK-APP-17 | Citation content on hover | Medium | ✅ Complete |
+| TASK-APP-18 | Guided procedure completion wizard | High | ✅ Complete |
+| TASK-APP-19 | Personal data carry-forward across procedures | Medium | ✅ Complete |
+| TASK-APP-20 | Chat history persistence across page navigation | High | ✅ Complete |
+| TASK-APP-21 | Required documents checklist per procedure | Low | 📋 Not Started |
+| TASK-APP-22 | Administrative document drafting | High | ✅ Complete |
 
 ---
 
@@ -113,6 +120,15 @@ and a fallback UX message in `ChatWidget.tsx`.
   = openai`). Do not show the message on every request — only on the first
   message in a session or when `isStreaming` transitions from `false` to
   `true` and no chunk has arrived within the threshold.
+
+**Completed:** 2026-04-14
+**Changes made:**
+- `_embedder_svc` module-level singleton + `_get_embedder()` factory added to `backend/app/services/embedder.py`
+- `QdrantService.__init__` updated to call `_get_embedder()` instead of `EmbedderService()` — eliminates double-load
+- Eager load wired into FastAPI lifespan startup in `backend/app/main.py` (before `yield`, inside try/except so bge-m3 failure is non-fatal)
+- UI warmup timer (5 s threshold) added to `frontend/src/components/chat/ChatWidget.tsx` — cleared in success, error, and finally paths
+- `GET /health` endpoint replaced with service-aware version: checks Qdrant, Redis, PostgreSQL; returns 503 only when embedding model not loaded
+- Double-load risk: **fixed** — `QdrantService` now calls `_get_embedder()` which returns the same singleton the lifespan loaded
 
 ---
 
@@ -223,6 +239,29 @@ download button.
 - The `forms.py` stub `GET /filled/{file_path}` raises `NotImplementedError`.
   Either implement it there or add the download route to `documents.py` and
   remove the stub. Do not leave both.
+
+**Completed:** 2026-04-15
+**Changes made:**
+- `GET /filled/{file_path}` stub removed from `backend/app/api/v1/forms.py`
+  (also removed unused `FileResponse` import)
+- `GET /api/v1/documents/download` implemented in `backend/app/api/v1/documents.py`
+  with session-scoped security check (403 on mismatch), 404 on missing file,
+  PDF response with `Content-Disposition: attachment`
+- `synthesizer_node` in `backend/app/agents/nodes/synthesizer.py` now includes
+  `filled_form_path` in `response_metadata` when `mode == "form_fill_complete"` only
+- `_form_fill_complete_prompt` in `backend/app/agents/prompts/synthesis_prompt.py`
+  updated to instruct the LLM to mention the download button
+- `ChatMessage` type in `frontend/src/lib/types/index.ts` — `filledFormPath?: string` added
+- `ChatWidget.tsx` — metadata SSE event handler now calls
+  `updateMessage(assistantId, { filledFormPath: ... })` when
+  `parsed.metadata.mode === "form_fill_complete"` and path is present.
+  Download button (`<a href download>`) rendered below message bubble when
+  `filledFormPath` is set and streaming is complete
+- Router prompt (`router_prompt.py`) — Example 9 added for "form fill from
+  prior-uploaded CCCD" so `has_image=True` without an in-message CCCD mention
+  still produces `["ocr_fn", "form_filler_fn"]`
+- 5 new unit tests in `backend/tests/unit/test_download_endpoint.py` — all pass
+- Full suite: **283 passed** (was 278 before this task)
 
 ---
 
@@ -379,6 +418,19 @@ cleaner.
   `test_rate_limiting.py` since those tests mock the entire `generate()`
   coroutine.
 
+**Completed:** 2026-04-16
+**Changes made:**
+- `backend/app/api/v1/chat.py` — `generate()` rewritten to split `final_response`
+  into 3-char Unicode code-point groups at 8 ms intervals (`asyncio.sleep(0.008)`).
+  Unicode safety comment added above the chunking line. Metadata event and `[DONE]`
+  positions unchanged.
+- `frontend/src/components/chat/ChatWidget.tsx` — one-line diacritic safety comment
+  added above the `accumulated += parsed.content` line.
+- `backend/tests/unit/test_chat_endpoint.py` — new test `test_generate_streams_char_groups`
+  asserts `len(chunk) <= 3` for every content event and lossless concatenation.
+  `import json` added to module imports.
+- Full suite: **286 passed** (was 285 before this task).
+
 ---
 
 ## TASK-APP-05: UI error messages
@@ -484,6 +536,12 @@ file), the frontend currently shows generic messages or nothing at all:
   setOcrMessage)` utility function to avoid repeating the same conditional
   three times. This is a judgment call; do not over-abstract if it adds
   complexity.
+
+**Completed:** 2026-04-14
+**Changes made:**
+- `frontend/src/lib/api/client.ts` — `apiFetch` now throws `Object.assign(new Error(...), { status: res.status })`; `streamChat` throws `Object.assign(new Error(...), { status: res.status })` so callers get a `.status` property, not a string parse.
+- `frontend/src/components/chat/ChatWidget.tsx` — catch block checks `err?.status` and maps 429 → rate limit message, 500 → system error, 422 → invalid request; metadata handler expanded to check `parsed.metadata?.mode === 'error'` and appends guidance tip when accumulated content includes "Không tìm thấy văn bản pháp lý".
+- All three procedure pages — `handleOcrUpload` catch block now maps 422 → file-invalid message, 500 → server error, network → connection error; `partial` OCR status message updated with detailed guidance (lighting, angle, straightness); `onSubmit` catch block maps 422/500/network to specific Vietnamese messages.
 
 ---
 
@@ -660,6 +718,10 @@ This is a pure frontend change. No backend modifications required.
   that takes `content: string` as a prop and recomputes the split on every
   render, performance is acceptable for responses under 2 000 characters.
   No memoisation required at this stage.
+
+**Completed:** 2026-04-14
+**Changes made:**
+- `frontend/src/components/chat/ChatWidget.tsx` — `renderWithCitations(content)` helper added above `LoadingDots`. Uses combined regex `(\[unverified:\s*[^\]]+\]|\[Điều\s+\d+[a-zA-Z]?,\s+[^\]]+\])` to split content in one pass. Verified citations render as bold `#B8694A` on `#FFF3EF` background with ⚖️ prefix; unverified citations render as grey italic with ⚠️ prefix. Message render block updated: when `isStreaming=true`, renders plain `<span className="whitespace-pre-wrap">` (no citation processing); when `isStreaming=false`, calls `renderWithCitations(msg.content)`. No `dangerouslySetInnerHTML` used; no new npm packages.
 
 ---
 
@@ -1166,6 +1228,16 @@ dichvucong/
 - Do not promise features that are not implemented. Section 8 must
   accurately list limitations rather than hiding them.
 
+**Completed:** 2026-04-14
+**Changes made:**
+- `README.md` audited against 8 required sections. All sections now present and complete.
+- **Added:** Vietnamese description (paragraph 1 in Vietnamese, paragraph 2 English, reference to `docs/PROJECT_CONTEXT.md §2.1`).
+- **Fixed:** Prerequisites now explicitly lists Docker Desktop + Compose v2, Python 3.12+, Node.js 18+, and Git.
+- **Fixed:** Environment setup section uses PowerShell (`Copy-Item` instead of `cp`); added all required variables: `REDIS_ENCRYPTION_KEY`, `REDIS_PASSWORD`, `MINIO_ACCESS_KEY/SECRET_KEY`; added Fernet key generation command.
+- **Fixed:** Running the System section rewritten with PowerShell syntax; added `$env:PYTHONPATH = "."` prefix to Python commands; added `--domain housing/civil_registration/adoption` flags to ingestion commands; added `/health` endpoint health-check step.
+- **Fixed:** Running Tests section uses `.venv\Scripts\pytest` PowerShell syntax.
+- **Added:** Known Limitations section covering bge-m3 cold start, Gemini rate limits, OCR quality, and legal correctness disclaimer.
+
 ---
 
 ## TASK-APP-12: Installation and User guides
@@ -1299,7 +1371,30 @@ Sections:
 
 ## TASK-APP-13: Fix image upload — chat widget and procedure pages
 
-**Priority:** Critical
+**Priority:** Critical | **Status:** ✅ Done (2026-04-14)
+
+### Completion summary
+
+**Files changed:**
+- `frontend/src/lib/types/index.ts` — added `PersonalDataAddress`, `PersonalData`,
+  `DocumentUploadResponse` interfaces (mirrors backend schemas exactly)
+- `frontend/src/lib/api/client.ts` — `api.documents.upload` typed as
+  `apiFetch<DocumentUploadResponse>`; removed the always-ignored `file?: File`
+  parameter from `streamChat` signature
+- `frontend/src/components/chat/ChatWidget.tsx` — `handleSend` rewritten:
+  two-step flow (upload first, then `streamChat(sessionId, text)`);
+  `setUploadedFile(null)` moved to after successful/partial upload only;
+  upload failure shows Vietnamese error and returns early without sending chat
+- `frontend/src/app/thu-tuc/dang-ky-thuong-tru/page.tsx` — `OcrStatus` gains
+  `'partial'`; amber (`#D97706`) rendering added; `handleOcrUpload` now splits
+  `partial` (amber, no field fill) from network exceptions (red); removed
+  unused `ocrConfidence` state
+- `frontend/src/app/thu-tuc/dang-ky-tam-tru/page.tsx` — same three changes
+- `frontend/src/app/thu-tuc/xac-nhan-cu-tru/page.tsx` — same three changes
+
+**Backend:** no changes required. `documents.py` already reads `session_id`
+as `Form(...)`, saves `uploaded_document_path` to Redis, and creates a fresh
+`SessionData` on session miss.
 
 ### Goal
 
@@ -1446,21 +1541,21 @@ is present in `handleOcrUpload`:
 
 ### Definition of Done
 
-- [ ] Chat widget paperclip attaches a file; on send, `api.documents.upload`
+- [x] Chat widget paperclip attaches a file; on send, `api.documents.upload`
       is called first, then `streamChat` is called as JSON — in that order,
       verified by browser network tab
-- [ ] If `api.documents.upload` fails, the chat message is NOT sent and an
+- [x] If `api.documents.upload` fails, the chat message is NOT sent and an
       inline error is shown in the assistant bubble; `uploadedFile` is not
       cleared so the user can retry
-- [ ] `session_id` from `useChatStore()` is passed to every `api.documents.upload`
+- [x] `session_id` from `useChatStore()` is passed to every `api.documents.upload`
       call on all three procedure pages
-- [ ] Successful OCR on `thuong-tru` page pre-fills `ho_ten`, `ngay_sinh`,
+- [x] Successful OCR on `thuong-tru` page pre-fills `ho_ten`, `ngay_sinh`,
       `so_cccd`, `gioi_tinh`, `noi_thuong_tru_cu` with `source='ai'`
-- [ ] AI-filled fields display the visual indicator (gold/highlighted border
+- [x] AI-filled fields display the visual indicator (gold/highlighted border
       or badge) per `formStore`'s `aiHighlight: true` behaviour
-- [ ] `dang-ky-tam-tru` and `xac-nhan-cu-tru` pages have the complete OCR
+- [x] `dang-ky-tam-tru` and `xac-nhan-cu-tru` pages have the complete OCR
       upload pattern — verified by reading each file in full before marking done
-- [ ] `status='partial'` response shows actionable error message on all three
+- [x] `status='partial'` response shows actionable error message on all three
       pages; no field values are written to the form store on partial result
 - [ ] Manual smoke test: upload a `category_1_clean_qr` image from
       `backend/data/mock_documents/` → fields fill in the form → visual
@@ -1818,3 +1913,1184 @@ async def save_session(self, session_id: str, data: SessionData) -> None:
   path is implemented and tested but activated only when a `LLMService`
   instance is explicitly injected — this keeps `save_session` fast by
   default and makes the LLM-enhanced version opt-in.
+
+---
+
+## TASK-APP-16: Extend form fill to TTHC-002 and TTHC-003
+
+**Priority:** High
+**Status:** ✅ Complete
+**Completed:** 2026-04-16
+
+### Goal
+
+TASK-APP-02 wired form fill end-to-end for TTHC-001 only. TTHC-002
+(Đăng ký tạm trú) and TTHC-003 (Xác nhận thông tin về cư trú) have
+AcroForm PDF templates at `backend/data/pdf_templates/` (created in
+TASK-15). This task extended the same form fill flow to both procedures.
+
+### Changes Made
+
+- **`backend/app/agents/prompts/router_prompt.py`** — Added Examples 10
+  and 11 after the existing TTHC-001 form fill example (Example 9):
+  - Example 10: "Điền giúp tôi tờ khai đăng ký tạm trú" (TTHC-002,
+    has_image=true) → `["ocr_fn", "form_filler_fn"]`
+  - Example 11: "Tôi muốn điền mẫu xác nhận thông tin cư trú"
+    (TTHC-003, has_image=false) → `["form_filler_fn"]`
+- **`backend/app/agents/nodes/form_filler.py`** — Confirmed already
+  correct: `PROCEDURE_FORM_FIELDS` has TTHC-002 (15 fields including
+  `thoi_han_tam_tru`) and TTHC-003 (14 fields);
+  `PROCEDURE_TEMPLATE_PATHS` maps both to correct `pdf_templates/` paths.
+- **`backend/app/agents/nodes/synthesizer.py`** — Confirmed no
+  procedure_id whitelist; `form_fill_complete` mode fires solely on
+  `state.get("form_fill_complete", False)`.
+- **`frontend/src/components/chat/ChatWidget.tsx`** — Confirmed download
+  button renders on `msg.filledFormPath` presence only; no procedure_id
+  check.
+- **`backend/app/api/v1/forms.py`** — Confirmed `FormSubmissionRequest`
+  accepts `form_type: Literal["thuong-tru", "tam-tru", "xac-nhan"]`
+  covering all three procedures.
+- **`backend/tests/unit/test_form_filler.py`** — Added 2 new tests:
+  `test_form_filler_tthc002_field_mapping` and
+  `test_form_filler_tthc003_field_mapping`.
+
+### Definition of Done
+
+- [x] PROCEDURE_FORM_FIELDS has entries for TTHC-002 (15 fields including
+      thoi_han_tam_tru) and TTHC-003 (14 fields)
+- [x] PROCEDURE_TEMPLATE_PATHS maps TTHC-002 and TTHC-003 to correct
+      pdf_templates/ paths
+- [x] synthesizer_node form_fill_complete mode has no procedure_id
+      whitelist — fires for TTHC-001, TTHC-002, and TTHC-003
+- [x] Router prompt has form fill few-shot examples for TTHC-002 and
+      TTHC-003 (Examples 10 and 11)
+- [x] ChatWidget.tsx download button renders for any procedure_id when
+      filledFormPath is present — no procedure filter
+- [x] forms.py submit endpoint accepts TTHC-002 and TTHC-003 (via
+      form_type literals tam-tru and xac-nhan)
+- [x] 2 new unit tests pass in test_form_filler.py
+- [x] 285 unit tests passing (283 + 2)
+
+---
+
+## TASK-APP-17: Show citation paragraph content on hover ✅ Complete
+
+**Completed:** 2026-04-17
+
+**Changes made:**
+- `backend/app/agents/nodes/synthesizer.py` — `_build_retrieved_sources()` helper added; `retrieved_sources` key injected into `response_metadata` for rag_only, form_fill_complete, form_fill_partial, guided_step, and fallback modes (not error/circuit_breaker). Content capped at 600 characters.
+- `frontend/src/lib/types/index.ts` — `RetrievedSource` interface added; `ChatMessage.retrievedSources?` and `ChatMetadata.retrieved_sources?` fields added.
+- `frontend/src/components/chat/ChatWidget.tsx` — `renderWithCitations()` accepts `retrievedSources` as second param; verified citation spans with a matching source render with `title` + `cursor-help`; SSE metadata handler stores `retrieved_sources` on the message via `updateMessage`.
+- `backend/tests/unit/test_synthesizer_node.py` — `test_synthesizer_includes_retrieved_sources_in_metadata` added and passing.
+
+**Priority:** Medium
+
+### Goal
+
+When the assistant response contains a rendered citation chip
+(e.g. ⚖️ Điều 19, Nghị định 62/2021/NĐ-CP), hovering over it
+should show the full paragraph text of that article as retrieved
+from Qdrant. This makes the RAG retrieval step tangible to an
+evaluator — the user can verify that the cited article actually
+says what the system claims.
+
+### How it works
+
+The backend already has the retrieved chunk content in
+`rag_fn`'s result dict (`retrieved_chunks: list[DocumentChunk]`).
+Each chunk carries `article_number`, `document_number`, and
+`content` in its payload. This content never currently crosses
+the SSE boundary — only the final LLM-generated text is sent.
+
+The fix: include a `retrieved_sources` list in the SSE metadata
+event so the frontend can build a citation → content lookup map.
+
+### Backend change
+
+`backend/app/agents/nodes/synthesizer.py` — when building
+`response_metadata`, add:
+
+```python
+"retrieved_sources": [
+    {
+        "article_number": chunk.article_number,
+        "document_number": chunk.document_number,
+        "content": chunk.content[:600],  # cap at 600 chars
+    }
+    for chunk in state.get("retrieved_chunks", [])
+]
+```
+
+Only include when `retrieved_chunks` is non-empty. Cap content
+at 600 characters to avoid inflating SSE payload size. This adds
+no LLM calls and no token cost — it is a passthrough of data
+already computed.
+
+### Frontend change
+
+`frontend/src/components/chat/ChatWidget.tsx`:
+
+1. In the metadata SSE event handler, extract
+   `parsed.metadata.retrieved_sources` and store it on the
+   message alongside `filledFormPath`.
+
+2. Pass `retrievedSources` as a prop to `renderWithCitations()`.
+
+3. In `renderWithCitations()`, for each verified citation match,
+   look up the matching source by `(article_number,
+   document_number)` substring matching (same logic already used
+   in `verify_citations()` on the backend). If a match is found,
+   wrap the citation span in a `<span title={content}>` tooltip.
+   If no match, render as before (no tooltip).
+
+4. Do not use a third-party popover library. The native HTML
+   `title` attribute is sufficient — it renders as a browser
+   tooltip on hover with no additional dependencies.
+
+### Constraints
+
+- No new npm packages.
+- No new LLM calls. This is a data passthrough only.
+- Content capped at 600 characters in the backend — do not
+  truncate on the frontend.
+- The tooltip only appears on verified citations
+  (⚖️ prefix). Unverified citations (⚠️ prefix) have no
+  source to show and must not attempt a lookup.
+- If `retrieved_sources` is absent from metadata (e.g. fallback
+  mode, error mode), `renderWithCitations()` must behave
+  exactly as before — no crash, no change in rendering.
+
+### Definition of Done
+
+- [ ] `response_metadata` in `synthesizer_node` includes
+      `retrieved_sources` when `retrieved_chunks` is non-empty
+- [ ] Each source entry has `article_number`, `document_number`,
+      `content` (≤ 600 chars)
+- [ ] `ChatMessage` type extended with
+      `retrievedSources?: RetrievedSource[]`
+- [ ] `renderWithCitations()` accepts `retrievedSources` and
+      adds `title` tooltip to matched verified citations
+- [ ] Unverified citations and non-citation text are unaffected
+- [ ] If `retrieved_sources` absent, rendering is identical to
+      current behaviour
+- [ ] 1 new unit test in `test_synthesizer.py`:
+      `test_synthesizer_includes_retrieved_sources_in_metadata` —
+      assert `retrieved_sources` present and content capped at
+      600 chars when `retrieved_chunks` is non-empty
+- [ ] All existing tests still pass
+- [ ] 0 TypeScript errors
+
+### Notes
+
+- No performance concern: `retrieved_chunks` is already in
+  memory in `AgentState` at synthesizer time. The 600-char cap
+  keeps each source entry under ~150 tokens equivalent. For a
+  typical response with 3–5 chunks, the total SSE metadata
+  payload increase is under 3 KB.
+- The `title` attribute tooltip is not styleable via CSS. If a
+  styled popover is desired later, replace with a Radix UI
+  Tooltip or similar — but that is out of scope for this task.
+
+---
+
+## TASK-APP-18: Guided procedure completion wizard
+
+**Priority:** High | **Status:** ✅ Complete (2026-04-16) | **Tests:** 291 unit tests passing
+
+### Goal
+
+Currently the chatbot is purely reactive — it answers questions
+when asked. A citizen who says "Tôi muốn đăng ký tạm trú, giúp
+tôi làm từ đầu" receives a text explanation but no guided
+assistance through the actual steps.
+
+This task adds a guided mode to the chat agent: when the user
+expresses intent to complete a specific procedure, the system
+shifts from Q&A mode into a step-by-step guide that:
+
+1. Resolves the DAG — determines which prerequisite procedures
+   must be completed first (using the existing enrichment_node
+   + procedure_planner_fn infrastructure)
+2. Presents the ordered step list to the citizen in chat
+3. For each step, actively asks for required inputs (CCCD
+   upload, missing form fields) rather than waiting to be asked
+4. Tracks which steps are complete within the session
+5. Generates the filled PDF when all form fields are satisfied
+6. Tells the citizen exactly what physical documents to bring
+   to the ward office and which office to go to
+
+This transforms the chatbot from an oracle into an actual
+procedural assistant — directly justifying the thesis framing
+"Chatbot Agent hỗ trợ thủ tục hành chính".
+
+### What already exists (do not re-implement)
+
+- DAG resolution: `enrichment_node` + `procedure_planner_fn`
+  already resolve the topological order of steps
+- OCR: `ocr_fn` already extracts PersonalData from CCCD
+- Form fill: `form_filler_fn` already fills PDF templates
+- Step status: `ProcedureStep.status` already tracks
+  PENDING / COMPLETED / BLOCKED per step
+- Session state: `SessionData` already has
+  `completed_procedures: list[str]`
+
+### What needs to be built
+
+**Backend — guided session mode:**
+
+1. `backend/app/schemas/session.py` — add
+   `guided_procedure_id: str | None` and
+   `guided_step_index: int` to `SessionData`. When
+   `guided_procedure_id` is set, the session is in guided mode
+   for that procedure.
+
+2. `backend/app/agents/prompts/synthesis_prompt.py` — add a
+   new response mode `guided_step` (7th mode). When the
+   synthesizer detects `guided_procedure_id` is set in state,
+   it uses the guided step prompt instead of fallback. The
+   guided step prompt instructs the LLM to:
+   - Greet the user by name (from PersonalData if available)
+   - State which step they are on and how many remain
+   - State exactly what the system needs from the user for
+     this step (e.g. "Vui lòng tải lên ảnh CCCD của bạn")
+   - Never answer unrelated questions while in guided mode —
+     redirect back to the current step
+
+3. `backend/app/agents/nodes/router.py` — extend router prompt
+   with a new intent `"start_guided"` detected when the user
+   message expresses intent to complete a full procedure (e.g.
+   "Giúp tôi đăng ký tạm trú", "Tôi muốn làm thủ tục khai
+   sinh"). When `start_guided` intent is detected, router sets
+   `guided_procedure_id` in returned state and
+   `execution_plan: ["rag_fn"]` (to fetch what documents are
+   required for step 1).
+
+**Frontend — guided mode UI in ChatWidget:**
+
+4. `frontend/src/components/chat/ChatWidget.tsx` — when SSE
+   metadata contains `guided_procedure_id`, render a progress
+   bar above the chat input showing:
+   "Bước 2 / 3: Đăng ký tạm trú" with a visual step indicator.
+   This replaces the generic loading state during guided sessions.
+
+5. When `guided_step_index` advances in the metadata, update
+   the progress bar. When `guided_procedure_id` is null in
+   metadata (guided mode ended), remove the progress bar.
+
+### Guided mode flow example
+
+```
+User: "Giúp tôi làm thủ tục đăng ký tạm trú"
+
+System: "Được! Để đăng ký tạm trú (TTHC-002), bạn cần hoàn
+thành 1 bước chuẩn bị trước:
+
+✅ Bước 1/2: Bạn đã có đăng ký thường trú (TTHC-001) chưa?
+Nếu chưa, hệ thống sẽ hướng dẫn bạn làm trước.
+
+Nếu đã có, vui lòng tải lên ảnh CCCD để bắt đầu điền
+tờ khai đăng ký tạm trú."
+
+[User uploads CCCD]
+
+System: "Đã đọc thông tin từ CCCD của bạn. Đang điền
+tờ khai...
+
+✅ Bước 2/2: Tờ khai đã được điền. Vui lòng kiểm tra
+và tải xuống.
+
+📋 Mang theo khi đến UBND phường:
+- Tờ khai đã in (tải xuống bên dưới)
+- CCCD bản gốc
+- Hợp đồng thuê nhà có công chứng"
+
+[Download button]
+```
+
+### Scope constraints
+
+- Guided mode operates within a single session only. Cross-
+  session persistence is TASK-APP-19.
+- Guided mode is only available for housing procedures
+  (TTHC-001, TTHC-002, TTHC-003) in the initial
+  implementation. Civil registration and adoption guided mode
+  requires PDF templates for those procedures first.
+- Do not implement a separate UI page for guided mode — it
+  runs entirely within the existing ChatWidget.
+- The "documents to bring" list at the end of a guided flow
+  is RAG-sourced: the system queries for the physical
+  submission requirements of that procedure and presents them
+  in a structured list.
+
+### Definition of Done
+
+- [x] Router detects "start_guided" intent and sets
+      `guided_procedure_id` in state for housing procedures
+- [x] `SessionData` persists `guided_procedure_id` and
+      `guided_step` across turns
+- [x] Synthesizer has a `guided_step` response mode that
+      generates step-specific prompts toward the citizen
+- [x] Guided mode advances step index when the user provides
+      the required input for the current step
+- [x] Guided mode ends (clears `guided_procedure_id`) when
+      the final step is complete or user explicitly exits
+- [x] Progress bar renders in ChatWidget during guided mode
+- [x] At guided mode completion, synthesizer generates the
+      "documents to bring" list from RAG
+- [x] Guided mode only activates for TTHC-001, TTHC-002,
+      TTHC-003 — other procedures return a "not yet supported
+      in guided mode" message
+- [x] All existing tests still pass (291 passing, 0 failing)
+- [x] 5 new unit tests: `test_guided_intent_housing_sets_guided_state`,
+      `test_guided_intent_non_housing_returns_unsupported`,
+      `test_guided_step2_bypasses_llm`,
+      `test_synthesizer_guided_step_mode_detected`,
+      `test_synthesizer_guided_step3_clears_guided_mode`
+
+### Changes made
+
+| File | Change |
+|---|---|
+| `backend/app/schemas/session.py` | Added `guided_procedure_id: str \| None` and `guided_step: int \| None` to `SessionData` |
+| `backend/app/agents/state.py` | Added `guided_procedure_id: str \| None` and `guided_step: int \| None` to `AgentState` |
+| `backend/app/agents/prompts/router_prompt.py` | Extended `RouterOutput` with `intent` and `procedure_id` fields; added guided few-shot examples 12 and 13 |
+| `backend/app/agents/nodes/router.py` | Added `_HOUSING_GUIDED_PROCEDURES`, `_EXIT_PHRASES` constants; exit intent guard, State 2 LLM bypass, `start_guided` handler |
+| `backend/app/agents/prompts/synthesis_prompt.py` | Added `build_guided_prompt()`, `_guided_intro_prompt()`, `_guided_await_cccd_prompt()`, `_guided_form_filling_prompt()`, `_guided_complete_prompt()` |
+| `backend/app/agents/nodes/synthesizer.py` | Added `guided_step` as 7th response mode (priority 3); writes guided state to both `response_metadata` and result dict |
+| `backend/app/api/v1/chat.py` | Hydrates `guided_procedure_id`/`guided_step` from session into `initial_state`; State 1→2 auto-advance on CCCD upload; writes guided state back to session after graph |
+| `frontend/src/lib/types/index.ts` | Added `guided_procedure_id` and `guided_step` to `ChatMetadata` interface |
+| `frontend/src/components/chat/ChatWidget.tsx` | Added `GuidedProgressBar` component; guided state management; "Cuộc trò chuyện mới" button; exit guided handler |
+| `backend/tests/unit/test_router_node.py` | Added `TestRouterGuidedMode` class with 3 tests |
+| `backend/tests/unit/test_synthesizer_node.py` | Added 2 guided mode tests |
+
+---
+
+## TASK-APP-19: Personal data carry-forward across procedures
+
+**Status: ✅ Complete — 2026-04-17**
+
+**Priority:** Medium
+
+### Goal
+
+When a citizen completes an OCR upload in one procedure session,
+their `PersonalData` (name, date of birth, CCCD number, address)
+is stored in Redis under that session's `extracted_personal_data`
+field. When they navigate to a different procedure page and
+start a new chat session, that data is gone — they must upload
+their CCCD again.
+
+This task makes `PersonalData` persist across procedure
+boundaries within the same browser visit. The citizen uploads
+their CCCD once and the data is available for all three housing
+procedures without re-uploading.
+
+### How it works
+
+The existing `SessionData` schema has `extracted_personal_data`
+keyed by `session_id`. The frontend generates a new `session_id`
+(UUID) per chat widget mount — navigating to a new procedure
+page creates a new UUID and a fresh session with no carry-forward.
+
+The fix has two parts:
+
+**Part 1 — Stable citizen identifier in localStorage:**
+The frontend stores a `dvc_citizen_id` UUID in `localStorage`
+on first visit. This is not an auth token — it is a stable
+cross-session identifier that survives page navigation. It is
+different from `session_id` (which is per-chat-session).
+
+**Part 2 — Personal data lookup by citizen_id:**
+When a new chat session starts and `extracted_personal_data` is
+null, the backend checks Redis for a `citizen:{citizen_id}:personal_data`
+key. If found, it loads that data into the session automatically.
+When OCR succeeds and `extracted_personal_data` is populated,
+the backend writes it to both the session key AND the citizen
+key (with a longer TTL of 24 hours vs. session TTL of 1 hour).
+
+### Backend changes
+
+1. `backend/app/schemas/session.py` — `SessionData` gains
+   `citizen_id: str | None`. Populated from request body when
+   provided.
+
+2. `backend/app/api/v1/chat.py` — `ChatRequest` gains optional
+   `citizen_id: str | None`. When `get_session()` returns a
+   session with null `extracted_personal_data` and `citizen_id`
+   is provided, check Redis for `citizen:{citizen_id}:personal_data`
+   and merge it into the session before invoking the graph.
+
+3. `backend/app/api/v1/documents.py` — after successful OCR,
+   if `citizen_id` is present in the request form fields, write
+   `extracted_personal_data` to
+   `citizen:{citizen_id}:personal_data` with TTL 86400 (24h)
+   in addition to the session write.
+
+4. `backend/app/services/redis_service.py` — add two new
+   methods:
+   - `get_citizen_personal_data(citizen_id: str) -> PersonalData | None`
+   - `save_citizen_personal_data(citizen_id: str, data: PersonalData) -> None`
+   Both use the same Fernet encryption as session data.
+
+### Frontend changes
+
+5. `frontend/src/lib/stores/chatStore.ts` — on store
+   initialisation, read `localStorage.getItem("dvc_citizen_id")`.
+   If absent, generate a new UUID and write it to localStorage.
+   Expose `citizenId` from the store.
+
+6. `frontend/src/lib/api/client.ts` — `streamChat()` includes
+   `citizen_id` from `chatStore.citizenId` in the JSON body.
+   `api.documents.upload()` includes `citizen_id` as a form
+   field.
+
+7. `frontend/src/app/procedures/` — all three procedure pages:
+   after successful OCR, no change needed — the backend handles
+   the citizen key write. The form pre-fill behaviour is
+   unchanged.
+
+### Scope constraints
+
+- `citizen_id` is stored in `localStorage` — it is not an
+  authentication credential. It is a convenience identifier
+  only. Do not call it a "user ID" in any UI text.
+- If `localStorage` is unavailable (SSR, incognito), the
+  feature degrades gracefully — `citizen_id` is null and the
+  system behaves exactly as before.
+- The 24-hour TTL means data is not permanent. This is
+  intentional — the system is a demo, not a data store.
+- `filing_jurisdiction` is NOT carried forward via this
+  mechanism — it must always be confirmed per procedure per
+  session (P1 architectural decision in PROJECT_CONTEXT.md §6).
+  Only `PersonalData` (name, DOB, CCCD number, address) is
+  carried.
+- Do not carry forward `uploaded_document_path` — the MinIO
+  tmp path is session-scoped and may have expired.
+
+### Definition of Done
+
+- [x] `localStorage` citizen_id generated on first visit and
+      stable across page navigation
+- [x] New chat session with known `citizen_id` and no prior
+      OCR automatically loads PersonalData from citizen key
+- [x] Successful OCR writes PersonalData to both session key
+      (1h TTL) and citizen key (24h TTL)
+- [x] Citizen key uses same Fernet encryption as session data
+- [x] `filing_jurisdiction` is NOT carried forward — only
+      `PersonalData` fields
+- [x] Feature degrades silently when `citizen_id` is null
+- [x] 2 new unit tests in `test_redis_service.py`:
+      `test_get_citizen_personal_data_returns_none_when_absent`
+      and `test_save_and_get_citizen_personal_data_roundtrip`
+- [x] All existing tests still pass — 294 unit tests passing
+- [x] 0 TypeScript errors
+
+### Changes made
+
+| File | Change |
+|---|---|
+| `backend/app/services/redis_service.py` | Added `get_citizen_personal_data()` and `save_citizen_personal_data()` methods; imported `PersonalData` |
+| `backend/app/schemas/chat.py` | Added `citizen_id: str \| None = None` to `ChatRequest` |
+| `backend/app/api/v1/chat.py` | Added carry-forward check after session load: loads citizen PersonalData when session has none and `citizen_id` is present |
+| `backend/app/api/v1/documents.py` | Added `citizen_id: str \| None = Form(None)` param; writes citizen key after successful (non-partial) OCR |
+| `frontend/src/lib/stores/chatStore.ts` | Added `getOrCreateCitizenId()` helper; added `citizenId` to store state (localStorage, excluded from partialize) |
+| `frontend/src/lib/api/client.ts` | `streamChat()` accepts optional `citizenId`, includes in JSON body; `api.documents.upload()` accepts optional `citizenId`, appends to FormData |
+| `frontend/src/components/chat/ChatWidget.tsx` | Destructures `citizenId` from store; passes to both `api.documents.upload()` and `streamChat()` call sites |
+| `backend/tests/unit/test_redis_service.py` | Added `TestCitizenPersonalData` class with 2 new tests |
+
+---
+
+## TASK-APP-20: Chat persistence and guided mode continuity
+across page navigation
+
+**Priority:** High
+
+### Goal
+
+The chat widget must be fully persistent across all page
+navigation. This means three things:
+
+1. **One widget instance, never unmounting.** ChatWidget must
+   live exclusively in the root layout. If it is currently
+   imported in individual page files, those imports must be
+   removed. A single instance in layout.tsx shares state
+   across all pages without any remounting.
+
+2. **Guided mode state in the store, not in component state.**
+   `guidedProcedureId` and `guidedStep` are currently
+   `useState` inside ChatWidget. They must move into
+   `chatStore` so they are part of the persisted store slice,
+   not tied to a component instance.
+
+3. **sessionStorage persistence.** `session_id`, `messages`,
+   `guidedProcedureId`, and `guidedStep` must be persisted to
+   sessionStorage so the full chat state — including an
+   active guided flow — survives a page refresh within the
+   same tab. sessionStorage clears on tab close, which is the
+   correct lifetime for a government assistance session.
+
+### What needs to be built
+
+**`frontend/src/app/layout.tsx`:**
+Audit whether ChatWidget is rendered here and only here. If
+ChatWidget is imported in any individual page file instead,
+remove it from those pages and add it to the root layout.
+If ChatWidget is already exclusively in layout.tsx, confirm
+and make no change.
+
+**`frontend/src/lib/stores/chatStore.ts`:**
+
+1. Add `guidedProcedureId: string | null` and
+   `guided_step: number | null` to the store state, with
+   initial values of `null`.
+
+2. Add actions:
+   - `setGuidedProcedureId(id: string | null): void`
+   - `setGuidedStep(step: number | null): void`
+
+3. Implement sessionStorage persistence using the Zustand
+   `persist` middleware from `zustand/middleware`. Use
+   `sessionStorage` as the storage engine (not localStorage).
+   Persist only these four fields:
+   - `sessionId`
+   - `messages`
+   - `guidedProcedureId`
+   - `guidedStep`
+   Do NOT persist `isStreaming` — it must always initialise
+   as `false`.
+
+   The persist config must use `partialize` to exclude
+   `isStreaming` and any action functions:
+   ```typescript
+   partialize: (state) => ({
+     sessionId: state.sessionId,
+     messages: state.messages,
+     guidedProcedureId: state.guidedProcedureId,
+     guidedStep: state.guidedStep,
+   })
+   ```
+
+4. Storage engine must be SSR-safe. `sessionStorage` is not
+   available during server-side rendering. Use this pattern:
+   ```typescript
+   storage: createJSONStorage(() =>
+     typeof window !== "undefined"
+       ? sessionStorage
+       : {
+           getItem: () => null,
+           setItem: () => {},
+           removeItem: () => {},
+         }
+   ),
+   ```
+
+5. Add a `clearSession()` action that:
+   - Generates a new UUID for `sessionId`
+   - Resets `messages` to `[]`
+   - Sets `guidedProcedureId` to `null`
+   - Sets `guidedStep` to `null`
+   - The persist middleware will automatically sync these
+     resets to sessionStorage
+
+6. If `session_id` is currently generated as a new UUID on
+   every store initialisation (ignoring any stored value),
+   fix this: on initialisation the persist middleware will
+   rehydrate `sessionId` from sessionStorage if present.
+   Remove any unconditional UUID generation that would
+   overwrite the rehydrated value.
+
+**`frontend/src/components/chat/ChatWidget.tsx`:**
+
+1. Remove `const [guidedProcedureId, setGuidedProcedureId]
+   = useState<string | null>(null)` and
+   `const [guidedStep, setGuidedStep] =
+   useState<number | null>(null)`.
+
+2. Replace with reads from `chatStore`:
+   ```typescript
+   const guidedProcedureId =
+     useChatStore(s => s.guidedProcedureId)
+   const guidedStep =
+     useChatStore(s => s.guidedStep)
+   const setGuidedProcedureId =
+     useChatStore(s => s.setGuidedProcedureId)
+   const setGuidedStep =
+     useChatStore(s => s.setGuidedStep)
+   ```
+
+3. In the SSE metadata handler, replace any direct
+   `setGuidedProcedureId(...)` and `setGuidedStep(...)`
+   calls with the store actions (same names, same arguments
+   — only the source changes).
+
+4. The "Cuộc trò chuyện mới" button (added in TASK-APP-18)
+   must call `chatStore.clearSession()` instead of any
+   local state resets. Verify this is the case and fix if
+   not.
+
+5. The `GuidedProgressBar` component reads `guidedProcedureId`
+   and `guidedStep` from the store via the parent. No changes
+   to its rendering logic.
+
+6. On mount, if `guidedProcedureId` is not null (rehydrated
+   from sessionStorage), the progress bar must render
+   immediately without waiting for an SSE event. This is
+   automatic once the values come from the store rather than
+   from useState — verify this behaviour by inspection.
+
+### Constraints
+
+- Use `sessionStorage`, not `localStorage`. Tab close must
+  clear the session.
+- Do not persist `isStreaming` under any circumstances.
+- `clearSession()` must reset all four persisted fields
+  atomically — not four separate calls.
+- If `zustand/middleware` is not yet in the project
+  dependencies, check `package.json` first. It ships with
+  Zustand 4.x and requires no separate install — import
+  from `zustand/middleware` directly.
+- Do not change the SSE event format or any backend code.
+  This is a frontend-only task.
+- Do not add new npm packages.
+- The full-page chat (`frontend/src/app/chat/page.tsx`) may
+  have its own separate chat implementation. Read it before
+  making any changes. If it has its own local state
+  duplicating the widget's state, note this as a gap but
+  do not fix it in this task — it is out of scope.
+
+### Definition of Done
+
+- [x] ChatWidget is rendered in `layout.tsx` and only there
+      — confirmed by searching all page files for ChatWidget
+      imports and finding none
+- [x] `chatStore` has `guidedProcedureId` and `guidedStep`
+      fields with `setGuidedProcedureId` and `setGuidedStep`
+      actions
+- [x] `chatStore` uses Zustand persist middleware with
+      sessionStorage
+- [x] Persisted fields: `sessionId`, `messages`,
+      `guidedProcedureId`, `guidedStep` only — `isStreaming`
+      is excluded
+- [x] SSR-safe storage engine — no `sessionStorage is not
+      defined` errors during build or SSR
+- [x] Navigating between pages does not clear chat messages
+      or guided mode state
+- [x] Refreshing the page within the same tab restores
+      messages and guided mode progress bar
+- [x] Opening a new tab starts a fresh session (new UUID,
+      empty messages, null guided state)
+- [x] `clearSession()` resets all four persisted fields and
+      generates a new `sessionId`
+- [x] "Cuộc trò chuyện mới" button calls `clearSession()`
+- [x] Starting a guided flow, navigating to another page,
+      and returning shows the progress bar at the correct
+      step — verified by reading the implementation
+- [x] 0 TypeScript errors (`tsc --noEmit`)
+- [x] All existing 291 unit tests still pass — this is
+      frontend-only, no backend logic changes
+
+### Changes made (2026-04-16)
+
+**`frontend/src/app/layout.tsx`** — No changes needed. ChatWidget
+was already exclusively rendered here (confirmed: no other page
+file imports ChatWidget).
+
+**`frontend/src/lib/stores/chatStore.ts`** — Wrapped store with
+Zustand `persist` middleware (`zustand/middleware`). Added
+`guidedProcedureId: string | null` and `guidedStep: number | null`
+state fields. Added `setGuidedProcedureId` and `setGuidedStep`
+actions. Updated `clearSession()` to atomically reset all four
+persisted fields (was missing guided state reset). Added SSR-safe
+`createJSONStorage` engine using `sessionStorage` (falls back to
+no-op object when `window` is undefined). `partialize` restricts
+persistence to `sessionId`, `messages`, `guidedProcedureId`,
+`guidedStep` — `isStreaming` is always `false` on mount.
+`onRehydrateStorage` converts serialised timestamp strings back to
+`Date` objects so `toLocaleTimeString()` works correctly after
+rehydration. The `persist` middleware rehydrates `sessionId` from
+sessionStorage on init, so the old unconditional `uuidv4()` call
+is now only the default value — the stored value takes precedence.
+
+**`frontend/src/components/chat/ChatWidget.tsx`** — Removed two
+`useState` declarations for `guidedProcedureId` and `guidedStep`.
+Added `guidedProcedureId`, `setGuidedProcedureId`, `guidedStep`,
+`setGuidedStep` to the `useChatStore()` destructure. The SSE
+metadata handler already called `setGuidedProcedureId(...)` and
+`setGuidedStep(...)` by name — no changes needed there, only the
+source of these setters changed from local state to the store.
+Updated "Cuộc trò chuyện mới" button: was
+`clearSession(); setGuidedProcedureId(null); setGuidedStep(null)`,
+now just `clearSession()` since `clearSession()` resets guided
+state atomically.
+
+---
+
+## TASK-APP-21: Required documents checklist per procedure
+
+**Priority:** Low
+
+### Goal
+
+Each procedure page currently shows a form and an OCR upload
+card but does not tell the citizen what physical documents they
+need to prepare before visiting the ward office. This
+information exists in the RAG corpus (the legal texts specify
+required documents per procedure) but is only accessible by
+asking in the chat.
+
+This task adds a static "Hồ sơ cần chuẩn bị" (Documents to
+prepare) checklist panel to each of the three procedure pages.
+The checklist is pre-populated from the legal texts and is
+interactive — the citizen can check off items as they gather
+documents. When the citizen uploads their CCCD via the OCR
+card, the CCCD checklist item is automatically checked.
+
+This is low priority because TASK-APP-18 (guided wizard)
+partially covers this — the guided flow tells the citizen what
+they need at each step. Implement TASK-APP-18 first; if a
+gap remains, implement this task.
+
+### Required documents per procedure (hardcoded from legal text)
+
+These are sourced from the ingested legal corpus and must not
+be invented. Verify against the actual ingested chunks before
+implementation.
+
+**TTHC-001 (Đăng ký thường trú):**
+- Tờ khai thay đổi thông tin cư trú (CT01) — auto-generated
+  by form fill
+- CCCD/CMND bản gốc — auto-checked on OCR upload
+- Giấy tờ chứng minh chỗ ở hợp pháp (hợp đồng thuê nhà có
+  công chứng hoặc giấy tờ sở hữu nhà)
+- Sổ hộ khẩu (nếu có)
+
+**TTHC-002 (Đăng ký tạm trú):**
+- Tờ khai thay đổi thông tin cư trú (CT01) — auto-generated
+- CCCD/CMND bản gốc — auto-checked on OCR upload
+- Hợp đồng thuê nhà/phòng trọ có công chứng hoặc xác nhận
+  của chủ nhà
+- Văn bản đồng ý của chủ hộ (nếu ở nhờ)
+
+**TTHC-003 (Xác nhận thông tin về cư trú):**
+- CCCD/CMND bản gốc — auto-checked on OCR upload
+- Đơn đề nghị xác nhận thông tin cư trú
+
+### What needs to be built
+
+1. `frontend/src/components/procedures/DocumentChecklist.tsx`
+   (new component) — a collapsible panel rendering a list of
+   `ChecklistItem` objects. Each item has:
+   - `label: string` — document name in Vietnamese
+   - `checked: boolean` — citizen has confirmed they have it
+   - `autoChecked?: boolean` — system confirmed it (e.g. CCCD
+     uploaded), rendered with a different visual (blue check
+     vs. manual green check)
+   - `note?: string` — short clarifying note
+
+2. Each of the three procedure pages — import and render
+   `<DocumentChecklist items={...} />` above the form section.
+   Pass the procedure-specific item list as props.
+
+3. OCR upload success on each procedure page — when
+   `result.status === "success"`, call a `checkItem("cccd")`
+   handler that sets the CCCD item's `autoChecked` to true.
+
+4. The CT01 form item — when `filledFormPath` is set in
+   chatStore (form fill complete), set the CT01 item's
+   `autoChecked` to true automatically.
+
+5. Checklist state is stored in component-local `useState`
+   only — not persisted to sessionStorage or Redux. It resets
+   on page navigation, which is acceptable for a low-priority
+   feature.
+
+### Constraints
+
+- No backend changes required. The checklist content is
+  hardcoded from verified legal text — do not make a RAG
+  call at page load to populate it. A RAG call would add
+  latency and a dependency on the backend being running just
+  to show a static checklist.
+- If TASK-APP-18 (guided wizard) is implemented first,
+  audit whether this checklist is redundant before
+  implementing. If the guided wizard already shows required
+  documents at each step, this task may be closed as
+  superseded.
+- No new npm packages.
+- All text in Vietnamese.
+- Use `#CE7A58` brand colour for checked state indicators.
+
+### Definition of Done
+
+- [ ] `DocumentChecklist` component renders on all three
+      procedure pages
+- [ ] Each procedure shows the correct document list for
+      that procedure sourced from legal text
+- [ ] Citizen can manually check/uncheck items
+- [ ] CCCD item auto-checks when OCR upload succeeds
+- [ ] CT01 item auto-checks when `filledFormPath` is set
+- [ ] Checklist is collapsible (collapsed by default on
+      mobile, expanded on desktop)
+- [ ] No backend call made to populate the checklist
+- [ ] 0 TypeScript errors
+- [ ] No new npm packages
+
+---
+
+## TASK-APP-22: Administrative document drafting
+
+**Priority:** High
+
+### Goal
+
+Citizens frequently need to write formal Vietnamese
+administrative documents — requests, appeals, declarations,
+and official correspondence — that have no fixed PDF template.
+These documents follow strict conventions (opening formulas,
+structural sections, formal register, closing formulas) that
+most citizens do not know. Currently the system has no way
+to help with this.
+
+This task adds a `draft_document` intent and a
+`document_draft` synthesizer response mode. When the citizen
+asks "Giúp tôi viết đơn xin xác nhận thông tin cư trú" or
+similar, the system generates a complete, correctly formatted
+Vietnamese administrative document with the citizen's personal
+data pre-filled from the session, displayed in the chat as
+a copyable formatted text block.
+
+This directly justifies the thesis framing "hỗ trợ hỏi đáp
+và soạn thảo văn bản hành chính" and adds a second
+user-facing capability that stands independently from form
+fill and Q&A.
+
+### Supported document types (initial scope)
+
+Implement these five types only. Do not attempt to cover
+all possible administrative documents — depth over breadth.
+
+| Code | Vietnamese name | When used |
+|---|---|---|
+| `don_xac_nhan_cu_tru` | Đơn xin xác nhận thông tin cư trú | Citizen requests residency confirmation |
+| `don_dang_ky_thuong_tru` | Đơn đề nghị đăng ký thường trú | Citizen requests permanent residency registration |
+| `don_dang_ky_tam_tru` | Đơn đề nghị đăng ký tạm trú | Citizen requests temporary residency registration |
+| `don_khieu_nai` | Đơn khiếu nại | Citizen appeals a government decision |
+| `giay_cam_ket` | Giấy cam kết cư trú | Citizen commits to residency conditions |
+
+### Vietnamese administrative document structure
+
+Every generated document must follow this exact structure,
+which is the standard format required by Vietnamese
+administrative law (Nghị định 30/2020/NĐ-CP on administrative
+document management):
+
+```
+[QUỐC HIỆU - TIÊU NGỮ]
+CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
+Độc lập – Tự do – Hạnh phúc
+──────────────────────
+[Địa danh], ngày ... tháng ... năm ...
+
+[TÊN VĂN BẢN - ALL CAPS]
+(Ví dụ: ĐƠN XIN XÁC NHẬN THÔNG TIN CƯ TRÚ)
+
+Kính gửi: [Tên cơ quan tiếp nhận]
+
+[PHẦN THÂN VĂN BẢN]
+Tôi là: [Họ và tên]
+Ngày sinh: [Ngày sinh]
+Số CCCD/CMND: [Số định danh]
+Địa chỉ thường trú: [Địa chỉ]
+
+[Lý do và nội dung đề nghị — specific to document type]
+
+[Phần cam kết và kiến nghị]
+
+Tôi xin cam kết những thông tin trên là đúng sự thật và
+chịu trách nhiệm trước pháp luật về nội dung đã khai.
+
+Kính đề nghị [tên cơ quan] xem xét và giải quyết.
+
+Trân trọng kính trình.
+
+                    [Địa danh], ngày ... tháng ... năm ...
+                              Người làm đơn
+                         (Ký và ghi rõ họ tên)
+                            [Họ và tên]
+```
+
+The LLM fills in the body section specific to each document
+type. Personal data (name, DOB, CCCD number, address) is
+injected from `state["personal_data"]` or
+`state["extracted_personal_data"]` — never hallucinated.
+If personal data is not in the session, leave those fields
+as `[...]` placeholders and tell the citizen to fill them in.
+
+### What needs to be built
+
+**Backend — new router intent:**
+
+`backend/app/agents/prompts/router_prompt.py` — add
+`"draft_document"` as a valid intent. Add two new few-shot
+examples:
+
+Example A:
+```
+Input: "Giúp tôi viết đơn xin xác nhận thông tin cư trú"
+Output:
+{
+  "intent": "draft_document",
+  "document_type": "don_xac_nhan_cu_tru",
+  "procedure_id": "TTHC-003",
+  "domain": "housing",
+  "has_image": false,
+  "execution_plan": [],
+  "filing_jurisdiction": null
+}
+```
+
+Example B:
+```
+Input: "Soạn giúp tôi đơn đề nghị đăng ký tạm trú"
+Output:
+{
+  "intent": "draft_document",
+  "document_type": "don_dang_ky_tam_tru",
+  "procedure_id": "TTHC-002",
+  "domain": "housing",
+  "has_image": false,
+  "execution_plan": [],
+  "filing_jurisdiction": null
+}
+```
+
+`RouterOutput` schema must be extended with
+`document_type: str | None` field.
+
+`backend/app/agents/nodes/router.py` — when
+`intent == "draft_document"`, return:
+```python
+{
+    "execution_plan": [],
+    "plan_cursor": 0,
+    "document_type": output.document_type,
+    "domain": "housing",
+    "entities": output.entities or {},
+}
+```
+
+**Backend — document template prompts:**
+
+`backend/app/agents/prompts/document_draft_prompt.py`
+(new file) — contains:
+
+1. A `DOCUMENT_TYPE_CONFIGS` dict mapping each of the 5
+   document type codes to:
+   - `ten_van_ban: str` — Vietnamese document title in caps
+   - `kinh_gui: str` — default recipient
+     (e.g. "Trưởng Công an phường/xã [tên phường]")
+   - `body_instruction: str` — instruction to the LLM for
+     the specific body section of this document type
+
+2. A `build_document_draft_prompt(document_type: str,
+   personal_data: dict) -> str` function that:
+   - Looks up the config for `document_type`
+   - Injects personal data fields where available,
+     `[...]` placeholders where absent
+   - Returns a system prompt instructing the LLM to write
+     ONLY the body section of the document (between the
+     personal data block and the closing formula) —
+     the structural wrapper (quốc hiệu, tiêu ngữ, closing)
+     is added by the synthesizer, not generated by the LLM
+   - Instructs the LLM: write in formal Vietnamese
+     administrative register; do not add information not
+     provided; do not hallucinate legal references; maximum
+     200 words for the body section
+
+3. An `assemble_document(document_type: str,
+   personal_data: dict, body_text: str,
+   filing_jurisdiction: str | None) -> str` function that
+   combines the structural wrapper, injected personal data,
+   and LLM-generated body into the complete document string
+   following the standard structure above.
+   - Date fields use `"..."` placeholder (citizen fills in
+     when printing)
+   - Địa danh: derive from `filing_jurisdiction` if
+     available (e.g. "VN-HCM" → "TP. Hồ Chí Minh"),
+     otherwise use `"........"`
+
+**Backend — new synthesizer response mode:**
+
+`backend/app/agents/nodes/synthesizer.py` — add
+`document_draft` as an 8th response mode.
+
+In `_determine_mode()`, add after guided_step check:
+```python
+if state.get("document_type") is not None:
+    return "document_draft"
+```
+
+In `synthesizer_node`, handle `mode == "document_draft"`:
+```python
+if mode == "document_draft":
+    document_type = state.get("document_type")
+    personal_data = (
+        state.get("personal_data") or
+        state.get("extracted_personal_data") or
+        {}
+    )
+    prompt = build_document_draft_prompt(
+        document_type,
+        personal_data.dict() if hasattr(
+            personal_data, "dict") else personal_data
+    )
+    body_text = await llm_service.async_invoke(
+        system=prompt,
+        messages=[{
+            "role": "user",
+            "content": "Viết phần nội dung đơn."
+        }],
+        max_tokens=400,
+    )
+    full_document = assemble_document(
+        document_type,
+        personal_data.dict() if hasattr(
+            personal_data, "dict") else personal_data,
+        body_text,
+        state.get("filing_jurisdiction"),
+    )
+    return {
+        "final_response": full_document,
+        "response_metadata": {
+            "mode": "document_draft",
+            "document_type": document_type,
+            "scope_used": state.get("scope_used"),
+            "scope_notice_included": False,
+            "rag_confidence": None,
+            "filled_form_path": None,
+            "retrieved_sources": [],
+            "guided_procedure_id": None,
+            "guided_step": None,
+        },
+    }
+```
+
+**`backend/app/agents/state.py`:**
+
+Add `document_type: str | None` to `AgentState`.
+
+**Frontend — document draft rendering in ChatWidget:**
+
+`frontend/src/components/chat/ChatWidget.tsx` — the
+`document_draft` response mode requires special rendering.
+The `final_response` string is a full formatted document.
+It must be rendered in a visually distinct block:
+
+When `msg.metadata?.mode === "document_draft"` (add
+`mode` to message metadata type if not already present),
+render the message content inside a styled block:
+
+```
+┌─────────────────────────────────────┐
+│  📄 Văn bản hành chính              │
+│  ─────────────────────────────────  │
+│  [document text in monospace font,  │
+│   left-aligned, white-space: pre]   │
+│  ─────────────────────────────────  │
+│  [📋 Sao chép văn bản] button       │
+└─────────────────────────────────────┘
+```
+
+Styling:
+- Container: `bg-gray-50 border border-gray-200 rounded-lg
+  p-4 font-mono text-sm whitespace-pre-wrap`
+- Header: "📄 Văn bản hành chính" in `#CE7A58` bold
+- Copy button: calls `navigator.clipboard.writeText(
+  msg.content)` on click; on success shows "✅ Đã sao chép"
+  for 2 seconds then reverts
+
+Do not apply `renderWithCitations()` to document draft
+messages — the content is a formatted document, not a
+prose response with citation chips.
+
+### Constraints
+
+- Document body is LLM-generated. The structural wrapper
+  (quốc hiệu, tiêu ngữ, closing formula) is assembled by
+  `assemble_document()` — never by the LLM. This ensures
+  the mandatory structural elements are always correct.
+- Personal data is injected from session state — never
+  ask the LLM to invent citizen details.
+- If `document_type` is not one of the 5 supported codes,
+  return a fallback message: "Xin lỗi, loại văn bản này
+  chưa được hỗ trợ. Các loại văn bản hiện hỗ trợ: đơn
+  xin xác nhận cư trú, đơn đăng ký thường trú/tạm trú,
+  đơn khiếu nại, giấy cam kết cư trú."
+- Do not add new npm packages.
+- All user-facing strings in Vietnamese.
+- `renderWithCitations()` must NOT be applied to
+  document_draft messages.
+- Citation chips must NOT appear in document draft output.
+
+### Definition of Done
+
+- [x] `RouterOutput` schema has `document_type: str | None`
+- [x] Router detects `draft_document` intent for all 5
+      supported document types
+- [x] `AgentState` has `document_type: str | None` field
+- [x] `document_draft_prompt.py` exists with
+      `DOCUMENT_TYPE_CONFIGS`, `build_document_draft_prompt`,
+      and `assemble_document` functions
+- [x] All 5 document types have configs and produce
+      correctly structured output from `assemble_document`
+- [x] Synthesizer has `document_draft` as 8th response mode
+- [x] `document_draft` mode uses personal data from session
+      when available, `[...]` placeholders when not
+- [x] `document_draft` mode returns unsupported message for
+      unknown document types
+- [x] ChatWidget renders document draft messages in the
+      styled monospace block with header and copy button
+- [x] Copy button copies full document text to clipboard
+      and shows "✅ Đã sao chép" for 2 seconds
+- [x] `renderWithCitations()` is not applied to
+      document_draft messages
+- [x] 3 new unit tests in `test_synthesizer_node.py`:
+      `test_synthesizer_document_draft_mode_detected`,
+      `test_synthesizer_document_draft_uses_personal_data`,
+      `test_synthesizer_ocr_document_type_does_not_trigger_draft_mode`
+- [x] 2 new unit tests in `test_router_node.py`:
+      `test_router_draft_document_intent_sets_document_type`,
+      `test_router_draft_document_unsupported_type_returns_message`
+- [x] 8 new unit tests in `test_document_draft_prompt.py`
+      covering structural sections, personal data injection,
+      placeholders, ValueError for unknown type, all 5 config
+      keys, dia_danh mapping, and date formatting
+- [x] All existing unit tests still pass (314 total)
+- [x] 0 TypeScript errors (`tsc --noEmit`)
+
+### Changes made (2026-04-17)
+
+- **NEW** `backend/app/agents/prompts/document_draft_prompt.py` — `DOCUMENT_TYPE_CONFIGS` (5 types), `build_document_draft_prompt()`, `assemble_document()`, `_resolve_dia_danh()`, `_format_date()`
+- **NEW** `backend/tests/unit/test_document_draft_prompt.py` — 8 unit tests
+- **MODIFIED** `backend/app/agents/prompts/router_prompt.py` — `RouterOutput` gains `document_type: str | None`; Examples 14–15 added
+- **MODIFIED** `backend/app/agents/nodes/router.py` — imports `DOCUMENT_TYPE_CONFIGS`; `draft_document` intent handler added before `start_guided`
+- **MODIFIED** `backend/app/agents/nodes/synthesizer.py` — `_determine_mode()` gains `document_draft` at priority 4; full handler added returning assembled document
+- **MODIFIED** `frontend/src/lib/types/index.ts` — `ChatMessage.messageMode?: string`; `ChatMetadata.document_type?: string | null`
+- **MODIFIED** `frontend/src/components/chat/ChatWidget.tsx` — `DocumentDraftBlock` component; metadata SSE stores `messageMode`; render loop dispatches `document_draft` to `DocumentDraftBlock`; pre-existing `isPending` unused-variable hint fixed
+- **MODIFIED** `backend/tests/unit/test_synthesizer_node.py` — 3 new tests
+- **MODIFIED** `backend/tests/unit/test_router_node.py` — 2 new tests
+
+### Notes
+
+- TASK-APP-23 (DOCX download) can be implemented after
+  this task — it takes the `final_response` string from
+  `document_draft` mode and converts it to a downloadable
+  `.docx` file using the docx skill. Do not implement
+  DOCX in this task.
+- The `don_khieu_nai` type is the most open-ended — the
+  LLM body instruction must ask the citizen what decision
+  they are appealing. If personal data is available but
+  the appeal subject is unknown, the body section should
+  contain a `[Nêu rõ nội dung quyết định hành chính cần
+  khiếu nại]` placeholder rather than hallucinating a
+  reason.

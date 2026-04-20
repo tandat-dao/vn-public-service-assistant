@@ -1,8 +1,10 @@
 # DichVuCong AI Assistant
 
-A mock Vietnamese government public administration portal with a conversational AI assistant. Citizens describe what they need to accomplish, and the system determines which administrative procedures are required, in what order, retrieves the relevant legal basis, extracts personal data from identity documents, and pre-fills government PDF forms.
+**Tiếng Việt:** Cổng dịch vụ công hành chính Việt Nam tích hợp trợ lý AI hội thoại. Công dân mô tả nhu cầu, hệ thống xác định các thủ tục hành chính cần thực hiện (theo đúng thứ tự phụ thuộc), truy xuất cơ sở pháp lý liên quan, trích xuất thông tin cá nhân từ giấy tờ tùy thân, và điền tự động các mẫu tờ khai PDF của chính phủ. Hỗ trợ ba lĩnh vực: cư trú (nhà ở), hộ tịch, và nuôi con nuôi. Hệ thống trích dẫn căn cứ pháp lý theo định dạng `[Điều X, Nghị định YYY/YYYY/NĐ-CP]` và xác minh từng trích dẫn trước khi trả về kết quả.
 
-The system is a university thesis project demonstrating that a single unified pipeline architecture is sufficient to handle both procedural dependency resolution (DAG-based) and hierarchical jurisdiction scoping (tree-based) for Vietnamese administrative procedures.
+**English:** A mock Vietnamese government public administration portal with a conversational AI assistant. Citizens describe what they need to accomplish, and the system determines which administrative procedures are required, in what order, retrieves the relevant legal basis, extracts personal data from identity documents, and pre-fills government PDF forms.
+
+The system is a university thesis project demonstrating that a single unified pipeline architecture is sufficient to handle both procedural dependency resolution (DAG-based) and hierarchical jurisdiction scoping (tree-based) for Vietnamese administrative procedures. The architecture is validated across three procedure domains: housing (nhà ở), civil registration (hộ tịch), and adoption (nuôi con nuôi). See `docs/PROJECT_CONTEXT.md` §2.1 for the full system layers diagram.
 
 ---
 
@@ -62,10 +64,11 @@ The agent pipeline decomposes every user message into an ordered execution plan.
 
 ## Prerequisites
 
-- Docker and Docker Compose
-- Python 3.12+
-- Node.js 20+
-- An Anthropic API key **or** a Google AI API key
+- **Docker Desktop** (includes Compose v2) — version 24+ recommended
+- **Python 3.12+**
+- **Node.js 18+** (20 LTS recommended)
+- **Git**
+- An **Anthropic API key** (`ANTHROPIC_API_KEY`) **or** a **Google AI API key** (`GOOGLE_API_KEY`)
 
 For the bge-m3 embedding model (default): at least 4 GB of free RAM. If your machine is constrained, switch to `EMBEDDING_BACKEND=openai` and supply an `OPENAI_API_KEY`.
 
@@ -75,14 +78,14 @@ For the bge-m3 embedding model (default): at least 4 GB of free RAM. If your mac
 
 ### 1. Clone the repository
 
-```bash
+```powershell
 git clone <repository-url>
 cd dichvucong
 ```
 
 ### 2. Start infrastructure services
 
-```bash
+```powershell
 docker compose up -d
 ```
 
@@ -90,50 +93,50 @@ This starts PostgreSQL, Redis, Qdrant, and MinIO with the credentials defined in
 
 ### 3. Set up the backend
 
-```bash
+```powershell
 cd backend
 python -m venv .venv
+.venv\Scripts\Activate.ps1
 
-# Windows
-.venv\Scripts\activate
-
-# macOS / Linux
-source .venv/bin/activate
-
-pip install -e ".[dev]"
+pip install -r requirements.txt
 ```
 
 Apply database migrations:
 
-```bash
+```powershell
+$env:PYTHONPATH = "."
 alembic upgrade head
 ```
 
-Seed the procedure graph (3 residence procedures + dependency edges):
+Seed the procedure graph (7 procedures across 3 domains + dependency edges):
 
-```bash
-python ingestion/ingest_procedures.py
+```powershell
+$env:PYTHONPATH = "."
+.venv\Scripts\python ingestion/ingest_procedures.py
 ```
 
 ### 4. Ingest legal documents
 
 The legal documents must be in PDF format. If you have the source `.doc` files, convert them first:
 
-```bash
+```powershell
 libreoffice --headless --convert-to pdf data/legal_documents/*.doc --outdir data/legal_documents/
 ```
 
-Then run the ingestion script:
+Then run the ingestion script for each domain (takes 5–10 minutes per domain on first run — bge-m3 downloads ~1.5 GB of model files):
 
-```bash
-python ingestion/ingest_legal_docs.py
+```powershell
+$env:PYTHONPATH = "."
+.venv\Scripts\python ingestion/ingest_legal_docs.py --domain housing
+.venv\Scripts\python ingestion/ingest_legal_docs.py --domain civil_registration
+.venv\Scripts\python ingestion/ingest_legal_docs.py --domain adoption
 ```
 
 This chunks documents at article boundaries, embeds them with bge-m3, and upserts them into Qdrant with `status: active`.
 
 ### 5. Set up the frontend
 
-```bash
+```powershell
 cd frontend
 npm install
 ```
@@ -144,17 +147,18 @@ npm install
 
 Copy the example environment file and fill in your API keys:
 
-```bash
-cp .env.example .env
+```powershell
+Copy-Item .env.example .env
 ```
 
-Open `.env` and set the following. Everything else has working defaults for local development.
+Open `.env` and set the following variables. Everything else has working defaults for local development.
 
-```bash
-# Required -- pick one LLM backend
+```powershell
+# Required — pick one LLM backend
 
-# Option A: Anthropic
+# Option A: Anthropic Claude
 LLM_BACKEND=anthropic
+LLM_MODEL=claude-haiku-4-5-20251001   # or claude-sonnet-4-6 for higher quality
 ANTHROPIC_API_KEY=sk-ant-...
 
 # Option B: Google Gemini
@@ -162,46 +166,63 @@ LLM_BACKEND=gemini
 GOOGLE_API_KEY=AIza...
 GEMINI_MODEL=gemini-2.5-flash
 
-# Required -- embeddings
-# Leave as bge-m3 unless you want to use OpenAI embeddings
+# Required — embeddings
+# Leave as bge-m3 (default) for best Vietnamese accuracy
 EMBEDDING_BACKEND=bge-m3
 # OPENAI_API_KEY=sk-...   # only needed if EMBEDDING_BACKEND=openai
 
-# Optional -- LangSmith tracing (Anthropic backend only)
+# Required — Redis auth password (matches docker-compose.yml)
+REDIS_PASSWORD=dichvucong_redis_secret
+
+# Required — Fernet key for Redis session encryption
+# Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+REDIS_ENCRYPTION_KEY=<your-32-byte-base64-fernet-key>
+
+# MinIO credentials (matches docker-compose.yml defaults)
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+
+# Optional — LangSmith tracing (Anthropic backend only)
 LANGSMITH_API_KEY=
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_PROJECT=dichvucong
 ```
 
-All other values (database URLs, Redis password, MinIO credentials, CORS origins) are pre-configured for the local Docker Compose environment and do not need to be changed for local development.
+All other values (database URLs, Qdrant URL, CORS origins) are pre-configured for the local Docker Compose environment and do not need to be changed for local development.
 
 ---
 
 ## Running the System
 
-### Backend
+### Step-by-step (PowerShell)
 
-```bash
+```powershell
+# 1. Start infrastructure (PostgreSQL, Redis, Qdrant, MinIO)
+docker compose up -d
+
+# 2. Verify health — wait for 200 OK before sending first message
+curl http://localhost:8000/health
+
+# 3. Start backend (in one terminal)
 cd backend
-
-# Windows
-.venv\Scripts\activate
-# macOS / Linux
-source .venv/bin/activate
-
-uvicorn app.main:app --reload --port 8000
+$env:PYTHONPATH = "."
+.venv\Scripts\python -m uvicorn app.main:app --reload --port 8000
 ```
 
-The API will be available at `http://localhost:8000`. Interactive API docs are at `http://localhost:8000/docs`.
+> **Note:** On first startup after a server restart, the bge-m3 embedding model
+> loads from disk. This can take 2–5 minutes. The `/health` endpoint returns
+> `{"status": "ok", "embedding_model_loaded": true}` once it is ready.
+> Do not send the first chat message until the model is loaded.
 
-### Frontend
-
-```bash
+```powershell
+# 4. Start frontend (in a separate terminal)
 cd frontend
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:3000`.
+- Backend API: `http://localhost:8000`
+- Interactive API docs: `http://localhost:8000/docs`
+- Frontend: `http://localhost:3000`
 
 ---
 
@@ -300,23 +321,27 @@ dichvucong/
 
 ## Running Tests
 
-### Unit tests (no infrastructure required)
-
-```bash
+```powershell
 cd backend
-pytest tests/unit/ -v
+$env:PYTHONPATH = "."
+
+# Unit tests (no infrastructure required)
+.venv\Scripts\pytest tests/unit/ -v
+
+# Integration tests (requires Docker Compose services running)
+.venv\Scripts\pytest tests/integration/ -m integration -v
+
+# Unit tests only, excluding integration
+.venv\Scripts\pytest tests/ -v -m "not integration"
 ```
 
-### Integration tests (requires Docker Compose services running)
+Current test count: 278 unit tests passing.
 
-```bash
-pytest tests/integration/ -v -m integration
-```
+---
 
-To run only unit tests and exclude integration tests:
+## Known Limitations
 
-```bash
-pytest tests/ -v -m "not integration"
-```
-
-Current test count: 271 unit tests passing.
+- **bge-m3 cold start**: The first request after a server restart may take 2–5 minutes while the embedding model loads from disk. The model is loaded eagerly at startup — watch the server logs for `"Embedding model loaded and ready."` before sending the first message. The `/health` endpoint reports `"embedding_model_loaded": true` once warm.
+- **LLM rate limits**: Gemini free tier is limited to 5 requests per minute. For better throughput during demos, switch to `LLM_BACKEND=anthropic`. If you hit rate limits, the chat widget shows a Vietnamese error message and the user can retry after 30 seconds.
+- **OCR quality**: The QR decode path (for CCCD cards with a machine-readable QR code) is fast (~200 ms) and produces confidence 1.0 per field. The PaddleOCR fallback requires clear, well-lit images — photos taken at an angle, in low light, or with motion blur will produce partial extractions. Upload the highest-quality image available.
+- **Legal correctness**: The system retrieves and cites text from Vietnamese legal documents (decrees, circulars) using RAG. It does not guarantee legal accuracy, and cited provisions may be outdated if the underlying legal documents have not been re-ingested after a legislative update. Always verify administrative requirements with official government sources before acting on them.

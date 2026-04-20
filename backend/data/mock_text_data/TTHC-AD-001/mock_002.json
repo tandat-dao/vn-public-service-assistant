@@ -1,0 +1,31 @@
+{
+  "full_name": "Nguyễn Thị Thu Hà",
+  "full_name_latin": "Nguyen Thi Thu Ha",
+  "date_of_birth": "1983-01-25",
+  "gender": "Nữ",
+  "nationality": "Việt Nam",
+  "id_number": "079183001234",
+  "id_issue_date": "2022-03-15",
+  "id_issue_place": "Cục Cảnh sát QLHC về TTXH",
+  "permanent_address": {
+    "street": "45 Lê Văn Việt",
+    "ward": "Phường Hiệp Phú",
+    "district": "Quận 9",
+    "province": "Thành phố Hồ Chí Minh",
+    "city": "Thành phố Hồ Chí Minh",
+    "country": "Việt Nam"
+  },
+  "temporary_address": null,
+  "raw_address": "45 Lê Văn Việt, Phường Hiệp Phú, Quận 9, Thành phố Hồ Chí Minh",
+  "source_document_type": "text_input",
+  "source_image_path": "data/mock_text_data/TTHC-AD-001/mock_002.json",
+  "extraction_confidence": 0.75,
+  "field_confidences": {
+    "full_name": 0.8,
+    "date_of_birth": 0.8,
+    "gender": 0.8,
+    "id_number": 0.8,
+    "permanent_address": 0.75
+  },
+  "extracted_at": "2026-04-12T09:00:00Z"
+}

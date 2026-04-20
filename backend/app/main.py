@@ -45,6 +45,22 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("MinIO not reachable at startup", error=str(exc))
 
+    # Eagerly load the embedding model so the first chat request does not
+    # incur a 2-5 minute cold start.  Import inside lifespan to avoid
+    # running model load when unit tests import main.py.
+    try:
+        from app.services.embedder import _get_embedder
+        logger.info("Loading embedding model...")
+        _get_embedder()
+        logger.info("Embedding model loaded and ready.")
+    except Exception as exc:
+        # bge-m3 load failure is non-fatal — OpenAI fallback handles live
+        # requests.  Log a warning and continue startup.
+        logger.warning(
+            "Embedding model failed to load at startup — OpenAI fallback active",
+            error=str(exc),
+        )
+
     logger.info("DichVuCong API starting up", environment=settings.ENVIRONMENT)
     yield
     logger.info("DichVuCong API shutting down")
@@ -75,4 +91,61 @@ app.include_router(v1_router, prefix="/api/v1")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "environment": settings.ENVIRONMENT}
+    """Startup verification endpoint.
+
+    Returns HTTP 200 with per-service status booleans.
+    Returns HTTP 503 only when the embedding model singleton is not yet loaded.
+    All service checks are wrapped in try/except — a failed check never crashes
+    this endpoint.
+    """
+    import app.services.embedder as _embedder_mod
+
+    # Embedding model check — the only condition that causes 503
+    model_loaded = _embedder_mod._embedder_svc is not None
+    embedding_status = "loaded" if model_loaded else "not_loaded"
+
+    # --- Qdrant ---
+    qdrant_ok = False
+    try:
+        from qdrant_client import AsyncQdrantClient
+        _qclient = AsyncQdrantClient(url=settings.QDRANT_URL)
+        await _qclient.get_collections()
+        qdrant_ok = True
+    except Exception:
+        pass
+
+    # --- Redis ---
+    redis_ok = False
+    try:
+        import redis.asyncio as aioredis
+        _rclient = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        await _rclient.ping()
+        await _rclient.aclose()
+        redis_ok = True
+    except Exception:
+        pass
+
+    # --- PostgreSQL ---
+    postgres_ok = False
+    try:
+        from sqlalchemy import text
+        from sqlalchemy.ext.asyncio import create_async_engine
+        _pg_engine = create_async_engine(settings.POSTGRES_URL)
+        async with _pg_engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        await _pg_engine.dispose()
+        postgres_ok = True
+    except Exception:
+        pass
+
+    body = {
+        "status": "ready" if model_loaded else "warming_up",
+        "embedding_model": embedding_status,
+        "services": {
+            "qdrant": qdrant_ok,
+            "redis": redis_ok,
+            "postgres": postgres_ok,
+        },
+    }
+    status_code = 200 if model_loaded else 503
+    return JSONResponse(content=body, status_code=status_code)

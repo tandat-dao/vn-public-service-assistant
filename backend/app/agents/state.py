@@ -68,6 +68,13 @@ class AgentState(TypedDict, total=False):
     filled_form_path: str | None      # MinIO path to filled PDF (tmp/ or forms/ prefix)
     form_fill_complete: bool           # True only when all required fields filled and form promoted
 
+    # Guided procedure completion wizard — TASK-APP-18
+    # Hydrated from SessionData at graph entry; written back after graph completes.
+    # None = not in guided mode; "TTHC-001" | "TTHC-002" | "TTHC-003" = active guided procedure
+    guided_procedure_id: str | None
+    # 0=INTRO, 1=AWAIT_CCCD, 2=FORM_FILLING, 3=COMPLETE; None when not in guided mode
+    guided_step: int | None
+
     # Output
     final_response: str
     response_metadata: dict

@@ -131,3 +131,20 @@ class EmbedderService:
             dimensions=1024,
         )
         return response.data[0].embedding
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton — shared across QdrantService and the lifespan
+# startup call so the model is only loaded once per process.
+# Replace in tests: patch("app.services.embedder._embedder_svc", mock_svc)
+# ---------------------------------------------------------------------------
+
+_embedder_svc: EmbedderService | None = None
+
+
+def _get_embedder() -> EmbedderService:
+    """Return the shared EmbedderService instance, creating it on first call."""
+    global _embedder_svc
+    if _embedder_svc is None:
+        _embedder_svc = EmbedderService()
+    return _embedder_svc

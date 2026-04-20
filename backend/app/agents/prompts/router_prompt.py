@@ -25,10 +25,23 @@ class RouterOutput(BaseModel):
     happens in router_node so it can raise ValueError (prompt drift bug)
     rather than being caught as a structural parse failure (which would
     silently return the fallback plan).
+
+    intent: optional — only set to "start_guided" or "draft_document" when
+    the user explicitly requests end-to-end guided assistance or document
+    drafting. All other intents are implicit in the execution_plan.
+    procedure_id: the specific procedure code targeted (e.g. "TTHC-002") —
+    set when intent == "start_guided" or when target_procedure_id is
+    unambiguous from the message.
+    document_type: set when intent == "draft_document" — one of:
+        "don_xac_nhan_cu_tru", "don_dang_ky_thuong_tru", "don_dang_ky_tam_tru",
+        "don_khieu_nai", "giay_cam_ket".
     """
 
     execution_plan: list[str]
     entities: dict[str, Any] = {}
+    intent: str | None = None           # "start_guided" | "draft_document" | None
+    procedure_id: str | None = None     # e.g. "TTHC-001", "TTHC-002", "TTHC-003"
+    document_type: str | None = None    # e.g. "don_xac_nhan_cu_tru"
 
 
 # ---------------------------------------------------------------------------
@@ -65,12 +78,58 @@ Chỉ trả về JSON thuần túy, không có giải thích, không có markdow
 
 {{
   "execution_plan": [...],
-  "entities": {{}}
+  "entities": {{}},
+  "intent": null,
+  "procedure_id": null,
+  "document_type": null
 }}
 
 Trường "entities" chứa các thực thể được trích xuất (tên thủ tục, điều luật, v.v.) — để trống nếu không tìm thấy.
+Trường "intent": đặt là "start_guided" KHI VÀ CHỈ KHI người dùng yêu cầu được hướng dẫn từng bước toàn bộ thủ tục từ đầu đến cuối. Đặt là "draft_document" KHI người dùng yêu cầu soạn thảo văn bản hành chính (đơn từ, giấy cam kết). Mặc định là null.
+Trường "procedure_id": mã thủ tục cụ thể (ví dụ "TTHC-001", "TTHC-002", "TTHC-003") khi intent là "start_guided". Mặc định là null.
+Trường "document_type": loại văn bản cần soạn khi intent là "draft_document". Các giá trị hợp lệ: "don_xac_nhan_cu_tru", "don_dang_ky_thuong_tru", "don_dang_ky_tam_tru", "don_khieu_nai", "giay_cam_ket". Mặc định là null.
 
 ## Ví dụ
+
+### Ví dụ 1 — Đăng ký khai sinh cho con (civil_registration)
+Người dùng: "Tôi muốn đăng ký khai sinh cho con, cần làm những gì?"
+Ảnh: không có
+{{"execution_plan": ["rag_fn"], "entities": {{"procedure": "đăng ký khai sinh", "domain": "civil_registration", "target_procedure_id": "TTHC-CR-001"}}}}
+
+### Ví dụ 2 — Hỏi về cấp bản sao trích lục hộ tịch (civil_registration)
+Người dùng: "Làm sao để xin bản sao giấy khai sinh?"
+Ảnh: không có
+{{"execution_plan": ["rag_fn"], "entities": {{"procedure": "cấp bản sao trích lục hộ tịch", "domain": "civil_registration", "target_procedure_id": "TTHC-CR-002"}}}}
+
+### Ví dụ 3 — Câu hỏi kép về khai sinh và trích lục (civil_registration, ambiguous)
+Người dùng: "Đăng ký khai sinh cần giấy tờ gì và trích lục hộ tịch dùng để làm gì?"
+Ảnh: không có
+{{"execution_plan": ["rag_fn"], "entities": {{"domain": "civil_registration", "target_procedure_id": null}}}}
+
+### Ví dụ 4 — Khai sinh cho trẻ bị bỏ rơi (civil_registration)
+Người dùng: "Thủ tục làm giấy khai sinh cho trẻ bị bỏ rơi không rõ cha mẹ"
+Ảnh: không có
+{{"execution_plan": ["rag_fn"], "entities": {{"procedure": "đăng ký khai sinh trẻ bị bỏ rơi", "domain": "civil_registration", "target_procedure_id": "TTHC-CR-001"}}}}
+
+### Ví dụ 5 — Đăng ký nhận nuôi con nuôi trong nước (adoption)
+Người dùng: "Tôi muốn nhận nuôi một đứa trẻ, cần làm thủ tục gì?"
+Ảnh: không có
+{{"execution_plan": ["rag_fn"], "entities": {{"procedure": "đăng ký nuôi con nuôi trong nước", "domain": "adoption", "target_procedure_id": "TTHC-AD-001"}}}}
+
+### Ví dụ 6 — Hỏi điều kiện nhận con nuôi (adoption)
+Người dùng: "Điều kiện để nhận con nuôi trong nước là gì?"
+Ảnh: không có
+{{"execution_plan": ["rag_fn"], "entities": {{"topic": "điều kiện nhận con nuôi", "domain": "adoption", "target_procedure_id": "TTHC-AD-001"}}}}
+
+### Ví dụ 7 — Đăng ký lại nuôi con nuôi do mất giấy tờ (adoption)
+Người dùng: "Giấy tờ nuôi con nuôi bị mất hết, làm lại thế nào?"
+Ảnh: không có
+{{"execution_plan": ["rag_fn"], "entities": {{"procedure": "đăng ký lại nuôi con nuôi", "domain": "adoption", "target_procedure_id": "TTHC-AD-002"}}}}
+
+### Ví dụ 8 — Hỏi hồ sơ và thời gian giải quyết nuôi con nuôi (adoption)
+Người dùng: "Hồ sơ đăng ký nuôi con nuôi gồm những gì và thời gian giải quyết bao lâu?"
+Ảnh: không có
+{{"execution_plan": ["rag_fn"], "entities": {{"procedure": "đăng ký nuôi con nuôi trong nước", "domain": "adoption", "target_procedure_id": "TTHC-AD-001"}}}}
 
 ### Ví dụ 1 — Câu hỏi pháp luật thuần túy
 Người dùng: "Điều 20 Luật Cư trú quy định gì?"
@@ -110,7 +169,42 @@ Người dùng: "Đây là CCCD. Điền đơn tạm trú cho tôi và giải th
 ### Ví dụ 8 — Lời chào hỏi
 Người dùng: "Xin chào"
 Ảnh: không có
-{{"execution_plan": [], "entities": {{}}}}"""
+{{"execution_plan": [], "entities": {{}}}}
+
+### Ví dụ 9 — Yêu cầu điền tờ khai sau khi đã tải CCCD ở lượt trước
+Người dùng: "Giúp tôi điền tờ khai đăng ký thường trú"
+Ảnh: có (đã tải lên ở lượt trước)
+{{"execution_plan": ["ocr_fn", "form_filler_fn"], "entities": {{"procedure": "đăng ký thường trú", "domain": "housing", "target_procedure_id": "TTHC-001"}}}}
+
+### Ví dụ 10 — Điền tờ khai đăng ký tạm trú (đã có CCCD ở lượt trước)
+Người dùng: "Điền giúp tôi tờ khai đăng ký tạm trú"
+Ảnh: có (đã tải lên ở lượt trước)
+{{"execution_plan": ["ocr_fn", "form_filler_fn"], "entities": {{"procedure": "đăng ký tạm trú", "domain": "housing", "target_procedure_id": "TTHC-002"}}}}
+
+### Ví dụ 11 — Điền mẫu xác nhận thông tin cư trú (không có ảnh)
+Người dùng: "Tôi muốn điền mẫu xác nhận thông tin cư trú"
+Ảnh: không có
+{{"execution_plan": ["form_filler_fn"], "entities": {{"procedure": "xác nhận thông tin cư trú", "domain": "housing", "target_procedure_id": "TTHC-003"}}, "intent": null, "procedure_id": null}}
+
+### Ví dụ 12 — Yêu cầu hướng dẫn từng bước đăng ký tạm trú (start_guided)
+Người dùng: "Giúp tôi đăng ký tạm trú từ đầu đến cuối"
+Ảnh: không có
+{{"execution_plan": [], "entities": {{"procedure": "đăng ký tạm trú", "domain": "housing"}}, "intent": "start_guided", "procedure_id": "TTHC-002"}}
+
+### Ví dụ 13 — Yêu cầu hướng dẫn từng bước đăng ký thường trú (start_guided)
+Người dùng: "Tôi muốn được hướng dẫn làm thủ tục đăng ký thường trú"
+Ảnh: không có
+{{"execution_plan": [], "entities": {{"procedure": "đăng ký thường trú", "domain": "housing"}}, "intent": "start_guided", "procedure_id": "TTHC-001"}}
+
+### Ví dụ 14 — Yêu cầu soạn đơn xin xác nhận thông tin cư trú (draft_document)
+Người dùng: "Giúp tôi viết đơn xin xác nhận thông tin cư trú"
+Ảnh: không có
+{{"execution_plan": [], "entities": {{"document": "đơn xin xác nhận cư trú", "domain": "housing"}}, "intent": "draft_document", "procedure_id": "TTHC-003", "document_type": "don_xac_nhan_cu_tru"}}
+
+### Ví dụ 15 — Yêu cầu soạn đơn đề nghị đăng ký tạm trú (draft_document)
+Người dùng: "Soạn giúp tôi đơn đề nghị đăng ký tạm trú"
+Ảnh: không có
+{{"execution_plan": [], "entities": {{"document": "đơn đề nghị đăng ký tạm trú", "domain": "housing"}}, "intent": "draft_document", "procedure_id": "TTHC-002", "document_type": "don_dang_ky_tam_tru"}}"""
 
 # ---------------------------------------------------------------------------
 # Message builder

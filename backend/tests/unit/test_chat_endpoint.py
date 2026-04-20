@@ -10,6 +10,7 @@ Covers TASK-11 DoD items 9–11:
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -127,3 +128,45 @@ def test_chat_endpoint_redis_save_failure_does_not_fail_request(client):
     # Must still return 200 — Redis save failure is non-fatal
     assert response.status_code == 200
     assert "[DONE]" in response.text
+
+
+# ---------------------------------------------------------------------------
+# Test — 3-char group SSE streaming (TASK-APP-04)
+# ---------------------------------------------------------------------------
+
+def test_generate_streams_char_groups(client):
+    """generate() emits content in chunks of ≤3 chars; concatenation is lossless."""
+    final_response = "Xin chào bạn!"
+    mock_graph = _mock_graph(final_response=final_response)
+    mock_redis = _mock_redis()
+
+    with patch("app.api.v1.chat.agent_graph", mock_graph), \
+         patch("app.api.v1.chat._get_redis", return_value=mock_redis):
+
+        response = client.post(
+            "/api/v1/chat",
+            json={"message": "Xin chào", "session_id": "sess-chargroup-001"},
+        )
+
+    assert response.status_code == 200
+
+    content_chunks: list[str] = []
+    for line in response.text.splitlines():
+        if not line.startswith("data:"):
+            continue
+        raw = line[len("data:"):].strip()
+        if raw == "[DONE]":
+            break
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if "content" in parsed:
+            chunk = parsed["content"]
+            assert len(chunk) <= 3, (
+                f"Chunk '{chunk}' has {len(chunk)} chars — expected ≤ 3"
+            )
+            content_chunks.append(chunk)
+
+    # All content chunks concatenated must exactly equal final_response
+    assert "".join(content_chunks) == final_response

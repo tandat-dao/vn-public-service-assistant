@@ -52,10 +52,12 @@ def mock_qdrant_client():
 
 @pytest.fixture
 def mock_embedder():
-    with patch("app.services.qdrant_service.EmbedderService") as mock_cls:
+    # QdrantService now calls _get_embedder() (returns instance directly),
+    # not EmbedderService() — patch the factory, not the class.
+    with patch("app.services.qdrant_service._get_embedder") as mock_fn:
         embedder = AsyncMock()
         embedder.embed.return_value = [0.1] * 1024
-        mock_cls.return_value = embedder
+        mock_fn.return_value = embedder
         yield embedder
 
 

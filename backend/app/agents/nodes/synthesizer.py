@@ -3,13 +3,15 @@
 This is a TRUE LangGraph graph node, always the last node before END.
 It is NOT a worker function and NOT in NODE_REGISTRY.
 
-Six response modes (evaluated in priority order):
+Eight response modes (evaluated in priority order):
   1. error              — state["errors"] is non-empty
   2. circuit_breaker    — plan stalled (plan_cursor >= MAX_PLAN_STEPS), no errors
-  3. form_fill_complete — state["form_fill_complete"] is True
-  4. form_fill_partial  — state["unfilled_required_fields"] is non-empty
-  5. rag_only           — state["retrieved_chunks"] is non-empty
-  6. fallback           — none of the above
+  3. guided_step        — state["guided_step"] is not None (TASK-APP-18)
+  4. document_draft     — state["document_type"] is a draft document type (TASK-APP-22)
+  5. form_fill_complete — state["form_fill_complete"] is True
+  6. form_fill_partial  — state["unfilled_required_fields"] is non-empty
+  7. rag_only           — state["retrieved_chunks"] is non-empty
+  8. fallback           — none of the above
 
 RAG-only optimisation: when no scope notice is needed (filing_jurisdiction ==
 scope_used or either is None), the LLM call is skipped entirely and
@@ -25,7 +27,11 @@ from __future__ import annotations
 
 import logging
 
-from app.agents.prompts.synthesis_prompt import _scope_level_name, build_synthesis_prompt
+from app.agents.prompts.synthesis_prompt import (
+    _scope_level_name,
+    build_guided_prompt,
+    build_synthesis_prompt,
+)
 from app.agents.state import AgentState
 
 logger = logging.getLogger(__name__)
@@ -53,6 +59,37 @@ def _get_llm():
 
 
 # ---------------------------------------------------------------------------
+# Retrieved sources builder — for response_metadata passthrough to frontend
+# ---------------------------------------------------------------------------
+
+def _build_retrieved_sources(state: AgentState) -> list[dict]:
+    """Build a list of source dicts from retrieved_chunks for the SSE metadata event.
+
+    Only chunks where both article_number and document_number are non-empty are
+    included. Content is capped at 600 characters (backend enforcement — the
+    frontend must not truncate further). Returns [] when no chunks are present.
+    """
+    chunks = state.get("retrieved_chunks") or []
+    sources: list[dict] = []
+    for chunk in chunks:
+        if isinstance(chunk, dict):
+            article_number = chunk.get("article_number", "") or ""
+            document_number = chunk.get("document_number", "") or ""
+            content = chunk.get("content", "") or ""
+        else:
+            article_number = getattr(chunk, "article_number", "") or ""
+            document_number = getattr(chunk, "document_number", "") or ""
+            content = getattr(chunk, "content", "") or ""
+        if article_number and document_number:
+            sources.append({
+                "article_number": article_number,
+                "document_number": document_number,
+                "content": content[:600],
+            })
+    return sources
+
+
+# ---------------------------------------------------------------------------
 # Mode determination
 # ---------------------------------------------------------------------------
 
@@ -62,10 +99,16 @@ def _determine_mode(state: AgentState) -> str:
     Priority order — use the FIRST matching condition:
       1. "error"              — errors list is non-empty
       2. "circuit_breaker"   — plan_cursor >= MAX_PLAN_STEPS AND errors empty
-      3. "form_fill_complete" — form_fill_complete is True
-      4. "form_fill_partial"  — unfilled_required_fields is non-empty
-      5. "rag_only"           — retrieved_chunks is non-empty
-      6. "fallback"           — none of the above
+      3. "guided_step"       — guided_step is not None (TASK-APP-18 wizard)
+      4. "document_draft"    — document_type is a draft document type (TASK-APP-22)
+      5. "form_fill_complete" — form_fill_complete is True
+      6. "form_fill_partial"  — unfilled_required_fields is non-empty
+      7. "rag_only"           — retrieved_chunks is non-empty
+      8. "fallback"           — none of the above
+
+    NOTE: document_draft uses document_type values like "don_xac_nhan_cu_tru"
+    which are distinct from OCR document types ("cccd", "birth_certificate", etc.).
+    The DOCUMENT_TYPE_CONFIGS lookup is the authoritative discriminator.
     """
     errors = state.get("errors") or []
     if errors:
@@ -74,6 +117,21 @@ def _determine_mode(state: AgentState) -> str:
     plan_cursor = state.get("plan_cursor", 0)
     if plan_cursor >= MAX_PLAN_STEPS:
         return "circuit_breaker"
+
+    # guided_step check has priority over all form/RAG modes.
+    # NOTE: The first entry may be a compaction summary (role "assistant",
+    # content prefixed with "Tóm tắt trước đó: ") — this is intentional.
+    if state.get("guided_step") is not None:
+        return "guided_step"
+
+    # document_draft mode: only fires when document_type is one of the 5
+    # supported draft types. OCR-set types ("cccd" etc.) are NOT in
+    # DOCUMENT_TYPE_CONFIGS and will not match.
+    _doc_type = state.get("document_type")
+    if _doc_type:
+        from app.agents.prompts.document_draft_prompt import DOCUMENT_TYPE_CONFIGS as _DTC
+        if _doc_type in _DTC:
+            return "document_draft"
 
     if state.get("form_fill_complete", False):
         return "form_fill_complete"
@@ -224,6 +282,144 @@ async def synthesizer_node(state: AgentState) -> dict:
                 "rag_confidence": (state.get("response_metadata") or {}).get(
                     "rag_confidence"
                 ),
+                "retrieved_sources": _build_retrieved_sources(state),
+            },
+        }
+
+    # ---- Guided procedure wizard mode (TASK-APP-18) ----
+    if mode == "guided_step":
+        try:
+            llm = _get_llm()
+            prompt = build_guided_prompt(state)
+            conv_history: list[dict] = list(state.get("conversation_history") or [])
+            user_msg = state.get("user_message") or ""
+            messages = conv_history + [{"role": "user", "content": user_msg}]
+
+            guided_response: str = await llm.async_invoke(
+                system=prompt,
+                messages=messages,
+                max_tokens=600,
+            )
+        except Exception as exc:
+            logger.error(
+                "synthesizer_node: guided_step LLM call failed — returning fallback: %s",
+                exc,
+                exc_info=True,
+            )
+            guided_response = _HARDCODED_FALLBACK
+
+        # Determine next guided_step
+        current_step = state.get("guided_step", 0)
+        if current_step == 0:
+            next_step: int | None = 1
+        elif current_step == 2 and state.get("form_fill_complete", False):
+            next_step = 3
+        elif current_step == 3:
+            next_step = None  # end guided mode
+        else:
+            next_step = current_step  # stay in current step (e.g. step 1 awaiting CCCD)
+
+        next_guided_id = (
+            state.get("guided_procedure_id") if next_step is not None else None
+        )
+
+        metadata: dict = {
+            "mode": "guided_step",
+            "guided_procedure_id": next_guided_id,
+            "guided_step": next_step,
+            "scope_used": state.get("scope_used"),
+            "scope_notice_included": False,
+            "rag_confidence": None,
+            "retrieved_sources": _build_retrieved_sources(state),
+        }
+        # Include filled_form_path when form fill completed within guided flow
+        if state.get("form_fill_complete") and state.get("filled_form_path"):
+            metadata["filled_form_path"] = state.get("filled_form_path") or ""
+
+        return {
+            "final_response": guided_response,
+            "response_metadata": metadata,
+            # Write back updated guided state so chat.py can persist it to Redis
+            "guided_procedure_id": next_guided_id,
+            "guided_step": next_step,
+        }
+
+    # ---- Document draft mode (TASK-APP-22) ----
+    if mode == "document_draft":
+        from app.agents.prompts.document_draft_prompt import (
+            DOCUMENT_TYPE_CONFIGS as _DTC,
+            assemble_document,
+            build_document_draft_prompt,
+        )
+
+        document_type = state.get("document_type", "")
+
+        # Unsupported type guard — router should catch this, but defend here too.
+        if document_type not in _DTC:
+            return {
+                "final_response": "Xin lỗi, loại văn bản này chưa được hỗ trợ.",
+                "response_metadata": {
+                    "mode": "document_draft",
+                    "document_type": document_type,
+                    "scope_used": state.get("scope_used"),
+                    "scope_notice_included": False,
+                    "rag_confidence": None,
+                    "filled_form_path": None,
+                    "retrieved_sources": [],
+                    "guided_procedure_id": state.get("guided_procedure_id"),
+                    "guided_step": state.get("guided_step"),
+                },
+            }
+
+        # Resolve personal data — prefer personal_data, fall back to extracted_personal_data.
+        personal_data_obj = (
+            state.get("personal_data") or state.get("extracted_personal_data")
+        )
+        if personal_data_obj is not None and hasattr(personal_data_obj, "model_dump"):
+            personal_data: dict = personal_data_obj.model_dump()
+        elif personal_data_obj is not None and hasattr(personal_data_obj, "dict"):
+            personal_data = personal_data_obj.dict()
+        else:
+            personal_data = personal_data_obj or {}
+
+        system_prompt = build_document_draft_prompt(document_type, personal_data)
+
+        try:
+            llm = _get_llm()
+            body_text: str = await llm.async_invoke(
+                system=system_prompt,
+                messages=[{"role": "user", "content": "Viết phần nội dung văn bản."}],
+                max_tokens=400,
+            )
+        except Exception as exc:
+            logger.warning(
+                "synthesizer_node: document_draft LLM call failed — using placeholder: %s",
+                exc,
+            )
+            body_text = (
+                "[Không thể tạo nội dung tự động. "
+                "Vui lòng điền phần nội dung thủ công.]"
+            )
+
+        full_document = assemble_document(
+            document_type=document_type,
+            personal_data=personal_data,
+            body_text=body_text,
+            filing_jurisdiction=state.get("filing_jurisdiction"),
+        )
+
+        return {
+            "final_response": full_document,
+            "response_metadata": {
+                "mode": "document_draft",
+                "document_type": document_type,
+                "scope_used": state.get("scope_used"),
+                "scope_notice_included": False,
+                "rag_confidence": None,
+                "filled_form_path": None,
+                "retrieved_sources": [],
+                "guided_procedure_id": state.get("guided_procedure_id"),
+                "guided_step": state.get("guided_step"),
             },
         }
 
@@ -262,14 +458,26 @@ async def synthesizer_node(state: AgentState) -> dict:
             },
         }
 
+    metadata: dict = {
+        "mode": mode,
+        "scope_used": state.get("scope_used"),
+        "scope_notice_included": include_scope_notice,
+        "rag_confidence": (state.get("response_metadata") or {}).get(
+            "rag_confidence"
+        ),
+    }
+    # Surface filled_form_path only for form_fill_complete so the frontend
+    # can render a download button.  Never include it for other modes —
+    # the path is a MinIO-internal string and must not leak unnecessarily.
+    if mode == "form_fill_complete":
+        metadata["filled_form_path"] = state.get("filled_form_path") or ""
+    # Include retrieved_sources for all content modes so the frontend can
+    # show chunk content on citation hover. Omitted for error/circuit_breaker —
+    # those have no retrieved chunks to surface.
+    if mode not in ("error", "circuit_breaker"):
+        metadata["retrieved_sources"] = _build_retrieved_sources(state)
+
     return {
         "final_response": llm_response,
-        "response_metadata": {
-            "mode": mode,
-            "scope_used": state.get("scope_used"),
-            "scope_notice_included": include_scope_notice,
-            "rag_confidence": (state.get("response_metadata") or {}).get(
-                "rag_confidence"
-            ),
-        },
+        "response_metadata": metadata,
     }
