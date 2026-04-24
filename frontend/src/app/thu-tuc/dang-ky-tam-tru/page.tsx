@@ -1,366 +1,153 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useRouter } from 'next/navigation'
-import { Breadcrumb } from '@/components/ui/Breadcrumb'
-import { FormInput, FormSelect, FormTextarea } from '@/components/forms/FormField'
-import { tamTruSchema, type TamTruFormValues } from '@/lib/schemas/residence-forms'
-import { useFormStore } from '@/lib/stores/formStore'
-import { useChatStore } from '@/lib/stores/chatStore'
-import { api } from '@/lib/api/client'
+import { ProcedurePageLayout } from '@/components/procedure/ProcedurePageLayout'
 
-const FORM_TYPE = 'tam-tru' as const
+const documentsSection = (
+  <>
+    <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">* Hồ sơ đăng ký tạm trú gồm:</p>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="border-b border-gray-200">
+            <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
+            <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/4">Mẫu đơn, tờ khai</th>
+            <th className="text-left py-2 text-xs font-semibold text-gray-500 w-1/4">Số lượng</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="border-b border-gray-100 align-top">
+            <td className="py-2 pr-4 text-gray-800 text-sm leading-relaxed">Tờ khai thay đổi thông tin cư trú (Mẫu CT01 ban hành kèm theo Thông tư số 53/2025/TT-BCA); đối với người đăng ký tạm trú là người chưa thành niên thì trong tờ khai phải ghi rõ ý kiến đồng ý của cha, mẹ hoặc người giám hộ, trừ trường hợp đã có ý kiến đồng ý bằng văn bản;</td>
+            <td className="py-2 pr-4">
+              <a
+                href="/forms/1.MuCT01banhnhkmtheoThngts53.doc"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-[#CE7A58] hover:underline"
+              >
+                1.MuCT01banhnhkmtheoThngts53.doc
+              </a>
+            </td>
+            <td className="py-2 text-gray-600 text-xs whitespace-pre-line">{"Bản chính: 1\nBản sao: 0"}</td>
+          </tr>
+          <tr className="border-b border-gray-100 align-top">
+            <td className="py-2 pr-4 text-gray-800 text-sm leading-relaxed">Thông tin chứng minh về chỗ ở hợp pháp được khai thác trong căn cước điện tử, tài khoản định danh điện tử trên hệ thống định danh và xác thực điện tử qua Ứng dụng định danh quốc gia hoặc trong Cơ sở dữ liệu quốc gia về dân cư, Cơ sở dữ liệu về cư trú, Kho quản lý dữ liệu điện tử tổ chức, cá nhân trên Cổng dịch vụ công quốc gia, Hệ thống thông tin giải quyết thủ tục hành chính cấp bộ, cấp tỉnh hoặc cơ sở dữ liệu quốc gia, cơ sở dữ liệu chuyên ngành khác. Trường hợp không khai thác được thông tin thì công dân xuất trình giấy tờ, tài liệu chứng minh chỗ ở hợp pháp theo quy định tại khoản 3 Điều 5 Nghị định 154/2024/NĐ-CP ngày 26/11/2024 của Chính phủ.</td>
+            <td className="py-2 pr-4"></td>
+            <td className="py-2 text-gray-600 text-xs whitespace-pre-line">{"Bản chính: 1\nBản sao: 0"}</td>
+          </tr>
+          <tr className="border-b border-gray-100 align-top">
+            <td className="py-2 pr-4 text-gray-800 text-sm leading-relaxed">Ví dụ: Trường hợp giấy tờ, tài liệu chứng minh chỗ ở hợp pháp là giấy tờ, tài liệu chứng nhận về quyền sử dụng đất, quyền sở hữu tài sản gắn liền với đất do cơ quan có thẩm quyền cấp qua các thời kỳ theo quy định của pháp luật về đất đai và nhà ở được khai thác trong Cơ sở dữ liệu quốc gia về đất đai thì không phải xuất trình giấy tờ, tài liệu chứng minh chỗ ở hợp pháp.</td>
+            <td className="py-2 pr-4"></td>
+            <td className="py-2 text-gray-600 text-xs whitespace-pre-line"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-type OcrStatus = 'idle' | 'loading' | 'success' | 'partial' | 'error'
+    <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">* Đăng ký tạm trú theo danh sách, hồ sơ gồm:</p>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="border-b border-gray-200">
+            <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
+            <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/4">Mẫu đơn, tờ khai</th>
+            <th className="text-left py-2 text-xs font-semibold text-gray-500 w-1/4">Số lượng</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="border-b border-gray-100 align-top">
+            <td className="py-2 pr-4 text-gray-800 text-sm leading-relaxed">Tờ khai thay đổi thông tin cư trú (của từng người) (Mẫu CT01 ban hành kèm theo Thông tư số 53/2025/TT-BCA).</td>
+            <td className="py-2 pr-4">
+              <a
+                href="/forms/1.MuCT01banhnhkmtheoThngts53.doc"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-[#CE7A58] hover:underline"
+              >
+                1.MuCT01banhnhkmtheoThngts53.doc
+              </a>
+            </td>
+            <td className="py-2 text-gray-600 text-xs whitespace-pre-line">{"Bản chính: 1\nBản sao: 0"}</td>
+          </tr>
+          <tr className="border-b border-gray-100 align-top">
+            <td className="py-2 pr-4 text-gray-800 text-sm leading-relaxed">Văn bản đề nghị đăng ký tạm trú, trong đó ghi rõ thông tin về chỗ ở hợp pháp kèm danh sách người tạm trú. Danh sách bao gồm những thông tin cơ bản của từng người: họ, chữ đệm và tên; ngày, tháng, năm sinh; giới tính; số định danh cá nhân và thời hạn tạm trú.</td>
+            <td className="py-2 pr-4"></td>
+            <td className="py-2 text-gray-600 text-xs whitespace-pre-line">{"Bản chính: 1\nBản sao: 1"}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-const GIOI_TINH_OPTIONS = [
-  { value: 'Nam', label: 'Nam' },
-  { value: 'Nữ', label: 'Nữ' },
-]
+    <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Đăng ký tạm trú tại nơi đơn vị đóng quân trong Công an nhân dân, Quân đội nhân nhân (đơn vị đóng quân, nhà ở công vụ) hồ sơ gồm:</p>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="border-b border-gray-200">
+            <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
+            <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/4">Mẫu đơn, tờ khai</th>
+            <th className="text-left py-2 text-xs font-semibold text-gray-500 w-1/4">Số lượng</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="border-b border-gray-100 align-top">
+            <td className="py-2 pr-4 text-gray-800 text-sm leading-relaxed">Tờ khai thay đổi thông tin cư trú (Mẫu CT01 ban hành kèm theo Thông tư số 53/2025/TT-BCA).</td>
+            <td className="py-2 pr-4">
+              <a
+                href="/forms/1.MuCT01banhnhkmtheoThngts53.doc"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-[#CE7A58] hover:underline"
+              >
+                1.MuCT01banhnhkmtheoThngts53.doc
+              </a>
+            </td>
+            <td className="py-2 text-gray-600 text-xs whitespace-pre-line">{"Bản chính: 1\nBản sao: 0"}</td>
+          </tr>
+          <tr className="border-b border-gray-100 align-top">
+            <td className="py-2 pr-4 text-gray-800 text-sm leading-relaxed">Đối với Công an nhân dân: Giấy giới thiệu của Thủ trưởng đơn vị quản lý trực tiếp ghi rõ nội dung để làm thủ tục đăng ký tạm trú và đơn vị có chỗ ở cho cán bộ chiến sĩ (ký tên, đóng dấu).</td>
+            <td className="py-2 pr-4"></td>
+            <td className="py-2 text-gray-600 text-xs whitespace-pre-line">{"Bản chính: 1\nBản sao: 0"}</td>
+          </tr>
+          <tr className="border-b border-gray-100 align-top">
+            <td className="py-2 pr-4 text-gray-800 text-sm leading-relaxed">Đối với Quân đội nhân dân: Giấy giới thiệu đăng ký tạm trú của đơn vị cấp trung đoàn và tương đương trở lên.</td>
+            <td className="py-2 pr-4"></td>
+            <td className="py-2 text-gray-600 text-xs whitespace-pre-line">{"Bản chính: 1\nBản sao: 0"}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Bao gồm</p>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="border-b border-gray-200">
+            <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
+            <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/4">Mẫu đơn, tờ khai</th>
+            <th className="text-left py-2 text-xs font-semibold text-gray-500 w-1/4">Số lượng</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="border-b border-gray-100 align-top">
+            <td className="py-2 pr-4 text-gray-800 text-sm leading-relaxed">*Lưu ý: - Trường hợp giấy tờ, tài liệu chứng minh chỗ ở hợp pháp để đăng ký tạm trú là văn bản cho thuê, cho mượn, cho ở nhờ nhà ở, nhà khác của cá nhân, tổ chức thì văn bản đó không bắt buộc phải công chứng hoặc chứng thực. - Người nước ngoài được nhập quốc tịch Việt Nam khi đăng ký tạm trú lần đầu phải có Quyết định của Chủ tịch nước về việc cho nhập quốc tịch Việt Nam. Người gốc Việt Nam được trở lại quốc tịch Việt Nam khi đăng ký tạm trú lần đầu sau khi được cho trở lại quốc tịch Việt Nam phải có Quyết định của Chủ tịch nước về việc cho trở lại quốc tịch Việt Nam trừ trường hợp đã khai thác được thông tin trong Cơ sở dữ liệu quốc tịch. - Công dân đăng ký tạm trú về với hộ gia đình thuộc trường hợp quy định tại khoản 2 Điều 20 Luật Cư trú khi chủ hộ, chủ sở hữu chỗ ở hợp pháp đồng ý và không phải xuất trình, cung cấp giấy tờ chứng minh chỗ ở hợp pháp. - Trong thời hạn tối đa 60 ngày kể từ ngày người chưa thành niên được đăng ký khai sinh thì phải thực hiện thủ tục đăng ký cư trú.</td>
+            <td className="py-2 pr-4"></td>
+            <td className="py-2 text-gray-600 text-xs whitespace-pre-line"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </>
+)
 
 export default function DangKyTamTruPage() {
-  const router = useRouter()
-  const store = useFormStore()
-  const { sessionId } = useChatStore()
-  const [submitError, setSubmitError] = useState<string | null>(null)
-
-  // OCR upload state
-  const [ocrStatus, setOcrStatus] = useState<OcrStatus>('idle')
-  const [ocrMessage, setOcrMessage] = useState<string>('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  async function handleOcrUpload(file: File) {
-    setOcrStatus('loading')
-    setOcrMessage('')
-    try {
-      const result = await api.documents.upload(file, sessionId)
-      if (result.status === 'success' && result.personal_data) {
-        const pd = result.personal_data
-        const confidence = result.ocr_confidence ?? 0
-
-        let formattedDob = ''
-        if (pd.date_of_birth) {
-          const parts = String(pd.date_of_birth).split('-')
-          if (parts.length === 3) formattedDob = `${parts[2]}/${parts[1]}/${parts[0]}`
-        }
-
-        let addressStr = ''
-        if (pd.raw_address) {
-          addressStr = pd.raw_address
-        } else if (pd.permanent_address) {
-          const a = pd.permanent_address
-          addressStr = [a.street, a.ward, a.district, a.province || a.city]
-            .filter(Boolean)
-            .join(', ')
-        }
-
-        const extracted: Record<string, { value: string; confidence: number }> = {}
-        if (pd.full_name) extracted.ho_ten = { value: pd.full_name, confidence }
-        if (formattedDob) extracted.ngay_sinh = { value: formattedDob, confidence }
-        if (pd.gender) extracted.gioi_tinh = { value: pd.gender, confidence }
-        if (pd.id_number) extracted.so_cccd = { value: pd.id_number, confidence }
-        if (addressStr) extracted.dia_chi_thuong_tru = { value: addressStr, confidence }
-
-        store.applyAIExtraction(FORM_TYPE, extracted)
-        setOcrStatus('success')
-        setOcrMessage(`Đã trích xuất thông tin. Độ chính xác: ${Math.round(confidence * 100)}%`)
-      } else if (result.status === 'partial') {
-        setOcrStatus('partial')
-        setOcrMessage('⚠️ Không đọc được thông tin từ ảnh. Vui lòng chụp ảnh rõ hơn (đủ sáng, không mờ, thẻ căn cước nằm thẳng) và thử lại.')
-      } else {
-        setOcrStatus('error')
-        setOcrMessage('❌ Lỗi máy chủ khi xử lý ảnh. Vui lòng thử lại.')
-      }
-    } catch (err: any) {
-      const status = err?.status
-      setOcrStatus('error')
-      if (status === 422) {
-        setOcrMessage('❌ Tệp không hợp lệ. Chỉ chấp nhận ảnh JPG, PNG, WebP dưới 5MB.')
-      } else if (status === 500) {
-        setOcrMessage('❌ Lỗi máy chủ khi xử lý ảnh. Vui lòng thử lại.')
-      } else {
-        setOcrMessage('❌ Không thể kết nối đến máy chủ. Kiểm tra kết nối mạng.')
-      }
-    }
-  }
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<TamTruFormValues>({
-    resolver: zodResolver(tamTruSchema),
-    defaultValues: store.getFormValues(FORM_TYPE) as TamTruFormValues,
-  })
-
-  const storeFields = store.fields[FORM_TYPE]
-  useEffect(() => {
-    const vals = store.getFormValues(FORM_TYPE)
-    if (Object.keys(vals).length > 0) reset(vals as TamTruFormValues)
-  }, [storeFields]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function onSubmit(data: TamTruFormValues) {
-    store.setSubmitting(FORM_TYPE, true)
-    setSubmitError(null)
-    try {
-      for (const [key, value] of Object.entries(data)) {
-        store.setFieldValue(FORM_TYPE, key as keyof TamTruFormValues, value ?? '', 'manual', 1.0)
-      }
-      const result = await api.forms.submit({
-        form_type: FORM_TYPE,
-        session_id: sessionId,
-        submission_mode: 'manual',
-        form_data: data as Record<string, string | undefined>,
-      })
-      store.setSubmissionResult(FORM_TYPE, {
-        ...result,
-        form_type: FORM_TYPE,
-        status: result.status as 'received' | 'processing' | 'completed',
-      })
-      router.push(`/tra-cuu-ho-so?ma=${encodeURIComponent(result.ma_ho_so)}`)
-    } catch (err: any) {
-      const status = err?.status
-      if (status === 422) {
-        setSubmitError('Vui lòng kiểm tra lại thông tin đã nhập.')
-      } else if (status === 500) {
-        setSubmitError('Lỗi hệ thống khi nộp hồ sơ. Vui lòng thử lại sau.')
-      } else {
-        setSubmitError('Không thể kết nối. Kiểm tra kết nối mạng.')
-      }
-    } finally {
-      store.setSubmitting(FORM_TYPE, false)
-    }
-  }
-
-  const ai = (key: string) => storeFields?.[key]?.aiHighlight ?? false
-
   return (
-    <main className="max-w-container mx-auto px-4 py-6">
-      <Breadcrumb
-        items={[
-          { label: 'Trang chủ', href: '/' },
-          { label: 'Thủ tục hành chính' },
-          { label: 'Đăng ký tạm trú' },
-        ]}
-      />
-
-      <h1 className="text-xl font-bold text-[#1E2F41] mt-4 mb-1">
-        Đăng ký tạm trú
-      </h1>
-      <p className="text-sm text-[#555] mb-4">
-        Thủ tục đăng ký tạm trú cho công dân lưu trú tại địa phương. Vui lòng điền đầy đủ thông tin.
-      </p>
-
-      {/* ── OCR Upload Card ── */}
-      <div className="border-2 border-dashed border-[#DDDDDD] rounded p-4 mb-6 bg-[#FAFAFA]">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex-1 text-sm text-[#555]">
-            {ocrStatus === 'idle' && 'Tải lên ảnh CCCD để điền thông tin tự động'}
-            {ocrStatus === 'loading' && (
-              <span className="text-[#1E2F41]">Đang đọc thông tin CCCD...</span>
-            )}
-            {ocrStatus === 'success' && (
-              <span className="text-[#28A745]">{ocrMessage}</span>
-            )}
-            {ocrStatus === 'partial' && (
-              <span className="text-[#D97706]">{ocrMessage}</span>
-            )}
-            {ocrStatus === 'error' && (
-              <span className="text-[#CC0000]">{ocrMessage}</span>
-            )}
-          </div>
-          <div className="flex-shrink-0">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) handleOcrUpload(file)
-                e.target.value = ''
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={ocrStatus === 'loading'}
-              className="bg-[#1E2F41] text-white hover:bg-[#2a3f57] font-medium px-4 py-2 rounded text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
-            >
-              {ocrStatus === 'loading' ? 'Đang đọc thông tin CCCD...' : 'Tải lên CCCD để điền tự động'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* ── Form ── */}
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          noValidate
-          className="md:col-span-2 space-y-6"
-        >
-          {/* Personal info */}
-          <section>
-            <h2 className="text-sm font-bold text-[#CE7A58] uppercase tracking-wide mb-3">
-              Thông tin cá nhân
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormInput
-                {...register('ho_ten')}
-                id="ho_ten"
-                label="Họ và tên"
-                required
-                placeholder="Nguyễn Văn A"
-                error={errors.ho_ten?.message}
-                aiHighlight={ai('ho_ten')}
-                className="sm:col-span-2"
-              />
-              <FormInput
-                {...register('ngay_sinh')}
-                id="ngay_sinh"
-                label="Ngày sinh"
-                required
-                placeholder="DD/MM/YYYY"
-                error={errors.ngay_sinh?.message}
-                aiHighlight={ai('ngay_sinh')}
-              />
-              <FormSelect
-                {...register('gioi_tinh')}
-                id="gioi_tinh"
-                label="Giới tính"
-                required
-                options={GIOI_TINH_OPTIONS}
-                error={errors.gioi_tinh?.message}
-                aiHighlight={ai('gioi_tinh')}
-              />
-              <FormInput
-                {...register('so_cccd')}
-                id="so_cccd"
-                label="Số CCCD/CMND"
-                required
-                placeholder="9 hoặc 12 chữ số"
-                hint="Chấp nhận CCCD 12 số hoặc CMND 9 số"
-                error={errors.so_cccd?.message}
-                aiHighlight={ai('so_cccd')}
-                className="sm:col-span-2"
-              />
-            </div>
-          </section>
-
-          {/* Address info */}
-          <section>
-            <h2 className="text-sm font-bold text-[#CE7A58] uppercase tracking-wide mb-3">
-              Thông tin địa chỉ
-            </h2>
-            <div className="grid grid-cols-1 gap-4">
-              <FormInput
-                {...register('dia_chi_thuong_tru')}
-                id="dia_chi_thuong_tru"
-                label="Địa chỉ thường trú"
-                required
-                placeholder="Địa chỉ thường trú theo CCCD/CMND"
-                error={errors.dia_chi_thuong_tru?.message}
-                aiHighlight={ai('dia_chi_thuong_tru')}
-              />
-              <FormInput
-                {...register('dia_chi_tam_tru')}
-                id="dia_chi_tam_tru"
-                label="Địa chỉ tạm trú"
-                required
-                placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố"
-                error={errors.dia_chi_tam_tru?.message}
-                aiHighlight={ai('dia_chi_tam_tru')}
-              />
-            </div>
-          </section>
-
-          {/* Duration */}
-          <section>
-            <h2 className="text-sm font-bold text-[#CE7A58] uppercase tracking-wide mb-3">
-              Thời hạn tạm trú
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormInput
-                {...register('tu_ngay')}
-                id="tu_ngay"
-                label="Từ ngày"
-                required
-                placeholder="DD/MM/YYYY"
-                error={errors.tu_ngay?.message}
-                aiHighlight={ai('tu_ngay')}
-              />
-              <FormInput
-                {...register('den_ngay')}
-                id="den_ngay"
-                label="Đến ngày"
-                required
-                placeholder="DD/MM/YYYY"
-                error={errors.den_ngay?.message}
-                aiHighlight={ai('den_ngay')}
-              />
-              <FormTextarea
-                {...register('muc_dich')}
-                id="muc_dich"
-                label="Mục đích tạm trú"
-                placeholder="Vd: Làm việc, học tập, chữa bệnh..."
-                error={errors.muc_dich?.message}
-                aiHighlight={ai('muc_dich')}
-                className="sm:col-span-2"
-              />
-            </div>
-          </section>
-
-          {submitError && (
-            <p className="text-sm text-[#CC0000] border border-[#CC0000] rounded px-3 py-2">
-              {submitError}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={store.isSubmitting[FORM_TYPE]}
-            className="bg-[#CE7A58] text-[#1E2F41] hover:bg-[#B8694A] font-semibold px-8 py-2 rounded text-sm transition-colors disabled:opacity-50"
-          >
-            {store.isSubmitting[FORM_TYPE] ? 'Đang nộp...' : 'Nộp hồ sơ'}
-          </button>
-        </form>
-
-        {/* ── Sidebar ── */}
-        <aside className="space-y-4">
-          <div className="border border-[#DDDDDD] rounded p-4 text-sm space-y-2">
-            <p className="font-bold text-[#1E2F41] mb-2">Thông tin thủ tục</p>
-            <div className="flex justify-between">
-              <span className="text-[#555]">Thời gian xử lý</span>
-              <span className="font-semibold">3 ngày làm việc</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[#555]">Lệ phí</span>
-              <span className="font-semibold text-[#28A745]">Miễn phí</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[#555]">Cơ quan thực hiện</span>
-              <span className="font-semibold text-right">UBND Phường/Xã</span>
-            </div>
-          </div>
-
-          <div className="border border-[#DDDDDD] rounded p-4 text-sm">
-            <p className="font-bold text-[#1E2F41] mb-2">Hồ sơ cần nộp</p>
-            <ul className="space-y-1 text-[#555] list-disc list-inside">
-              <li>Tờ khai đăng ký tạm trú (mẫu CT02)</li>
-              <li>CCCD/CMND còn hiệu lực</li>
-              <li>Giấy tờ chứng minh chỗ ở (hợp đồng thuê nhà hoặc xác nhận của chủ nhà)</li>
-            </ul>
-          </div>
-
-          <div className="border border-[#DDDDDD] rounded p-4 text-sm text-[#555]">
-            <p className="font-bold text-[#1E2F41] mb-1">Lưu ý</p>
-            <p>Thời hạn tạm trú tối đa là 2 năm và có thể gia hạn. Phải đăng ký trong vòng 30 ngày kể từ khi đến nơi tạm trú.</p>
-          </div>
-        </aside>
-      </div>
-    </main>
+    <ProcedurePageLayout
+      procedureId="TTHC-002"
+      procedureName="Đăng ký tạm trú"
+      agency="Công an phường/xã/thị trấn"
+      processingDays="3 ngày làm việc"
+      fee="Không"
+      documentsSection={documentsSection}
+      showCccdUpload={true}
+      chatContext="Người dùng đang xem thủ tục Đăng ký tạm trú (TTHC-002) tại TP. Hồ Chí Minh. Hãy sẵn sàng trả lời các câu hỏi về hồ sơ, điều kiện, thời hạn tạm trú, và quy trình đăng ký."
+    />
   )
 }

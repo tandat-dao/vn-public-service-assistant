@@ -1,0 +1,29 @@
+# Đăng ký tạm trú
+
+## Thành phần hồ sơ:
+
+### * Hồ sơ đăng ký tạm trú gồm:
+| Tên giấy tờ | Mẫu đơn, tờ khai | Số lượng |
+| :--- | :--- | :--- |
+| Tờ khai thay đổi thông tin cư trú (Mẫu CT01 ban hành kèm theo Thông tư số 53/2025/TT-BCA); đối với người đăng ký tạm trú là người chưa thành niên thì trong tờ khai phải ghi rõ ý kiến đồng ý của cha, mẹ hoặc người giám hộ, trừ trường hợp đã có ý kiến đồng ý bằng văn bản; | 1.MuCT01banhnhkmtheoThngts53.doc | Bản chính: 1<br>Bản sao: 0 |
+| Thông tin chứng minh về chỗ ở hợp pháp được khai thác trong căn cước điện tử, tài khoản định danh điện tử trên hệ thống định danh và xác thực điện tử qua Ứng dụng định danh quốc gia hoặc trong Cơ sở dữ liệu quốc gia về dân cư, Cơ sở dữ liệu về cư trú, Kho quản lý dữ liệu điện tử tổ chức, cá nhân trên Cổng dịch vụ công quốc gia, Hệ thống thông tin giải quyết thủ tục hành chính cấp bộ, cấp tỉnh hoặc cơ sở dữ liệu quốc gia, cơ sở dữ liệu chuyên ngành khác. Trường hợp không khai thác được thông tin thì công dân xuất trình giấy tờ, tài liệu chứng minh chỗ ở hợp pháp theo quy định tại khoản 3 Điều 5 Nghị định 154/2024/NĐ-CP ngày 26/11/2024 của Chính phủ. | | Bản chính: 1<br>Bản sao: 0 |
+| Ví dụ: Trường hợp giấy tờ, tài liệu chứng minh chỗ ở hợp pháp là giấy tờ, tài liệu chứng nhận về quyền sử dụng đất, quyền sở hữu tài sản gắn liền với đất do cơ quan có thẩm quyền cấp qua các thời kỳ theo quy định của pháp luật về đất đai và nhà ở được khai thác trong Cơ sở dữ liệu quốc gia về đất đai thì không phải xuất trình giấy tờ, tài liệu chứng minh chỗ ở hợp pháp. | | Bản chính: 0<br>Bản sao: 0 |
+
+### * Đăng ký tạm trú theo danh sách, hồ sơ gồm:
+| Tên giấy tờ | Mẫu đơn, tờ khai | Số lượng |
+| :--- | :--- | :--- |
+| Tờ khai thay đổi thông tin cư trú (của từng người) (Mẫu CT01 ban hành kèm theo Thông tư số 53/2025/TT-BCA). | 1.MuCT01banhnhkmtheoThngts53.doc | Bản chính: 1<br>Bản sao: 0 |
+| Văn bản đề nghị đăng ký tạm trú, trong đó ghi rõ thông tin về chỗ ở hợp pháp kèm danh sách người tạm trú. Danh sách bao gồm những thông tin cơ bản của từng người: họ, chữ đệm và tên; ngày, tháng, năm sinh; giới tính; số định danh cá nhân và thời hạn tạm trú. | | Bản chính: 1<br>Bản sao: 1 |
+
+### Đăng ký tạm trú tại nơi đơn vị đóng quân trong Công an nhân dân, Quân đội nhân nhân (đơn vị đóng quân, nhà ở công vụ) hồ sơ gồm:
+| Tên giấy tờ | Mẫu đơn, tờ khai | Số lượng |
+| :--- | :--- | :--- |
+| Tờ khai thay đổi thông tin cư trú (Mẫu CT01 ban hành kèm theo Thông tư số 53/2025/TT-BCA). | 1.MuCT01banhnhkmtheoThngts53.doc | Bản chính: 1<br>Bản sao: 0 |
+| Đối với Công an nhân dân: Giấy giới thiệu của Thủ trưởng đơn vị quản lý trực tiếp ghi rõ nội dung để làm thủ tục đăng ký tạm trú và đơn vị có chỗ ở cho cán bộ chiến sĩ (ký tên, đóng dấu). | | Bản chính: 1<br>Bản sao: 0 |
+| Đối với Quân đội nhân dân: Giấy giới thiệu đăng ký tạm trú của đơn vị cấp trung đoàn và tương đương trở lên. | | Bản chính: 1<br>Bản sao: 0 |
+
+## Bao gồm
+
+| Tên giấy tờ | Mẫu đơn, tờ khai | Số lượng |
+| :--- | :--- | :--- |
+| *Lưu ý: - Trường hợp giấy tờ, tài liệu chứng minh chỗ ở hợp pháp để đăng ký tạm trú là văn bản cho thuê, cho mượn, cho ở nhờ nhà ở, nhà khác của cá nhân, tổ chức thì văn bản đó không bắt buộc phải công chứng hoặc chứng thực. - Người nước ngoài được nhập quốc tịch Việt Nam khi đăng ký tạm trú lần đầu phải có Quyết định của Chủ tịch nước về việc cho nhập quốc tịch Việt Nam. Người gốc Việt Nam được trở lại quốc tịch Việt Nam khi đăng ký tạm trú lần đầu sau khi được cho trở lại quốc tịch Việt Nam phải có Quyết định của Chủ tịch nước về việc cho trở lại quốc tịch Việt Nam trừ trường hợp đã khai thác được thông tin trong Cơ sở dữ liệu quốc tịch. - Công dân đăng ký tạm trú về với hộ gia đình thuộc trường hợp quy định tại khoản 2 Điều 20 Luật Cư trú khi chủ hộ, chủ sở hữu chỗ ở hợp pháp đồng ý và không phải xuất trình, cung cấp giấy tờ chứng minh chỗ ở hợp pháp. - Trong thời hạn tối đa 60 ngày kể từ ngày người chưa thành niên được đăng ký khai sinh thì phải thực hiện thủ tục đăng ký cư trú. | | Bản chính: 0<br>Bản sao: 0 |

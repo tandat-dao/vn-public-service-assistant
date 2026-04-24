@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
-import { ChatWidget } from '@/components/chat/ChatWidget'
+import { FloatingChatWidget } from '@/components/chat/FloatingChatWidget'
 
 export const metadata: Metadata = {
   title: 'Cổng Dịch vụ công Quốc gia',
@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
-        <ChatWidget />
+        <FloatingChatWidget />
       </body>
     </html>
   )
