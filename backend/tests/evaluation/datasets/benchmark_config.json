@@ -1,0 +1,89 @@
+{
+  "version": "1.0.0",
+  "created": "2026-04-24",
+  "description": "Benchmark configuration for DichVuCong AI assistant — covers 3 domains (housing, civil_registration, adoption), 7 procedures, and 4 measurement tiers",
+  "datasets": {
+    "router_queries": "datasets/tier1_router.json",
+    "scope_selection_cases": "datasets/tier1_scope.json",
+    "citation_ground_truth": "datasets/tier2_citations.json",
+    "negative_cases": "datasets/tier2_negative.json"
+  },
+  "counts": {
+    "tier1_router": 60,
+    "tier1_scope": 20,
+    "tier2_citations": 30,
+    "tier2_negative": 10,
+    "total": 120
+  },
+  "intent_distribution": {
+    "rag_only": 20,
+    "form_fill_with_ocr": 5,
+    "form_fill": 5,
+    "start_guided": 7,
+    "draft_document": 5,
+    "fallback": 5,
+    "ocr_only": 4,
+    "continue_guided": 4,
+    "domain_clarification": 5
+  },
+  "citation_distribution": {
+    "civil_registration": 10,
+    "adoption": 10,
+    "housing": 10
+  },
+  "scope_distribution": {
+    "3_level_cascade": 13,
+    "2_level_cascade": 4,
+    "1_level_no_fallback": 3
+  },
+  "thresholds": {
+    "router_intent_accuracy": 0.85,
+    "domain_accuracy": 0.90,
+    "scope_selection_correctness": 1.00,
+    "citation_recall_at_1": 0.70,
+    "citation_recall_at_3": 0.85,
+    "hallucination_rate_max": 0.05,
+    "out_of_scope_rejection_rate": 1.00,
+    "fallback_precision": 0.90
+  },
+  "domains": ["housing", "civil_registration", "adoption"],
+  "procedures": [
+    "TTHC-001",
+    "TTHC-002",
+    "TTHC-003",
+    "TTHC-CR-001",
+    "TTHC-CR-002",
+    "TTHC-AD-001",
+    "TTHC-AD-002"
+  ],
+  "legal_documents": {
+    "housing": [
+      "68/2020/QH14",
+      "62/2021/NĐ-CP",
+      "104/2022/NĐ-CP",
+      "55/2021/TT-BCA"
+    ],
+    "civil_registration": [
+      "60/2014/QH13",
+      "123/2015/NĐ-CP",
+      "281/2016/TT-BTC"
+    ],
+    "adoption": [
+      "52/2010/QH12",
+      "19/2011/NĐ-CP",
+      "114/2016/NĐ-CP"
+    ]
+  },
+  "run_benchmark_compatibility": {
+    "router_queries_key": "tier1_router",
+    "citation_ground_truth_key": "tier2_citations",
+    "scope_selection_cases_key": "tier1_scope",
+    "note": "run_benchmark.py currently loads router_queries.json, citation_ground_truth.json, scope_selection_cases.json by filename. Update load paths in run_benchmark.py to point to tier1_router.json, tier2_citations.json, tier1_scope.json respectively, or add aliases."
+  },
+  "tier2_review_status": {
+    "civil_registration_verified": false,
+    "adoption_verified": false,
+    "housing_verified": false,
+    "note": "All Tier 2 entries have verified=false. No entry should be used in automated benchmark scoring until reviewed by a legal expert against source documents. See REVIEW_GUIDE.md for reviewer instructions."
+  }
+}

@@ -50,8 +50,21 @@ def _enforce_ordering(plan: list[str]) -> list[str]:
     return plan
 
 
-_HOUSING_GUIDED_PROCEDURES = {"TTHC-001", "TTHC-002", "TTHC-003"}
+_ALL_GUIDED_PROCEDURES = {
+    "TTHC-001", "TTHC-002", "TTHC-003",       # housing
+    "TTHC-CR-001", "TTHC-CR-002",               # civil_registration
+    "TTHC-AD-001", "TTHC-AD-002",               # adoption
+}
+_NEW_GUIDED_PROCEDURES = {"TTHC-CR-001", "TTHC-CR-002", "TTHC-AD-001", "TTHC-AD-002"}
 _EXIT_PHRASES = ["thoát", "hủy", "dừng lại", "thôi"]
+
+
+def _domain_for_procedure(procedure_id: str) -> str:
+    if procedure_id in {"TTHC-CR-001", "TTHC-CR-002"}:
+        return "civil_registration"
+    if procedure_id in {"TTHC-AD-001", "TTHC-AD-002"}:
+        return "adoption"
+    return "housing"
 
 
 async def router_node(state: AgentState) -> dict:
@@ -100,6 +113,19 @@ async def router_node(state: AgentState) -> dict:
     # ------------------------------------------------------------------ #
     if state.get("guided_step") == 2:
         procedure_id = state.get("guided_procedure_id", "TTHC-001")
+        domain = _domain_for_procedure(procedure_id)
+        if procedure_id in _NEW_GUIDED_PROCEDURES:
+            # New-domain procedures: OCR only — synthesizer handles State 2 response
+            # without calling form_filler_fn (user fills form on the procedure page).
+            return {
+                "execution_plan": ["ocr_fn"],
+                "plan_cursor": 0,
+                "entities": {},
+                "target_procedure_id": procedure_id,
+                "guided_procedure_id": procedure_id,
+                "guided_step": 2,
+                "domain": domain,
+            }
         return {
             "execution_plan": ["ocr_fn", "form_filler_fn"],
             "plan_cursor": 0,
@@ -181,8 +207,8 @@ async def router_node(state: AgentState) -> dict:
     # ------------------------------------------------------------------ #
     if output.intent == "start_guided":
         procedure_id = output.procedure_id
-        if procedure_id not in _HOUSING_GUIDED_PROCEDURES:
-            # Non-housing procedure or unknown ID — return unsupported message.
+        if procedure_id not in _ALL_GUIDED_PROCEDURES:
+            # Unknown procedure ID — return unsupported message.
             return {
                 "execution_plan": [],
                 "plan_cursor": 0,
@@ -191,14 +217,15 @@ async def router_node(state: AgentState) -> dict:
                 "guided_step": None,
                 "final_response": (
                     "Tính năng hướng dẫn từng bước hiện chỉ hỗ trợ "
-                    "các thủ tục cư trú (đăng ký thường trú, tạm trú, "
-                    "xác nhận cư trú). Bạn có thể hỏi tôi về thủ tục "
-                    "bạn cần và tôi sẽ giải đáp."
+                    "các thủ tục nhà ở, hộ tịch và nuôi con nuôi. "
+                    "Bạn có thể hỏi tôi về thủ tục bạn cần và tôi sẽ giải đáp."
                 ),
             }
-        # Housing procedure — enter guided mode at State 0 (INTRO).
+        # Supported procedure — enter guided mode at State 0 (INTRO).
         # rag_fn is included so synthesizer has required-documents context
-        # to present during the intro.
+        # to present during the intro (housing procedures only — new procedures
+        # use hardcoded INTRO messages in synthesizer_node).
+        domain = _domain_for_procedure(procedure_id)
         return {
             "execution_plan": ["rag_fn"],
             "plan_cursor": 0,
@@ -206,7 +233,7 @@ async def router_node(state: AgentState) -> dict:
             "target_procedure_id": procedure_id,
             "guided_procedure_id": procedure_id,
             "guided_step": 0,  # INTRO
-            "domain": "housing",
+            "domain": domain,
         }
 
     # --- Validate step names (prompt drift detection) ---

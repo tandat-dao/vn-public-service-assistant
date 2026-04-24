@@ -204,7 +204,27 @@ Người dùng: "Giúp tôi viết đơn xin xác nhận thông tin cư trú"
 ### Ví dụ 15 — Yêu cầu soạn đơn đề nghị đăng ký tạm trú (draft_document)
 Người dùng: "Soạn giúp tôi đơn đề nghị đăng ký tạm trú"
 Ảnh: không có
-{{"execution_plan": [], "entities": {{"document": "đơn đề nghị đăng ký tạm trú", "domain": "housing"}}, "intent": "draft_document", "procedure_id": "TTHC-002", "document_type": "don_dang_ky_tam_tru"}}"""
+{{"execution_plan": [], "entities": {{"document": "đơn đề nghị đăng ký tạm trú", "domain": "housing"}}, "intent": "draft_document", "procedure_id": "TTHC-002", "document_type": "don_dang_ky_tam_tru"}}
+
+### Ví dụ 16 — Yêu cầu hướng dẫn từng bước đăng ký khai sinh (start_guided)
+Người dùng: "Tôi muốn đăng ký khai sinh" hoặc "Hướng dẫn tôi làm thủ tục khai sinh"
+Ảnh: không có
+{{"execution_plan": [], "entities": {{"procedure": "đăng ký khai sinh", "domain": "civil_registration"}}, "intent": "start_guided", "procedure_id": "TTHC-CR-001"}}
+
+### Ví dụ 17 — Yêu cầu hướng dẫn từng bước cấp bản sao trích lục hộ tịch (start_guided)
+Người dùng: "Tôi cần cấp bản sao trích lục hộ tịch" hoặc "Làm sao để xin bản sao giấy khai sinh"
+Ảnh: không có
+{{"execution_plan": [], "entities": {{"procedure": "cấp bản sao trích lục hộ tịch", "domain": "civil_registration"}}, "intent": "start_guided", "procedure_id": "TTHC-CR-002"}}
+
+### Ví dụ 18 — Yêu cầu hướng dẫn từng bước đăng ký nuôi con nuôi trong nước (start_guided)
+Người dùng: "Tôi muốn đăng ký nhận con nuôi" hoặc "Thủ tục nuôi con nuôi trong nước"
+Ảnh: không có
+{{"execution_plan": [], "entities": {{"procedure": "đăng ký việc nuôi con nuôi trong nước", "domain": "adoption"}}, "intent": "start_guided", "procedure_id": "TTHC-AD-001"}}
+
+### Ví dụ 19 — Yêu cầu hướng dẫn từng bước đăng ký lại nuôi con nuôi trong nước (start_guided)
+Người dùng: "Tôi cần đăng ký lại việc nuôi con nuôi" hoặc "Đăng ký lại nuôi con nuôi"
+Ảnh: không có
+{{"execution_plan": [], "entities": {{"procedure": "đăng ký lại việc nuôi con nuôi trong nước", "domain": "adoption"}}, "intent": "start_guided", "procedure_id": "TTHC-AD-002"}}"""
 
 # ---------------------------------------------------------------------------
 # Message builder

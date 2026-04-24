@@ -261,18 +261,18 @@ class TestRouterGuidedMode:
         assert result["execution_plan"] == ["rag_fn"]
         assert result["plan_cursor"] == 0
 
-    async def test_guided_intent_non_housing_returns_unsupported(self):
-        """start_guided for a non-housing procedure returns unsupported message, clears guided mode."""
+    async def test_guided_intent_unknown_procedure_returns_unsupported(self):
+        """start_guided for an unknown procedure ID returns unsupported message, clears guided mode."""
         with _mock_llm({
             "execution_plan": [],
             "entities": {},
             "intent": "start_guided",
-            "procedure_id": "TTHC-CR-001",
+            "procedure_id": "TTHC-UNKNOWN-999",
         }):
-            result = await router_node(_state("Giúp tôi đăng ký khai sinh"))
+            result = await router_node(_state("Hướng dẫn tôi làm thủ tục X"))
         assert result["guided_procedure_id"] is None
         assert result["guided_step"] is None
-        # Must contain an explanation that guided mode only supports housing
+        # Must contain an explanation that guided mode only supports known procedures
         assert "chỉ hỗ trợ" in result.get("final_response", "")
 
     async def test_router_draft_document_intent_sets_document_type(self):
@@ -326,3 +326,65 @@ class TestRouterGuidedMode:
         assert result["execution_plan"] == ["ocr_fn", "form_filler_fn"]
         assert result["guided_step"] == 2
         assert result["guided_procedure_id"] == "TTHC-001"
+
+
+# ---------------------------------------------------------------------------
+# Guided wizard extended to all 7 procedures (new procedures)
+# ---------------------------------------------------------------------------
+
+class TestRouterGuidedModeNewProcedures:
+    async def test_router_start_guided_tthc_cr_001(self):
+        """start_guided for TTHC-CR-001 enters guided mode at step 0 (INTRO)."""
+        with _mock_llm({
+            "execution_plan": [],
+            "entities": {"procedure": "đăng ký khai sinh", "domain": "civil_registration"},
+            "intent": "start_guided",
+            "procedure_id": "TTHC-CR-001",
+        }):
+            result = await router_node(_state("Tôi muốn đăng ký khai sinh"))
+        assert result["guided_procedure_id"] == "TTHC-CR-001"
+        assert result["guided_step"] == 0  # INTRO
+        assert result["execution_plan"] == ["rag_fn"]
+        assert result["plan_cursor"] == 0
+
+    async def test_router_start_guided_tthc_cr_002(self):
+        """start_guided for TTHC-CR-002 enters guided mode at step 0 (INTRO)."""
+        with _mock_llm({
+            "execution_plan": [],
+            "entities": {"procedure": "cấp bản sao trích lục hộ tịch", "domain": "civil_registration"},
+            "intent": "start_guided",
+            "procedure_id": "TTHC-CR-002",
+        }):
+            result = await router_node(_state("Tôi cần cấp bản sao trích lục hộ tịch"))
+        assert result["guided_procedure_id"] == "TTHC-CR-002"
+        assert result["guided_step"] == 0  # INTRO
+        assert result["execution_plan"] == ["rag_fn"]
+        assert result["plan_cursor"] == 0
+
+    async def test_router_start_guided_tthc_ad_001(self):
+        """start_guided for TTHC-AD-001 enters guided mode at step 0 (INTRO)."""
+        with _mock_llm({
+            "execution_plan": [],
+            "entities": {"procedure": "đăng ký việc nuôi con nuôi trong nước", "domain": "adoption"},
+            "intent": "start_guided",
+            "procedure_id": "TTHC-AD-001",
+        }):
+            result = await router_node(_state("Tôi muốn đăng ký nhận con nuôi"))
+        assert result["guided_procedure_id"] == "TTHC-AD-001"
+        assert result["guided_step"] == 0  # INTRO
+        assert result["execution_plan"] == ["rag_fn"]
+        assert result["plan_cursor"] == 0
+
+    async def test_router_start_guided_tthc_ad_002(self):
+        """start_guided for TTHC-AD-002 enters guided mode at step 0 (INTRO)."""
+        with _mock_llm({
+            "execution_plan": [],
+            "entities": {"procedure": "đăng ký lại việc nuôi con nuôi trong nước", "domain": "adoption"},
+            "intent": "start_guided",
+            "procedure_id": "TTHC-AD-002",
+        }):
+            result = await router_node(_state("Tôi cần đăng ký lại việc nuôi con nuôi"))
+        assert result["guided_procedure_id"] == "TTHC-AD-002"
+        assert result["guided_step"] == 0  # INTRO
+        assert result["execution_plan"] == ["rag_fn"]
+        assert result["plan_cursor"] == 0

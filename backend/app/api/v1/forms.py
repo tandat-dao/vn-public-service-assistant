@@ -6,6 +6,8 @@ import string
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import Response
+from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -95,15 +97,118 @@ async def submit_form(
     )
 
 
+# ---------------------------------------------------------------------------
+# Fill request schema
+# ---------------------------------------------------------------------------
+
+class FillFormRequest(BaseModel):
+    procedure_id: str
+    form_file: str
+    field_values: dict[str, str] = {}
+
+
+# ---------------------------------------------------------------------------
+# POST /fill — fill a .doc form and return it as a file download
+# ---------------------------------------------------------------------------
+
+@router.post("/fill")
+async def fill_form(request: FillFormRequest) -> Response:
+    """Fill a .doc form template with the supplied field values.
+
+    Validates that form_file is a valid choice for procedure_id, then calls
+    doc_filler.fill_doc() and returns the filled document as a file download.
+
+    Returns:
+        200 — .doc file bytes with correct Content-Type and Content-Disposition.
+        422 — form_file is not valid for the given procedure_id.
+        404 — form source file not found on disk.
+    """
+    from app.core.form_field_configs import PROCEDURE_FORM_FILES
+    from app.services.doc_filler import fill_doc
+
+    # ── Validate procedure_id ───────────────────────────────────────────────
+    if request.procedure_id not in PROCEDURE_FORM_FILES:
+        raise HTTPException(
+            status_code=422,
+            detail="form_file not valid for procedure_id",
+        )
+
+    # ── Validate form_file belongs to this procedure ───────────────────────
+    allowed_files = PROCEDURE_FORM_FILES[request.procedure_id]
+    if request.form_file not in allowed_files:
+        raise HTTPException(
+            status_code=422,
+            detail="form_file not valid for procedure_id",
+        )
+
+    # ── Fill the document ─────────────────────────────────────────────────
+    try:
+        doc_bytes = await fill_doc(request.form_file, request.field_values)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Form source file not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    return Response(
+        content=doc_bytes,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument"
+            ".wordprocessingml.document"
+        ),
+        headers={
+            "Content-Disposition": f'attachment; filename="{request.form_file}"',
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /configs/{procedure_id} — return field configs for a procedure
+# ---------------------------------------------------------------------------
+
+@router.get("/configs/{procedure_id}")
+async def get_form_configs(procedure_id: str) -> dict:
+    """Return the ordered list of form files and their field definitions for a procedure.
+
+    Used by the frontend to know which tabs and input fields to render.
+
+    Returns:
+        200 — { procedure_id, forms: [ { form_file, tab_label, fields } ] }
+        404 — procedure_id not found in PROCEDURE_FORM_FILES.
+    """
+    from app.core.form_field_configs import FORM_FILE_CONFIGS, PROCEDURE_FORM_FILES
+
+    if procedure_id not in PROCEDURE_FORM_FILES:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Không tìm thấy thủ tục: {procedure_id}",
+        )
+
+    form_files = PROCEDURE_FORM_FILES[procedure_id]
+
+    forms = []
+    for form_file in form_files:
+        cfg = FORM_FILE_CONFIGS.get(form_file)
+        if cfg is None:
+            continue
+        forms.append(
+            {
+                "form_file": cfg["form_file"],
+                "tab_label": cfg["tab_label"],
+                "fields": cfg["fields"],
+            }
+        )
+
+    return {
+        "procedure_id": procedure_id,
+        "forms": forms,
+    }
+
+
+# ---------------------------------------------------------------------------
+# GET /{form_id} — schema stub (not yet implemented)
+# ---------------------------------------------------------------------------
+
 @router.get("/{form_id}")
 async def get_form_schema(form_id: str) -> dict:
     """Return the form template schema (field definitions)."""
     raise NotImplementedError
-
-
-@router.post("/fill", response_model=FormFillResponse)
-async def fill_form(request: FormFillRequest) -> FormFillResponse:
-    """Fill a PDF form with personal data from the session."""
-    raise NotImplementedError
-
-

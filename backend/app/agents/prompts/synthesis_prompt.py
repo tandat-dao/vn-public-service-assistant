@@ -31,7 +31,13 @@ _BASE_RULES = """Bạn là trợ lý hành chính của cổng dịch vụ công
 2. KHÔNG tiết lộ thông tin nội bộ hệ thống: đường dẫn file, chunk ID, điểm số,
    stack trace Python, tên biến, hoặc bất kỳ chi tiết kỹ thuật nào.
 3. KHÔNG bịa đặt thông tin pháp lý không có trong ngữ cảnh được cung cấp.
-4. Giữ giọng điệu lịch sự, chuyên nghiệp và thân thiện."""
+4. Giữ giọng điệu lịch sự, chuyên nghiệp và thân thiện.
+5. KHÔNG sử dụng ký hiệu LaTeX, công thức toán học, hoặc ký hiệu đặc biệt trong
+   câu trả lời. Viết số tiền, phân số, và các con số bằng chữ hoặc ký hiệu thông
+   thường. Ví dụ: viết "8.000 đồng" không phải "\\text{8.000 đồng}".
+6. KHÔNG sử dụng emoji trong câu trả lời.
+7. KHÔNG đề cập đến mã thủ tục (TTHC-001, TTHC-CR-001, v.v.) trong câu trả lời.
+   Chỉ sử dụng tên đầy đủ của thủ tục."""
 
 
 # ---------------------------------------------------------------------------
@@ -256,12 +262,41 @@ _GUIDED_DOCS_FALLBACK: dict[str, list[str]] = {
         "CCCD/CMND bản gốc",
         "Đơn đề nghị xác nhận thông tin cư trú",
     ],
+    "TTHC-CR-001": [
+        "CCCD/CMND bản gốc của cha hoặc mẹ",
+        "Giấy chứng sinh hoặc văn bản xác nhận việc sinh do cơ sở y tế cấp",
+        "Tờ khai đăng ký khai sinh (hệ thống điền tự động từ CCCD)",
+        "Hộ khẩu gia đình (nếu có)",
+    ],
+    "TTHC-CR-002": [
+        "CCCD/CMND bản gốc",
+        "Tờ khai yêu cầu cấp bản sao trích lục hộ tịch (hệ thống điền tự động từ CCCD)",
+        "Giấy khai sinh gốc hoặc thông tin về số đăng ký khai sinh",
+    ],
+    "TTHC-AD-001": [
+        "CCCD/CMND bản gốc của người nhận con nuôi",
+        "Đơn xin nhận con nuôi (hệ thống điền tự động từ CCCD)",
+        "Phiếu lý lịch tư pháp số 1 của người nhận con nuôi",
+        "Văn bản xác nhận hoàn cảnh gia đình, tình trạng chỗ ở, điều kiện kinh tế",
+        "Giấy khám sức khỏe của người nhận con nuôi",
+        "Ảnh chụp gia đình (nếu có)",
+    ],
+    "TTHC-AD-002": [
+        "CCCD/CMND bản gốc của người nhận con nuôi",
+        "Đơn yêu cầu đăng ký lại việc nuôi con nuôi (hệ thống điền tự động từ CCCD)",
+        "Giấy tờ chứng minh việc nuôi con nuôi đã được đăng ký trước đây (nếu còn lưu giữ)",
+        "Văn bản xác nhận của UBND cấp xã nơi đã đăng ký việc nuôi con nuôi trước đây",
+    ],
 }
 
 _GUIDED_PROCEDURE_NAMES: dict[str, str] = {
     "TTHC-001": "Đăng ký thường trú",
     "TTHC-002": "Đăng ký tạm trú",
     "TTHC-003": "Xác nhận thông tin về cư trú",
+    "TTHC-CR-001": "Đăng ký khai sinh",
+    "TTHC-CR-002": "Cấp bản sao Trích lục hộ tịch",
+    "TTHC-AD-001": "Đăng ký việc nuôi con nuôi trong nước",
+    "TTHC-AD-002": "Đăng ký lại việc nuôi con nuôi trong nước",
 }
 
 

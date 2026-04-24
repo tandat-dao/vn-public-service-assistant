@@ -1,0 +1,385 @@
+_instructions:
+  document_number: "Must exactly match a key in DOCUMENT_FILE_MAP in ingest_legal_docs.py"
+  article_number: "Must exactly match the relevant_articles entry in the domain YAML, e.g. 'Điều 11' not 'dieu 11'"
+  location_scope: "Copy from the YAML. Always 'VN' for national documents"
+  procedure_tags: "List of procedure IDs from the YAML. An article relevant to both procedures gets both IDs"
+  content: "Full article text copied from thuvienphapluat.vn. Paste directly after the | character — no escaping needed."
+
+chunks:
+  # ── 52/2010/QH12 — Luật Nuôi con nuôi 2010 ──────────────────────────────
+  - document_number: "52/2010/QH12"
+    article_number: "Điều 8"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 8. Người được nhận làm con nuôi
+
+      1. Trẻ em dưới 16 tuổi
+
+      2. Người từ đủ 16 tuổi đến dưới 18 tuổi nếu thuộc một trong các trường hợp sau đây:
+
+      a) Được cha dượng, mẹ kế nhận làm con nuôi;
+
+      b) Được cô, cậu, dì, chú, bác ruột nhận làm con nuôi.
+
+      3. Một người chỉ được làm con nuôi của một người độc thân hoặc của cả hai người là vợ chồng.
+
+      4. Nhà nước khuyến khích việc nhận trẻ em mồ côi, trẻ em bị bỏ rơi, trẻ em có hoàn cảnh đặc biệt khác làm con nuôi.
+
+  - document_number: "52/2010/QH12"
+    article_number: "Điều 9"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 9. Thẩm quyền đăng ký nuôi con nuôi
+
+      1. Ủy ban nhân dân xã, phường, thị trấn (sau đây gọi chung là Ủy ban nhân dân cấp xã) nơi thường trú của người được giới thiệu làm con nuôi hoặc của người nhận con nuôi đăng ký việc nuôi con nuôi trong nước.
+
+      2. Ủy ban nhân dân tỉnh, thành phố trực thuộc trung ương (sau đây gọi chung là Ủy ban nhân dân cấp tỉnh) nơi thường trú của người được giới thiệu làm con nuôi quyết định việc nuôi con nuôi có yếu tố nước ngoài; Sở Tư pháp tỉnh, thành phố trực thuộc trung ương đăng ký việc nuôi con nuôi có yếu tố nước ngoài.
+
+      3. Cơ quan đại diện nước Cộng hòa xã hội chủ nghĩa Việt Nam ở nước ngoài đăng ký việc nuôi con nuôi của công dân Việt Nam tạm trú ở nước ngoài.
+
+  - document_number: "52/2010/QH12"
+    article_number: "Điều 13"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 13. Các hành vi bị cấm
+
+      1. Lợi dụng việc nuôi con nuôi để trục lợi, bóc lột sức lao động, xâm hại tình dục; bắt cóc, mua bán trẻ em.
+
+      2. Giả mạo giấy tờ để giải quyết việc nuôi con nuôi.
+
+      3. Phân biệt đối xử giữa con đẻ và con nuôi.
+
+      4. Lợi dụng việc cho con nuôi để vi phạm pháp luật về dân số.
+
+      5. Lợi dụng việc làm con nuôi của thương binh, người có công với cách mạng, người thuộc dân tộc thiểu số để hưởng chế độ, chính sách ưu đãi của Nhà nước.
+
+      6. Ông, bà nhận cháu làm con nuôi hoặc anh, chị, em nhận nhau làm con nuôi.
+
+      7. Lợi dụng việc nuôi con nuôi để vi phạm pháp luật, phong tục tập quán, đạo đức, truyền thống văn hóa tốt đẹp của dân tộc.
+
+  - document_number: "52/2010/QH12"
+    article_number: "Điều 14"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 14. Điều kiện đối với người nhận con nuôi
+
+      1. Người nhận con nuôi phải có đủ các điều kiện sau đây:
+
+      a) Có năng lực hành vi dân sự đầy đủ;
+
+      b) Hơn con nuôi từ 20 tuổi trở lên;
+
+      c) Có điều kiện về sức khỏe, kinh tế, chỗ ở bảo đảm việc chăm sóc, nuôi dưỡng, giáo dục con nuôi;
+
+      d) Có tư cách đạo đức tốt.
+
+      2. Những người sau đây không được nhận con nuôi:
+
+      a) Đang bị hạn chế một số quyền của cha, mẹ đối với con chưa thành niên;
+
+      b) Đang chấp hành quyết định xử lý hành chính tại cơ sở giáo dục, cơ sở chữa bệnh;
+
+      c) Đang chấp hành hình phạt tù;
+
+      d) Chưa được xóa án tích về một trong các tội cố ý xâm phạm tính mạng, sức khỏe, nhân phẩm, danh dự của người khác; ngược đãi hoặc hành hạ ông bà, cha mẹ, vợ chồng, con, cháu, người có công nuôi dưỡng mình; dụ dỗ, ép buộc hoặc chứa chấp người chưa thanh niên vi phạm pháp luật; mua bán, đánh tráo, chiếm đoạt trẻ em.
+
+      3. Trường hợp cha dượng nhận con riêng của vợ, mẹ kế nhận con riêng của chồng làm con nuôi hoặc cô, cậu, dì, chú, bác ruột nhận cháu làm con nuôi thì không áp dụng quy định tại điểm b và điểm c khoản 1 Điều này.
+
+  - document_number: "52/2010/QH12"
+    article_number: "Điều 17"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 17. Hồ sơ của người nhận con nuôi
+
+      Hồ sơ của người nhận con nuôi gồm có:
+
+      1. Đơn xin nhận con nuôi;
+
+      2. Bản sao Hộ chiếu, Giấy chứng minh nhân dân hoặc giấy tờ có giá trị thay thế;
+
+      3. Phiếu lý lịch tư pháp;
+
+      4. Văn bản xác nhận tình trạng hôn nhân;
+
+      5. Giấy khám sức khỏe do cơ quan y tế cấp huyện trở lên cấp; văn bản xác nhận hoàn cảnh gia đình, tình trạng chỗ ở, điều kiện kinh tế do Ủy ban nhân dân cấp xã nơi người nhận con nuôi thường trú cấp, trừ trường hợp quy định tại khoản 3 Điều 14 của Luật này.
+
+  - document_number: "52/2010/QH12"
+    article_number: "Điều 18"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 18. Hồ sơ của người được giới thiệu làm con nuôi trong nước
+
+      1. Hồ sơ của người được giới thiệu làm con nuôi trong nước gồm có:
+
+      a) Giấy khai sinh;
+
+      b) Giấy khám sức khỏe do cơ quan y tế cấp huyện trở lên cấp;
+
+      c) Hai ảnh toàn thân, nhìn thẳng chụp không quá 06 tháng;
+
+      d) Biên bản xác nhận do Ủy ban nhân dân hoặc Công an cấp xã nơi phát hiện trẻ bị bỏ rơi lập đối với trẻ em bị bỏ rơi; Giấy chứng tử của cha đẻ, mẹ đẻ hoặc quyết định của Tòa án tuyên bố cha đẻ, mẹ đẻ của trẻ em là đã chết đối với trẻ em mồ côi; quyết định của Tòa án tuyên bố cha đẻ, mẹ đẻ của người được giới thiệu làm con nuôi mất tích đối với người được giới thiệu làm con nuôi mà cha đẻ, mẹ đẻ mất tích; quyết định của Tòa án tuyên bố cha đẻ, mẹ đẻ của người được giới thiệu làm con nuôi mất năng lực hành vi dân sự đối với người được giới thiệu làm con nuôi mà cha đẻ, mẹ để mất năng lực hành vi dân sự;
+
+      đ) Quyết định tiếp nhận đối với trẻ em ở cơ sở nuôi dưỡng.
+
+      2. Cha mẹ đẻ hoặc người giám hộ lập hồ sơ của người được giới thiệu làm con nuôi sống tại gia đình; cơ sở nuôi dưỡng lập hồ sơ của trẻ em được giới thiệu làm con nuôi sống tại cơ sở nuôi dưỡng.
+
+  - document_number: "52/2010/QH12"
+    article_number: "Điều 19"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 19. Nộp hồ sơ, thời hạn giải quyết việc nuôi con nuôi
+
+      1. Người nhận con nuôi phải nộp hồ sơ của mình và hồ sơ của người được giới thiệu làm con nuôi tại Ủy ban nhân dân cấp xã nơi người được giới thiệu làm con nuôi thường trú hoặc nơi người nhận con nuôi thường trú.
+
+      2. Thời hạn giải quyết việc nuôi con nuôi là 30 ngày, kể từ ngày Ủy ban nhân dân cấp xã nhận đủ hồ sơ hợp lệ.
+
+  - document_number: "52/2010/QH12"
+    article_number: "Điều 20"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 20. Kiểm tra hồ sơ, lấy ý kiến của những người liên quan
+
+      Ủy ban nhân dân cấp xã nơi nhận hồ sơ có trách nhiệm kiểm tra hồ sơ; trong thời hạn 10 ngày, kể từ ngày nhận đủ hồ sơ hợp lệ, tiến hành xong việc lập ý kiến của những người quy định tại Điều 21 của Luật này.
+
+      Việc lấy ý kiến phải lập thành văn bản và có chữ ký hoặc điểm chỉ của người được lấy ý kiến.
+
+  - document_number: "52/2010/QH12"
+    article_number: "Điều 21"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 21. Sự đồng ý cho làm con nuôi
+
+      1. Việc nhận nuôi con nuôi phải được sự đồng ý của cha mẹ đẻ của người được nhận làm con nuôi; nếu cha đẻ hoặc mẹ đẻ đã chết, mất tích, mất năng lực hành vi dân sự hoặc không xác định được thì phải được sự đồng ý của người còn lại; nếu cả cha mẹ đẻ đều đã chết, mất tích, mất năng lực hành vi dân sự hoặc không xác định được thì phải được sự đồng ý của người giám hộ; trường hợp nhận trẻ em từ đủ 09 tuổi trở lên làm con nuôi thì còn phải được sự đồng ý của trẻ em đó.
+
+      2. Người đồng ý cho làm con nuôi quy định tại khoản 1 Điều này phải được Ủy ban nhân dân cấp xã nơi nhận hồ sơ tư vấn đầy đủ về mục đích nuôi con nuôi; quyền, nghĩa vụ giữa cha mẹ nuôi và con nuôi; quyền, nghĩa vụ giữa cha mẹ đẻ và con sau khi người đó được nhận làm con nuôi.
+
+      3. Sự đồng ý phải hoàn toàn tự nguyện, trung thực, không bị ép buộc, không bị đe dọa hay mua chuộc, không vụ lợi, không kèm theo yêu cầu trả tiền hoặc lợi ích vật chất khác.
+
+      4. Cha mẹ đẻ chỉ được đồng ý cho con làm con nuôi sau khi con đã được sinh ra ít nhất 15 ngày.
+
+  - document_number: "52/2010/QH12"
+    article_number: "Điều 22"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 22. Đăng ký việc nuôi con nuôi
+
+      1. Khi xét thấy người nhận con nuôi và người được giới thiệu làm con nuôi có đủ điều kiện theo quy định của Luật này thì Ủy ban nhân dân cấp xã tổ chức đăng ký nuôi con nuôi, trao Giấy chứng nhận nuôi con nuôi cho cha mẹ nuôi, cha mẹ đẻ hoặc người giám hộ hoặc đại diện cơ sở nuôi dưỡng, tổ chức giao nhận con nuôi và ghi vào sổ hộ tịch trong thời hạn 20 ngày, kể từ ngày có ý kiến đồng ý của những người quy định tại Điều 21 của Luật này.
+
+      2. Trường hợp Ủy ban nhân dân cấp xã từ chối đăng ký thì phải trả lời bằng văn bản cho người nhận con nuôi, cha mẹ đẻ hoặc người giám hộ hoặc đại diện cơ sở nuôi dưỡng và nêu rõ lý do trong thời hạn 10 ngày, kể từ ngày có ý kiến của những người quy định tại Điều 21 của Luật này.
+
+      3. Giấy chứng nhận nuôi con nuôi được gửi Ủy ban nhân dân cấp xã nơi thường trú của người nhận con nuôi hoặc của người được nhận làm con nuôi.
+
+  # ── 19/2011/NĐ-CP — Nghị định 19/2011/NĐ-CP ─────────────────────────────
+  - document_number: "19/2011/NĐ-CP"
+    article_number: "Điều 2"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 2. Thẩm quyền đăng ký việc nuôi con nuôi
+      Thẩm quyền đăng ký việc nuôi con nuôi được thực hiện theo quy định tại
+      Điều 9 của Luật Nuôi con nuôi và quy định cụ thể sau đây:
+      1. Đối với việc nuôi con nuôi trong nước, trường hợp cha dượng hoặc mẹ
+      kế nhận con riêng của vợ hoặc chồng làm con nuôi; cô, cậu, dì, chú, bác ruột
+      nhận cháu làm con nuôi thì Ủy ban nhân dân cấp xã nơi cư trú của người nhận
+      con nuôi hoặc của người được nhận làm con nuôi thực hiện đăng ký việc nuôi
+      con nuôi. Trường hợp trẻ em bị bỏ rơi chưa chuyển vào cơ sở nuôi dưỡng được|
+      nhận làm con nuôi, thì Ủy ban nhân dân cấp xã nơi lập biên bản xác nhận tình
+      trạng trẻ em bị bỏ rơi thực hiện đăng ký việc nuôi con nuôi; trường hợp trẻ em ở
+      cơ sở nuôi dưỡng được nhận làm con nuôi, thì Ủy ban nhân dân cấp xã nơi có
+      trụ sở của cơ sở nuôi dưỡng thực hiện đăng ký việc nuôi con nuôi.
+
+      2. Đối với việc nuôi con nuôi nước ngoài, thì Ủy ban nhân dân tỉnh, thành
+      phố trực thuộc Trung ương (sau đây gọi là Ủy ban nhân dân cấp tỉnh), nơi
+      thường trú của người được nhận làm con nuôi quyết định cho người đó làm con
+      nuôi; trường hợp trẻ em ở cơ sở nuôi dưỡng được nhận làm con nuôi, thì Ủy ban
+      nhân dân cấp tỉnh, nơi có trụ sở của cơ sở nuôi dưỡng trẻ em quyết định cho trẻ
+      em đó làm con nuôi.
+      
+      Sở Tư pháp thực hiện đăng ký việc nuôi con nuôi nước ngoài sau khi có
+      quyết định của Ủy ban nhân dân cấp tỉnh.
+
+      3. Đối với việc nuôi con nuôi giữa công dân Việt Nam với nhau tạm trú
+      nước ngoài, thì Cơ quan đại diện nơi tạm trú của người được nhận làm con nuôi
+      hoặc của người nhận con nuôi thực hiện đăng ký việc nuôi con nuôi; trường hợp
+      cả hai bên tạm trú ở nước không có Cơ quan đại diện, thì người nhận con nuôi
+      nộp hồ sơ đăng ký việc nuôi con nuôi tại Cơ quan đại diện nào thuận tiện nhất
+      đối với họ.
+
+  - document_number: "19/2011/NĐ-CP"
+    article_number: "Điều 7"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 7. Hồ sơ của người nhận con nuôi
+      Hồ sơ của người nhận con nuôi trong nước được lập thành 01 bộ, gồm các
+      giấy tờ quy định tại Điều 17 của Luật Nuôi con nuôi và được thực hiện như sau:
+
+      1. Người nhận con nuôi nộp hồ sơ cho Ủy ban nhân dân cấp xã nơi có thẩm
+      quyền giải quyết việc nuôi con nuôi thông qua hình thức nộp trực tiếp, gửi hồ sơ
+      qua hệ thống bưu chính hoặc nộp trực tuyến theo quy định của pháp luật về thực
+      hiện thủ tục hành chính trên môi trường điện tử.
+      Đối với Phiếu lý lịch tư pháp quy định tại khoản 3 Điều 17 của Luật Nuôi
+      con nuôi, người nhận con nuôi nộp Phiếu lý lịch tư pháp số 1.
+
+      2. Trường hợp người nhận con nuôi nộp Phiếu lý lịch tư pháp điện tử, Ủy
+      ban nhân dân cấp xã nơi có thẩm quyền giải quyết việc nuôi con nuổi tra cứu
+      được thông tin, dữ liệu về nhân thân, về tình trạng hôn nhân của người nhận con
+      nuôi từ Cơ sở dữ liệu quốc gia về dân cư, cơ sở dữ liệu chuyên ngành thì người
+      nhận con nuôi không phải nộp bản giấy của giấy tờ quy định tại khoản 2, khoản 3
+      và khoản 4 Điều 17 của Luật Nuôi con nuôi.
+      Kết quả tra cứu được Ủy ban nhân dân cấp xã lưu trữ dưới dạng điện tử
+      hoặc bản giấy, phản ánh đầy đủ, chính xác thông tin tại thời điểm tra cứu và
+      đính kèm hồ sơ của người nhận con nuôi.
+
+      3. Đối với Văn bản xác nhận hoàn cảnh gia đình, tình trạng chỗ ở, điều kiện
+      kinh tế của người nhận con nuôi quy định tại khoản 5 Điều 17 của Luật Nuôi
+      con nuôi: Trường hợp người nhận con nuôi có nơi thường trú và nơi ở hiện tại
+      khác nhau, trong 02 ngày làm việc kể từ ngày nhận được đề nghị của người nhận
+      con nuôi, Ủy ban nhân dân cấp xã nơi người nhận con nuôi thường trú trực tiếp
+      xác minh trong 05 ngày làm việc hoặc có văn bản đề nghị Ủy ban nhân dân cấp
+      xã nơi ở hiện tại của người nhận con nuôi thực hiện xác minh, đánh giá hoàn cảnh
+      gia đình, tình trạng chỗ ở, điều kiện kinh tế của người nhận con nuôi. Trong thời
+      hạn 05 ngày làm việc, kể từ ngày nhận được văn bản đề nghị, Ủy ban nhân dân
+      cập xã nơi ở hiện tại của người nhận con nuôi thực hiện xác minh, đánh giá theo
+      nội dung Văn bản xác nhận hoàn cảnh gia đình, tình trạng chỗ ở, điều kiện kinh tế
+      của người nhận con nuôi và có văn bản thông báo kết quả đánh giá cho Uy ban
+      nhân dân cấp xã nơi người nhận con nuôi thường trú.
+
+  - document_number: "19/2011/NĐ-CP"
+    article_number: "Điều 10"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 10. Thủ tục đăng ký việc nuôi con nuôi
+      Thủ tục đăng ký việc nuôi con nuôi được thực hiện theo quy định tại Điều
+      22 của Luật Nuôi con nuôi và quy định cụ thể sau đây:
+
+      1. Trong thời hạn 05 ngày làm việc, kể từ thời điểm kết thúc thời hạn thay
+      đổi ý kiến theo quy định tại khoản 3 Điều 9 của Nghị định này, Ủy ban nhân dân
+      cấp xã tiến hành đăng ký nuôi con nuôi và tổ chức giao nhận con nuôi. Việc giao
+      nhận con nuôi được tổ chức tại trụ sở Ủy ban nhân dân cấp xã nơi đăng ký việc
+      nuôi con nuôi với sự có mặt của cha, mẹ nuôi, cha, mẹ đẻ, người giám hộ hoặc
+      đại diện cơ sở nuôi dưỡng và người được nhận làm con nuôi. Trường hợp cha,
+      mẹ nuôi hoặc cha, mẹ đẻ của trẻ em mà một trong hai người vì lý do khách quan
+      không thể có mặt tại buổi giao nhận con nuôi thì phải có ủy quyền cho người
+      kia.
+
+      Công chức tư pháp - hộ tịch ghi vào Sổ đăng ký nuôi con nuôi và trao Giấy
+      chứng nhận nuôi con nuôi trong nước cho bên giao, bên nhận. Bản điện tử Giấy
+      chứng nhận nuôi con nuôi trong nước được gửi qua Kho quản lý dữ liệu điện tử
+      của cá nhân hoặc qua hộp thư điện tử cá nhân. Việc giao nhận con nuôi phải
+      được lập thành biên bản, có chữ ký hoặc điểm chỉ của các bên và đại diện Ủy
+      ban nhân dân cấp xã nơi giải quyết việc nuôi con nuôi.
+
+      2. Căn cứ vào Giấy chứng nhận nuôi con nuôi, theo yêu cầu của cha mẹ
+      nuôi và sự đồng ý của con nuôi từ đủ chín tuổi trở lên, cơ quan đăng ký hộ tịch
+      có thẩm quyền thực hiện việc thay đổi họ, chữ đệm và tên của con nuôi theo quy
+      định của pháp luật dân sự và pháp luật về hộ tịch.
+
+      3. Việc bổ sung, thay đổi thông tin về cha, mẹ trong Giấy khai sinh của
+      con nuôi được thực hiện theo quy định của pháp luật về hộ tịch.
+
+  - document_number: "19/2011/NĐ-CP"
+    article_number: "Điều 29"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-002"
+    content: |-
+      Điều 29. Đăng ký lại việc nuôi con nuôi
+      1. Việc nuôi con nuôi đã được đăng ký tại cơ quan nhà nước có thẩm quyền
+      của Việt Nam, nhưng cả Sổ hộ tịch và bản chính giấy tờ đăng ký nuôi con nuôi
+      bị mất hoặc hư hỏng không sử dụng được, thì được đăng ký lại, nếu cả cha, mẹ
+      nuôi và con nuôi đều còn sống vào thời điểm yêu cầu đăng ký lại.
+
+      2. Ủy ban nhân dân cấp xã nơi cha mẹ nuôi và con nuôi thường trú hoặc
+      nơi đã đăng ký việc nuôi con nuôi trước đây thực hiện đăng ký lại việc nuôi con
+      nuôi. Sở Tư pháp nơi cha mẹ nuôi và con nuôi thường trú hoặc nơi đã đăng ký
+      việc nuôi con nuôi trước đây thực hiện đăng ký lại việc nuôi con nuôi có yếu tố
+      nước ngoài.
+
+      3. Người có yêu cầu đăng ký lại việc nuôi con nuôi lựa chọn nộp Tờ khai
+      đăng ký lại việc nuôi con nuôi thông qua hình thức nộp trực tiếp, gửi qua hệ
+      thống bưu chính hoặc nộp trực tuyến theo quy định của pháp luật về thực hiện
+      thủ tục hành chính trên môi trường điện tử. Tờ khai phải có cam đoan của người
+      yêu cầu đăng ký lại về tính trung thực của việc đăng ký nuôi con nuôi trước đó
+      và có chữ ký của ít nhất hai người làm chứng.
+      Ủy ban nhân dân cấp xã hoặc Sở Tư pháp phải giải thích rõ cho người có
+      yêu cầu đăng ký lại việc nuôi con nuôi về trách nhiệm, hệ quả pháp lý của việc
+      cam đoan không đúng sự thật. Trong phạm vi thẩm quyền giải quyết, Ủy ban
+      nhân dân cấp xã, Sở Tư pháp từ chối đăng ký lại việc nuôi con nuôi hoặc đề
+      nghị cơ quan có thẩm quyền hủy bỏ kết quả đăng ký lại việc nuôi con nuôi, nếu
+      có cơ sở xác định nội dung cam đoan không đúng sự thật.
+
+      4. Trong thời hạn 05 ngày làm việc, kể từ ngày nhận đủ giấy tờ hợp lệ,
+      Chủ tịch Ủy ban nhân dân cấp xã ký Giấy chứng nhận nuôi con nuôi trong nước.
+      Bản chính Giấy chứng nhận nuôi con nuôi trong nước được gửi cho người yêu
+      cầu đăng ký lại qua hệ thống bưu chính hoặc trả trực tiếp tại Ủy ban nhân dân
+      cấp xã. Bản điện tử Giấy chứng nhận nuôi con nuôi trong nước gửi qua Kho
+      quản lý dữ liệu điện tử của cá nhân hoặc qua hộp thư điện tử cá nhân.
+      Đối với trường hợp đăng ký lại việc nuôi con nuôi có yếu tố nước ngoài, Sở
+      Tư pháp trình Ủy ban nhân dân cấp tỉnh quyết định để Sở Tư pháp tiến hành các
+      thủ tục tiếp theo.
+
+      5. Trong mục ghi chú của bản chính các giấy tờ quy định tại khoản 4 Điều
+      này và Sổ đăng ký nuôi con nuôi phải ghi rõ là đăng ký lại.
+
+  - document_number: "114/2016/NĐ-CP"
+    article_number: "Điều 4"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 4. Trường hợp miễn, giảm lệ phí đăng ký nuôi con nuôi
+
+      1. Miễn lệ phí đăng ký nuôi con nuôi trong nước đối với các trường hợp sau:
+
+      a) Cha dượng hoặc mẹ kế nhận con riêng của vợ hoặc chồng làm con nuôi; cô, cậu, dì, chú, bác ruột nhận cháu làm con nuôi;
+
+      b) Người nhận các trẻ em sau đây làm con nuôi: Trẻ khuyết tật, nhiễm HIV/AIDS hoặc mắc bệnh hiểm nghèo theo quy định của Luật nuôi con nuôi và văn bản hướng dẫn;
+
+      c) Người có công với cách mạng nhận con nuôi.
+
+      2. Giảm lệ phí đăng ký nuôi con nuôi nước ngoài đối với các trường hợp sau:
+
+      a) Cha dượng, mẹ kế nhận con riêng của vợ hoặc chồng làm con nuôi; cô, cậu, dì, chú, bác ruột nhận cháu làm con nuôi được giảm 50% mức lệ phí đăng ký nuôi con nuôi nước ngoài;
+
+      b) Nhận hai trẻ em trở lên là anh chị em ruột làm con nuôi thì từ trẻ em thứ hai trở đi được giảm 50% mức lệ phí đăng ký nuôi con nuôi nước ngoài;
+
+      c) Trường hợp nhận con nuôi thuộc cả hai trường hợp quy định tại điểm a, điểm b khoản này thì người nộp lệ phí được lựa chọn áp dụng mức giảm lệ phí theo quy định tại điểm a hoặc điểm b khoản này.
+
+      3. Miễn lệ phí đăng ký nuôi con nuôi đối với trường hợp đăng ký lại việc nuôi con nuôi theo quy định của pháp luật về nuôi con nuôi.
+
+  - document_number: "114/2016/NĐ-CP"
+    article_number: "Điều 6"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-AD-001"
+    content: |-
+      Điều 6. Mức thu lệ phí
+
+      1. Mức thu lệ phí đăng ký nuôi con nuôi như sau:
+
+      a) Mức thu lệ phí đăng ký nuôi con nuôi trong nước: 400.000 đồng/trường hợp.

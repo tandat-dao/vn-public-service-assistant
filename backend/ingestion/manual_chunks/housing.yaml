@@ -1,0 +1,231 @@
+_instructions:
+  document_number: "Must exactly match a key in DOCUMENT_FILE_MAP in ingest_legal_docs.py"
+  article_number: "Must exactly match the relevant_articles entry in the domain YAML, e.g. 'Điều 11' not 'dieu 11'"
+  location_scope: "Copy from the YAML. Always 'VN' for national documents"
+  procedure_tags: "List of procedure IDs from the YAML. An article relevant to multiple procedures gets all IDs"
+  content: "Full article text copied from thuvienphapluat.vn. Paste directly after the | character — no escaping needed."
+
+chunks:
+  # ── 68/2020/QH14 — Luật Cư trú 2020 ────────────────────────────────────
+  - document_number: "68/2020/QH14"
+    article_number: "Điều 19"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-003"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "68/2020/QH14"
+    article_number: "Điều 20"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "68/2020/QH14"
+    article_number: "Điều 21"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "68/2020/QH14"
+    article_number: "Điều 22"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "68/2020/QH14"
+    article_number: "Điều 23"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "68/2020/QH14"
+    article_number: "Điều 24"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "68/2020/QH14"
+    article_number: "Điều 27"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-002"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "68/2020/QH14"
+    article_number: "Điều 28"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-002"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "68/2020/QH14"
+    article_number: "Điều 29"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-002"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "68/2020/QH14"
+    article_number: "Điều 33"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-003"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  # ── 62/2021/NĐ-CP — Nghị định 62/2021/NĐ-CP ────────────────────────────
+  - document_number: "62/2021/NĐ-CP"
+    article_number: "Điều 4"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-003"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "62/2021/NĐ-CP"
+    article_number: "Điều 5"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+      - "TTHC-002"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "62/2021/NĐ-CP"
+    article_number: "Điều 6"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "62/2021/NĐ-CP"
+    article_number: "Điều 7"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "62/2021/NĐ-CP"
+    article_number: "Điều 8"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-002"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  # ── 55/2021/TT-BCA — Thông tư 55/2021/TT-BCA ───────────────────────────
+  - document_number: "55/2021/TT-BCA"
+    article_number: "Điều 7"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "55/2021/TT-BCA"
+    article_number: "Điều 8"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "55/2021/TT-BCA"
+    article_number: "Điều 9"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "55/2021/TT-BCA"
+    article_number: "Điều 11"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "55/2021/TT-BCA"
+    article_number: "Điều 12"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "55/2021/TT-BCA"
+    article_number: "Điều 13"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-002"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "55/2021/TT-BCA"
+    article_number: "Điều 14"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-002"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "55/2021/TT-BCA"
+    article_number: "Điều 17"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-003"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "55/2021/TT-BCA"
+    article_number: "Điều 18"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "55/2021/TT-BCA"
+    article_number: "Điều 19"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-002"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  - document_number: "55/2021/TT-BCA"
+    article_number: "Điều 20"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+      - "TTHC-002"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE
+
+  # ── 104/2022/NĐ-CP — Nghị định 104/2022/NĐ-CP ──────────────────────────
+  - document_number: "104/2022/NĐ-CP"
+    article_number: "Điều 14"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-001"
+      - "TTHC-002"
+      - "TTHC-003"
+    content: |-
+      PASTE_ARTICLE_TEXT_HERE

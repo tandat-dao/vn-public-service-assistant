@@ -39,6 +39,39 @@ logger = logging.getLogger(__name__)
 # Must match plan_executor.py — kept in sync manually.
 MAX_PLAN_STEPS = 8
 
+# Procedures whose guided wizard uses the interactive page form (State 2) and
+# hardcoded INTRO messages (State 0) instead of the LLM-driven form_filler_fn
+# pipeline used by housing procedures.
+_NEW_GUIDED_PROCEDURE_IDS = {"TTHC-CR-001", "TTHC-CR-002", "TTHC-AD-001", "TTHC-AD-002"}
+
+_GUIDED_INTRO_MESSAGES: dict[str, str] = {
+    "TTHC-CR-001": (
+        "Tôi sẽ hỗ trợ bạn thực hiện thủ tục **Đăng ký khai sinh** "
+        "tại UBND cấp xã. Để bắt đầu, vui lòng tải lên ảnh CCCD của "
+        "bạn — hệ thống sẽ tự động đọc thông tin cá nhân để điền vào "
+        "mẫu tờ khai. Bạn có thể tải lên CCCD ngay bây giờ không?"
+    ),
+    "TTHC-CR-002": (
+        "Tôi sẽ hỗ trợ bạn thực hiện thủ tục **Cấp bản sao Trích lục "
+        "hộ tịch**. Lưu ý rằng thủ tục này yêu cầu bạn đã hoàn thành "
+        "Đăng ký khai sinh trước đó. Vui lòng tải lên ảnh CCCD để hệ "
+        "thống tự động điền thông tin vào tờ khai yêu cầu."
+    ),
+    "TTHC-AD-001": (
+        "Tôi sẽ hỗ trợ bạn thực hiện thủ tục **Đăng ký việc nuôi con "
+        "nuôi trong nước** tại UBND cấp xã. Đây là thủ tục có thời hạn "
+        "giải quyết 30 ngày làm việc và yêu cầu nhiều giấy tờ — hãy chuẩn "
+        "bị đầy đủ hồ sơ theo danh sách trên trang này. Vui lòng tải lên "
+        "ảnh CCCD của bạn để bắt đầu."
+    ),
+    "TTHC-AD-002": (
+        "Tôi sẽ hỗ trợ bạn thực hiện thủ tục **Đăng ký lại việc nuôi "
+        "con nuôi trong nước**. Lưu ý rằng thủ tục này yêu cầu bạn đã "
+        "hoàn thành Đăng ký việc nuôi con nuôi trước đó. Vui lòng tải lên "
+        "ảnh CCCD để hệ thống tự động điền thông tin vào tờ khai."
+    ),
+}
+
 _HARDCODED_FALLBACK = (
     "Xin lỗi, hệ thống đang gặp sự cố. Vui lòng thử lại sau."
 )
@@ -66,7 +99,7 @@ def _build_retrieved_sources(state: AgentState) -> list[dict]:
     """Build a list of source dicts from retrieved_chunks for the SSE metadata event.
 
     Only chunks where both article_number and document_number are non-empty are
-    included. Content is capped at 600 characters (backend enforcement — the
+    included. Content is capped at 1200 characters (backend enforcement — the
     frontend must not truncate further). Returns [] when no chunks are present.
     """
     chunks = state.get("retrieved_chunks") or []
@@ -84,7 +117,7 @@ def _build_retrieved_sources(state: AgentState) -> list[dict]:
             sources.append({
                 "article_number": article_number,
                 "document_number": document_number,
-                "content": content[:600],
+                "content": content[:1200],
             })
     return sources
 
@@ -288,6 +321,65 @@ async def synthesizer_node(state: AgentState) -> dict:
 
     # ---- Guided procedure wizard mode (TASK-APP-18) ----
     if mode == "guided_step":
+        current_step_early = state.get("guided_step", 0)
+        guided_procedure_id_early = state.get("guided_procedure_id")
+
+        # --- State 0 early return for new-domain procedures ---
+        # Skip the LLM call entirely and return a hardcoded INTRO message.
+        # This saves tokens and produces a consistent, controlled response.
+        if current_step_early == 0 and guided_procedure_id_early in _NEW_GUIDED_PROCEDURE_IDS:
+            intro_text = _GUIDED_INTRO_MESSAGES.get(
+                guided_procedure_id_early,
+                "Vui lòng tải lên ảnh CCCD của bạn để bắt đầu.",
+            )
+            return {
+                "final_response": intro_text,
+                "response_metadata": {
+                    "mode": "guided_step",
+                    "guided_procedure_id": guided_procedure_id_early,
+                    "guided_step": 1,  # advance to AWAIT_CCCD
+                    "scope_used": state.get("scope_used"),
+                    "scope_notice_included": False,
+                    "rag_confidence": None,
+                    "filled_form_path": None,
+                    "retrieved_sources": [],
+                    "document_type": None,
+                },
+                # Write back so chat.py persists the advanced step to Redis.
+                "guided_procedure_id": guided_procedure_id_early,
+                "guided_step": 1,
+            }
+
+        # --- State 2 early return for new-domain procedures ---
+        # Direct the user to the interactive form on the procedure page.
+        # form_filler_fn is NOT called for these procedures (router excluded it).
+        if current_step_early == 2 and guided_procedure_id_early in _NEW_GUIDED_PROCEDURE_IDS:
+            page_form_response = (
+                "Hồ sơ của bạn đã sẵn sàng. Bạn có thể điền trực tiếp "
+                "vào mẫu đơn ở phần **Điền thông tin vào mẫu đơn** "
+                "phía trên trang này. Thông tin từ CCCD đã được tự động "
+                "điền vào các trường tương ứng — bạn chỉ cần kiểm tra "
+                "và bổ sung các thông tin còn lại, sau đó nhấn "
+                "\"Tải xuống mẫu đã điền\" để tải về."
+            )
+            return {
+                "final_response": page_form_response,
+                "response_metadata": {
+                    "mode": "guided_step",
+                    "guided_procedure_id": guided_procedure_id_early,
+                    "guided_step": 2,
+                    "scope_used": state.get("scope_used"),
+                    "scope_notice_included": False,
+                    "rag_confidence": None,
+                    "filled_form_path": None,
+                    "retrieved_sources": [],
+                    "document_type": None,
+                },
+                # Exit guided mode after showing the page-form guidance.
+                "guided_procedure_id": None,
+                "guided_step": None,
+            }
+
         try:
             llm = _get_llm()
             prompt = build_guided_prompt(state)

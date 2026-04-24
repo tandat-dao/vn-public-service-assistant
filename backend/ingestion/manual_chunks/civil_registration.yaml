@@ -1,0 +1,793 @@
+_instructions:
+  document_number: "Must exactly match a key in DOCUMENT_FILE_MAP in ingest_legal_docs.py"
+  article_number: "Must exactly match the relevant_articles entry in the domain YAML, e.g. 'Điều 11' not 'dieu 11'"
+  location_scope: "Copy from the YAML. Always 'VN' for national documents"
+  procedure_tags: "List of procedure IDs from the YAML. An article relevant to both procedures gets both IDs"
+  content: "Full article text copied from thuvienphapluat.vn. Paste directly after the | character — no escaping needed."
+
+chunks:
+  - document_number: "60/2014/QH13"
+    article_number: "Điều 11"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 11. Lệ phí hộ tịch
+
+      1. Miễn lệ phí đăng ký hộ tịch trong những trường hợp sau:
+
+      a) Đăng ký hộ tịch cho người thuộc gia đình có công với cách mạng; người thuộc hộ nghèo; người khuyết tật;
+
+      b) Đăng ký khai sinh, khai tử đúng hạn, giám hộ, kết hôn của công dân Việt Nam cư trú ở trong nước.
+
+      2. Cá nhân yêu cầu đăng ký sự kiện hộ tịch khác ngoài quy định tại khoản 1 Điều này, yêu cầu cấp bản sao trích lục hộ tịch phải nộp lệ phí.
+
+      Bộ Tài chính quy định chi tiết thẩm quyền thu, mức thu, nộp, chế độ quản lý và sử dụng lệ phí hộ tịch.
+
+  - document_number: "60/2014/QH13"
+    article_number: "Điều 12"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 12. Các hành vi bị nghiêm cấm
+
+      1. Nghiêm cấm cá nhân thực hiện các hành vi sau đây:
+
+      a) Cung cấp thông tin, tài liệu sai sự thật; làm hoặc sử dụng giấy tờ giả, giấy tờ của người khác để đăng ký hộ tịch;
+
+      b) Đe dọa, cưỡng ép, cản trở việc thực hiện quyền, nghĩa vụ đăng ký hộ tịch;
+
+      c) Can thiệp trái pháp luật vào hoạt động đăng ký hộ tịch;
+
+      d) Cam đoan, làm chứng sai sự thật để đăng ký hộ tịch;
+
+      đ) Làm giả, sửa chữa, làm sai lệch nội dung giấy tờ hộ tịch hoặc thông tin trong Cơ sở dữ liệu hộ tịch;
+
+      e) Đưa hối lộ, mua chuộc, hứa hẹn lợi ích vật chất, tinh thần để được đăng ký hộ tịch;
+
+      g) Lợi dụng việc đăng ký hộ tịch hoặc trốn tránh nghĩa vụ đăng ký hộ tịch nhằm động cơ vụ lợi, hưởng chính sách ưu đãi của Nhà nước hoặc trục lợi dưới bất kỳ hình thức nào;
+
+      h) Người có thẩm quyền quyết định đăng ký hộ tịch thực hiện việc đăng ký hộ tịch cho bản thân hoặc người thân thích theo quy định của Luật hôn nhân và gia đình;
+
+      i) Truy cập trái phép, trộm cắp, phá hoại thông tin trong Cơ sở dữ liệu hộ tịch.
+
+      2. Giấy tờ hộ tịch được cấp cho trường hợp đăng ký hộ tịch vi phạm quy định tại các điểm a, d, đ, g và h khoản 1 Điều này đều không có giá trị và phải thu hồi, huỷ bỏ.
+
+      3. Cá nhân thực hiện hành vi quy định tại khoản 1 Điều này thì tuỳ theo tính chất, mức độ vi phạm có thể bị xử lý vi phạm hành chính hoặc truy cứu trách nhiệm hình sự theo quy định của pháp luật.
+
+      Trường hợp cán bộ, công chức vi phạm quy định tại khoản 1 Điều này, ngoài bị xử lý như trên còn bị xử lý kỷ luật theo quy định pháp luật về cán bộ, công chức.
+
+  - document_number: "60/2014/QH13"
+    article_number: "Điều 13"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 13. Thẩm quyền đăng ký khai sinh
+
+      Ủy ban nhân dân cấp xã nơi cư trú của người cha hoặc người mẹ thực hiện đăng ký khai sinh.
+
+  - document_number: "60/2014/QH13"
+    article_number: "Điều 14"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 14. Nội dung đăng ký khai sinh
+
+      1. Nội dung đăng ký khai sinh gồm:
+
+      a) Thông tin của người được đăng ký khai sinh: Họ, chữ đệm và tên; giới tính; ngày, tháng, năm sinh; nơi sinh; quê quán; dân tộc; quốc tịch;
+
+      b) Thông tin của cha, mẹ người được đăng ký khai sinh: Họ, chữ đệm và tên; năm sinh; dân tộc; quốc tịch; nơi cư trú;
+
+      c) Số định danh cá nhân của người được đăng ký khai sinh.
+
+      2. Việc xác định quốc tịch, dân tộc, họ của người được khai sinh được thực hiện theo quy định của pháp luật về quốc tịch Việt Nam và pháp luật dân sự.
+
+      3. Nội dung đăng ký khai sinh quy định tại khoản 1 Điều này là thông tin hộ tịch cơ bản của cá nhân, được ghi vào Sổ hộ tịch, Giấy khai sinh, cập nhật vào Cơ sở dữ liệu hộ tịch điện tử và Cơ sở dữ liệu quốc gia về dân cư. Hồ sơ, giấy tờ của cá nhân liên quan đến thông tin khai sinh phải phù hợp với nội dung đăng ký khai sinh của người đó.
+
+      Chính phủ quy định việc cấp Số định danh cá nhân cho người được đăng ký khai sinh.
+
+  - document_number: "60/2014/QH13"
+    article_number: "Điều 15"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 15. Trách nhiệm đăng ký khai sinh
+
+      1. Trong thời hạn 60 ngày kể từ ngày sinh con, cha hoặc mẹ có trách nhiệm đăng ký khai sinh cho con; trường hợp cha, mẹ không thể đăng ký khai sinh cho con thì ông hoặc bà hoặc người thân thích khác hoặc cá nhân, tổ chức đang nuôi dưỡng trẻ em có trách nhiệm đăng ký khai sinh cho trẻ em.
+
+      2. Công chức tư pháp - hộ tịch thường xuyên kiểm tra, đôn đốc việc đăng ký khai sinh cho trẻ em trên địa bàn trong thời hạn quy định; trường hợp cần thiết thì thực hiện đăng ký khai sinh lưu động.
+
+  - document_number: "60/2014/QH13"
+    article_number: "Điều 16"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 16. Thủ tục đăng ký khai sinh
+
+      1. Người đi đăng ký khai sinh nộp tờ khai theo mẫu quy định và giấy chứng sinh cho cơ quan đăng ký hộ tịch. Trường hợp không có giấy chứng sinh thì nộp văn bản của người làm chứng xác nhận về việc sinh; nếu không có người làm chứng thì phải có giấy cam đoan về việc sinh; trường hợp khai sinh cho trẻ em bị bỏ rơi phải có biên bản xác nhận việc trẻ bị bỏ rơi do cơ quan có thẩm quyền lập; trường hợp khai sinh cho trẻ em sinh ra do mang thai hộ phải có văn bản chứng minh việc mang thai hộ theo quy định pháp luật.
+
+      2. Ngay sau khi nhận đủ giấy tờ theo quy định tại khoản 1 Điều này, nếu thấy thông tin khai sinh đầy đủ và phù hợp, công chức tư pháp - hộ tịch ghi nội dung khai sinh theo quy định tại khoản 1 Điều 14 của Luật này vào Sổ hộ tịch; cập nhật vào Cơ sở dữ liệu hộ tịch điện tử, Cơ sở dữ liệu quốc gia về dân cư để lấy Số định danh cá nhân.
+
+      Công chức tư pháp - hộ tịch và người đi đăng ký khai sinh cùng ký tên vào Sổ hộ tịch. Chủ tịch Ủy ban nhân dân cấp xã cấp Giấy khai sinh cho người được đăng ký khai sinh.
+
+      3. Chính phủ quy định chi tiết việc đăng ký khai sinh cho trẻ em bị bỏ rơi, trẻ em chưa xác định được cha, mẹ, trẻ em sinh ra do mang thai hộ; việc xác định quê quán của trẻ em bị bỏ rơi, trẻ em chưa xác định được cha, mẹ.
+
+  - document_number: "60/2014/QH13"
+    article_number: "Điều 35"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 35. Thẩm quyền đăng ký khai sinh
+
+      Ủy ban nhân dân cấp huyện nơi cư trú của người cha hoặc người mẹ thực hiện đăng ký khai sinh cho trẻ em trong các trường hợp sau đây:
+
+      1. Trẻ em được sinh ra tại Việt Nam:
+
+      a) Có cha hoặc mẹ là công dân Việt Nam còn người kia là người nước ngoài hoặc người không quốc tịch;
+
+      b) Có cha hoặc mẹ là công dân Việt Nam cư trú ở trong nước còn người kia là công dân Việt Nam định cư ở nước ngoài;
+
+      c) Có cha và mẹ là công dân Việt Nam định cư ở nước ngoài;
+
+      d) Có cha và mẹ là người nước ngoài hoặc người không quốc tịch;
+
+      2. Trẻ em được sinh ra ở nước ngoài chưa được đăng ký khai sinh về cư trú tại Việt Nam:
+
+      a) Có cha và mẹ là công dân Việt Nam;
+
+      b) Có cha hoặc mẹ là công dân Việt Nam.
+
+  - document_number: "60/2014/QH13"
+    article_number: "Điều 36"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 36. Thủ tục đăng ký khai sinh
+
+      1. Người đi đăng ký khai sinh nộp giấy tờ theo quy định tại khoản 1 Điều 16 của Luật này cho cơ quan đăng ký hộ tịch. Trường hợp cha hoặc mẹ hoặc cả cha và mẹ là người nước ngoài thì phải nộp văn bản thỏa thuận của cha, mẹ về việc chọn quốc tịch cho con.
+
+      Trường hợp cha, mẹ chọn quốc tịch nước ngoài cho con thì văn bản thỏa thuận phải có xác nhận của cơ quan nhà nước có thẩm quyền của nước ngoài mà người đó là công dân.
+
+      2. Ngay sau khi nhận đủ giấy tờ theo quy định tại khoản 1 Điều này, nếu thấy thông tin khai sinh đầy đủ và phù hợp, công chức làm công tác hộ tịch ghi nội dung khai sinh theo quy định tại Điều 14 của Luật này vào Sổ hộ tịch; trường hợp trẻ em có quốc tịch nước ngoài thì không ghi nội dung quy định tại điểm c khoản 1 Điều 14 của Luật này.
+
+      Công chức làm công tác hộ tịch, người đi đăng ký khai sinh cùng ký tên vào Sổ hộ tịch. Phòng Tư pháp báo cáo Chủ tịch Ủy ban nhân dân cấp huyện cấp Giấy khai sinh cho người được đăng ký khai sinh.
+
+      3. Chính phủ quy định thủ tục đăng ký khai sinh đối với các trường hợp quy định tại khoản 2 Điều 35 của Luật này.
+
+  - document_number: "60/2014/QH13"
+    article_number: "Điều 63"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-002"
+    content: |-
+      Điều 63. Cấp bản sao trích lục hộ tịch về sự kiện hộ tịch đã đăng ký
+
+      Cá nhân không phụ thuộc vào nơi cư trú có quyền yêu cầu Cơ quan quản lý Cơ sở dữ liệu hộ tịch cấp bản sao trích lục hộ tịch về sự kiện hộ tịch của mình đã được đăng ký.
+
+  - document_number: "60/2014/QH13"
+    article_number: "Điều 64"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-002"
+    content: |-
+      Điều 64. Thủ tục cấp bản sao trích lục hộ tịch
+
+      1. Người yêu cầu cấp bản sao trích lục hộ tịch trực tiếp hoặc thông qua người đại diện gửi tờ khai theo mẫu quy định cho Cơ quan quản lý Cơ sở dữ liệu hộ tịch.
+
+      Trường hợp cơ quan, tổ chức có thẩm quyền đề nghị cấp bản sao trích lục hộ tịch của cá nhân thì gửi văn bản yêu cầu nêu rõ lý do cho Cơ quan quản lý Cơ sở dữ liệu hộ tịch.
+
+      2. Ngay sau khi nhận được yêu cầu, nếu đủ điều kiện thì Cơ quan quản lý Cơ sở dữ liệu hộ tịch cấp bản sao trích lục hộ tịch cho người yêu cầu.
+
+  - document_number: "123/2015/NĐ-CP"
+    article_number: "Điều 2"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+      - "TTHC-CR-002"
+    content: |-
+      Điều 2. Quy định về xuất trình, nộp giấy tờ khi đăng ký hộ tịch, cấp bản sao trích lục hộ tịch
+
+      1. Người yêu cầu đăng ký hộ tịch, cấp bản sao trích lục hộ tịch xuất trình bản chính một trong các giấy tờ là hộ chiếu, chứng minh nhân dân, Thẻ căn cước công 
+      dân, Thẻ căn cước, Căn cước điện tử, Giấy chứng nhận căn cước hoặc giấy tờ khác 
+      có dán ảnh và thông tin cá nhân do cơ quan có thẩm quyền cấp, còn giá trị sử 
+      dụng (sau đây gọi là giấy tờ tùy thân) để chứng minh về nhân thân.
+
+      2. Người yêu cầu đăng ký khai sinh phải nộp Giấy chứng sinh hoặc giấy tờ
+      thay Giấy chứng sinh theo quy định tại khoản 1 Điều 16 của Luật Hộ tịch; người
+      yêu cầu đăng ký khai tử phải nộp Giấy báo tử hoặc giấy tờ thay Giấy báo tử theo quy
+      định tại khoản 1 Điều 34 của Luật Hộ tịch và tại khoản 2 Điều 4 của Nghị định này.
+      Trường hợp người yêu cầu đã nộp bản điện tử Giấy chứng sinh, Giấy báo tử
+      hoặc cơ quan đăng ký hộ tịch đã khai thác được dữ liệu điện tử có ký số của Giấy
+      chứng sinh, Giấy báo tử thì không phải nộp bản giấy.
+
+      3. Giấy tờ bằng tiếng nước ngoài sử dụng để đăng ký hộ tịch tại Việt Nam
+      phải được dịch ra tiếng Việt và công chứng bản dịch hoặc chứng thực chữ ký người
+      dịch theo quy định của pháp luật.
+
+      4. Giấy tờ do cơ quan có thẩm quyền của nước có chung đường biên giới với
+      Việt Nam (sau đây gọi là nước láng giềng) lập, cấp, xác nhận sử dụng để đăng ký hộ
+      tịch theo quy định tại điểm d khoản 1 Điều 7 của Luật hộ tịch được miễn hợp pháp
+      hóa lãnh sự; dịch ra tiếng Việt và có cam kết của người dịch về việc dịch đúng nội
+      dung.
+
+      5. Bản sao giấy tờ trong hồ sơ đăng ký hộ tịch là bản sao được cấp từ sổ gốc
+      hoặc chứng thực từ bản chính theo quy định của pháp luật; trường hợp người yêu
+      cầu nộp bản sao không được chứng thực thì phải xuất trình bản chính để đối chiếu.
+
+  - document_number: "123/2015/NĐ-CP"
+    article_number: "Điều 3"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 3. Cách thức nộp, tiếp nhận hồ sơ đăng ký hộ tịch, tiến hành xác
+      minh khi giải quyết hồ sơ đăng ký hộ tịch
+
+      1. Người yêu cầu đăng ký hộ tịch có thể nộp hồ sơ trực tiếp tại cơ quan đăng
+      ký hộ tịch, gửi hồ sơ qua hệ thống bưu chính hoặc đăng ký trực tuyến theo quy định
+      pháp luật về đăng ký hộ tịch trực tuyến.
+      Hồ sơ đăng ký hộ tịch lập thành 01 (một) bộ.
+
+      2. Người tiếp nhận hồ sơ có trách nhiệm kiểm tra các giấy tờ để đối chiếu
+      thông tin trong Tờ khai và tính hợp lệ của giấy tờ trong hồ sơ do người yêu cầu nộp,
+      xuất trình; trường hợp hồ sơ chưa đầy đủ thì hướng dẫn người yêu cầu bổ sung hoàn
+      thiện. Nếu hồ sơ đầy đủ, hợp lệ, người tiếp nhận hồ sơ viết giấy tiếp nhận, trong đó
+      ghi rõ ngày, giờ trả kết quả.
+
+      Trường hợp người yêu cầu nộp giấy tờ là bản sao được cấp từ sổ gốc hoặc
+      bản sao được chứng thực từ bản chính thì người tiếp nhận hồ sơ không được yêu cầu
+      xuất trình bản chính; nếu người yêu cầu chỉ nộp bản chụp và xuất trình bản chính thì
+      người tiếp nhận hồ sơ kiểm tra, đối chiếu bản chụp với bản chính và ký vào bản
+      chụp xác nhận về việc đã đối chiếu nội dung giấy tờ đó.
+      Trường hợp pháp luật quy định giấy tờ xuất trình thì người tiếp nhận hồ sơ
+      không được yêu cầu nộp thêm bản sao hoặc bản chụp của giấy tờ xuất trình.
+
+      3. Trường hợp người yêu cầu gửi hồ sơ qua hệ thống bưu chính hoặc muốn
+      nhận kết quả qua hệ thống bưu chính thì phải gửi nộp lệ phí đăng ký hộ tịch, lệ phí
+      cấp bản sao trích lục hộ tịch nếu không thuộc diện được miễn lệ phí và chi phí trả
+      kết quả qua hệ thống bưu chính. Người tiếp nhận hồ sơ ghi rõ phương thức trả kết
+      quả trong giấy tiếp nhận.
+
+      Được trả kết quả qua hệ thống bưu chính đối với yêu cầu ghi vào Sổ hộ tịch
+      các việc hộ tịch do cơ quan có thẩm quyền của nước ngoài giải quyết, bao gồm khai
+      sinh; kết hôn; giám hộ; nhận cha, mẹ, con; xác định cha, mẹ, con; nuôi con nuôi;
+      thay đổi hộ tịch; khai tử; ly hôn; hủy hôn nhân trái pháp luật và yêu cầu cấp bản sao
+      trích lục hộ tịch theo quy định tại Điều 63 của Luật hộ tịch.
+
+      4. Đối với việc đăng ký hộ tịch phải tiến hành xác minh theo quy định của
+      Luật hộ tịch và Nghị định này thì thời gian gửi văn bản yêu cầu và thời gian trả lời
+      kết quả không tính vào thời hạn giải quyết việc hộ tịch cụ thể.
+
+      5. Đối với yêu cầu đăng ký khai sinh mà cha, mẹ trẻ đã đăng ký kết hôn, trên
+      cơ sở thông tin về Giấy chứng nhận kết hôn cung cấp trong Tờ khai đăng ký khai
+      sinh, cơ quan đăng ký hộ tịch có trách nhiệm tra cứu thông tin về tình trạng hôn
+      nhân của cha, mẹ trẻ trên Hệ thống thông tin giải quyết thủ tục hành chính cấp tỉnh
+      thông qua kết nối với Cơ sở dữ liệu hộ tịch điện tử, Cơ sở dữ liệu quốc gia về dân
+      cư.
+
+      Đối với yêu cầu đăng ký kết hôn, cơ quan đăng ký hộ tịch tra cứu thông tin về
+      tình trạng hôn nhân của người yêu cầu đăng ký kết hôn trên Hệ thống thông tin giải
+      quyết thủ tục hành chính cấp tỉnh thông qua kết nối với Cơ sở dữ liệu hộ tịch điện
+      tử, Cơ sở dữ liệu quốc gia về dân cư.
+
+      Kết quả tra cứu được lưu trữ dưới dạng điện tử hoặc bản giấy, phản ánh đầy
+      đủ, chính xác thông tin tại thời điểm tra cứu và đính kèm hồ sơ của người đăng ký.
+      
+      Trường hợp không tra cứu được tình trạng hôn nhân do chưa có thông tin
+      trong Cơ sở dữ liệu hộ tịch điện tử, Cơ sở dữ liệu quốc gia về dân cư, thì cơ quan
+      đăng ký hộ tịch đề nghị Ủy ban nhân dân cấp xã nơi người yêu cầu thường trú/nơi
+      đã đăng ký kết hôn xác minh, cung cấp thông tin. Trong thời hạn 03 ngày làm việc
+      kể từ ngày nhận được yêu cầu xác minh, Ủy ban nhân dân cấp xã nơi nhận được đề
+      nghị xác minh có trách nhiệm kiểm tra, xác minh và gửi kết quả về tình trạng hôn
+      nhân của người đó.
+
+  - document_number: "123/2015/NĐ-CP"
+    article_number: "Điều 4"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 4. Xác định nội dung đăng ký khai sinh, khai tử
+
+      1. Nội dung khai sinh được xác định theo quy định tại khoản 1 Điều 14 của
+      Luật hộ tịch và quy định sau đây:
+
+      a) Họ, chữ đệm, tên và dân tộc của trẻ em được xác định theo thỏa thuận của
+      cha, mẹ theo quy định của pháp luật dân sự và được thể hiện trong Tờ khai đăng ký
+      khai sinh; trường hợp cha, mẹ không có thỏa thuận hoặc không thỏa thuận được, thì
+      xác định theo tập quán;
+
+      b) Quốc tịch của trẻ em được xác định theo quy định của pháp luật về quốc tịch;
+
+      c) Số định danh cá nhân của người được đăng ký khai sinh được cấp khi
+      đăng ký khai sinh. Việc cấp Số định danh cá nhân được thực hiện theo quy định của
+      Luật Căn cước và các văn bản quy định chi tiết thi hành, trên cơ sở bảo đảm đồng
+      bộ với Luật Hộ tịch và Nghị định này;
+
+      d) Ngày, tháng, năm sinh được xác định theo Dương lịch. Nơi sinh, giới tính
+      của trẻ em được xác định theo Giấy chứng sinh do cơ sở y tế có thẩm quyền cấp;
+      trường hợp không có Giấy chứng sinh thì xác định theo giấy tờ thay Giấy chứng
+      sinh theo quy định tại khoản 1 Điều 16 của Luật hộ tịch.
+
+      Đối với trẻ em sinh tại cơ sở y tế thì nơi sinh phải ghi rõ tên của cơ sở y tế và
+      tên đơn vị hành chính cấp xã, huyện, tỉnh nơi có cơ sở y tế đó; trường hợp trẻ em
+      sinh ngoài cơ sở y tế thì ghi rõ tên đơn vị hành chính cấp xã, huyện, tỉnh nơi trẻ em
+      sinh ra;
+
+      đ) Quê quán của người được đăng ký khai sinh được xác định theo quy định
+      tại khoản 8 Điều 4 của Luật hộ tịch.
+
+      2. Khi đăng ký khai tử theo quy định của Luật hộ tịch, nội dung khai tử phải
+      bao gồm các thông tin: họ, chữ đệm, tên, năm sinh của người chết; số định danh cá
+      nhân của người chết, nếu có; nơi chết; nguyên nhân chết; giờ, ngày, tháng, năm chết
+      theo Dương lịch; quốc tịch nếu người chết là người nước ngoài.
+
+      Nội dung đăng ký khai tử được xác định theo Giấy báo tử hoặc giấy tờ thay
+      Giấy báo tử do cơ quan có thẩm quyền sau đây cấp:
+      a) Đối với người chết tại cơ sở y tế thì Thủ trưởng cơ sở y tế cấp Giấy báo tử;
+      b) Đối với người chết do thi hành án tử hình thì Chủ tịch Hội đồng thi hành
+      án tử hình cấp giấy xác nhận việc thi hành án tử hình thay Giấy báo tử;
+      c) Đối với người bị Toà án tuyên bố là đã chết thì Bản án, quyết định có hiệu
+      lực của Toà án thay Giấy báo tử;
+      d) Đối với người chết trên phương tiện giao thông, chết do tai nạn, bị giết,
+      chết đột ngột hoặc chết có nghi vấn thì văn bản xác nhận của cơ quan công an hoặc
+      kết quả giám định của Cơ quan giám định pháp y thay Giấy báo tử;
+      đ) Đối với người chết không thuộc một trong các trường hợp quy định tại các điểm
+      a, b, c và d của khoản này thì Ủy ban nhân dân cấp xã nơi người đó chết có trách nhiệm
+      cấp Giấy báo tử.
+
+  - document_number: "123/2015/NĐ-CP"
+    article_number: "Điều 9"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 9. Giấy tờ nộp và xuất trình khi đăng ký khai sinh
+
+      1. Người yêu cầu đăng ký khai sinh nộp các giấy tờ theo quy định tại khoản 1
+      Điều 16 của Luật hộ tịch khi đăng ký khai sinh tại Ủy ban nhân dân xã, phường, thị
+      trấn (sau đây gọi là Ủy ban nhân dân cấp xã) hoặc các giấy tờ theo quy định tại
+      khoản 1 Điều 36 của Luật hộ tịch khi đăng ký khai sinh tại Ủy ban nhân dân huyện,
+      quận, thị xã, thành phố thuộc tỉnh (sau đây gọi là Ủy ban nhân dân cấp huyện).
+
+      2. Người yêu cầu đăng ký khai sinh xuất trình giấy tờ theo quy định
+      tại khoản 1 Điều 2 của Nghị định này.
+
+  - document_number: "123/2015/NĐ-CP"
+    article_number: "Điều 14"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 14. Đăng ký khai sinh cho trẻ bị bỏ rơi
+      1. Người phát hiện trẻ bị bỏ rơi có trách nhiệm bảo vệ trẻ và thông báo ngay
+      cho Ủy ban nhân dân hoặc công an cấp xã nơi trẻ bị bỏ rơi. Trường hợp trẻ bị bỏ rơi
+      tại cơ sở y tế thì Thủ trưởng cơ sở y tế có trách nhiệm thông báo.
+
+      Ngay sau khi nhận được thông báo, Chủ tịch Ủy ban nhân dân cấp xã hoặc
+      Trưởng công an cấp xã có trách nhiệm tổ chức lập biên bản về việc trẻ bị bỏ rơi; Ủy
+      ban nhân dân cấp xã có trách nhiệm giao trẻ cho cá nhân hoặc tổ chức tạm thời nuôi
+      dưỡng theo quy định pháp luật.
+
+      Biên bản phải ghi rõ thời gian, địa điểm phát hiện trẻ bị bỏ rơi; đặc điểm nhận
+      dạng như giới tính, thể trạng, tình trạng sức khỏe; tài sản hoặc đồ vật khác của trẻ,
+      nếu có; họ, tên, giấy tờ chứng minh nhân thân, nơi cư trú của người phát hiện trẻ bị
+      bỏ rơi. Biên bản phải được người lập, người phát hiện trẻ bị bỏ rơi, người làm chứng
+      (nếu có) ký tên và đóng dấu xác nhận của cơ quan lập.
+
+      Biên bản được lập thành hai bản, một bản lưu tại cơ quan lập, một bản giao cá
+      nhân hoặc tổ chức tạm thời nuôi dưỡng trẻ.
+
+      2. Sau khi lập biên bản theo quy định tại khoản 1 Điều này, Ủy ban nhân dân
+      cấp xã tiến hành niêm yết tại trụ sở Ủy ban nhân dân trong 7 ngày liên tục về việc
+      trẻ bị bỏ rơi.
+
+      3. Hết thời hạn niêm yết, nếu không có thông tin về cha, mẹ đẻ của trẻ, Ủy
+      ban nhân dân cấp xã thông báo cho cá nhân hoặc tổ chức đang tạm thời nuôi dưỡng
+      trẻ để tiến hành đăng ký khai sinh cho trẻ. Cá nhân hoặc tổ chức đang tạm thời nuôi
+      dưỡng trẻ có trách nhiệm khai sinh cho trẻ em. Thủ tục đăng ký khai sinh được thực
+      hiện theo quy định tại khoản 2 Điều 16 của Luật hộ tịch.
+
+      Họ, chữ đệm, tên của trẻ được xác định theo quy định của pháp luật dân sự.
+      Nếu không có cơ sở để xác định ngày, tháng, năm sinh và nơi sinh của trẻ thì lấy
+      ngày, tháng phát hiện trẻ bị bỏ rơi là ngày, tháng sinh; căn cứ thể trạng của trẻ để
+      xác định năm sinh; nơi sinh là nơi phát hiện trẻ bị bỏ rơi; quê quán được xác định
+      theo nơi sinh; quốc tịch của trẻ là quốc tịch Việt Nam. Phần khai về cha, mẹ và dân
+      tộc của trẻ trong Giấy khai sinh và Sổ hộ tịch để trống; trong Sổ hộ tịch ghi rõ “Trẻ
+      bị bỏ rơi”.
+
+  - document_number: "123/2015/NĐ-CP"
+    article_number: "Điều 15"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 15. Đăng ký khai sinh cho trẻ chưa xác định được cha, mẹ
+      1. Ủy ban nhân dân cấp xã nơi trẻ đang cư trú có trách nhiệm đăng ký khai
+      sinh cho trẻ chưa xác định được cha, mẹ.
+
+      2. Trường hợp chưa xác định được cha thì khi đăng ký khai sinh họ, dân tộc,
+      quê quán, quốc tịch của con được xác định theo họ, dân tộc, quê quán, quốc tịch của
+      mẹ; phần ghi về cha trong Sổ hộ tịch và Giấy khai sinh của trẻ để trống.
+
+      3. Nếu vào thời điểm đăng ký khai sinh người cha yêu cầu làm thủ tục nhận
+      con theo quy định tại khoản 1 Điều 25 của Luật hộ tịch thì Ủy ban nhân dân kết hợp
+      giải quyết việc nhận con và đăng ký khai sinh; nội dung đăng ký khai sinh được xác
+      định theo quy định tại khoản 1 Điều 4 của Nghị định này.
+
+      4. Trường hợp trẻ chưa xác định được mẹ mà khi đăng ký khai sinh cha yêu
+      cầu làm thủ tục nhận con thì giải quyết theo quy định tại khoản 3 Điều này; phần
+      khai về mẹ trong Sổ hộ tịch và Giấy khai sinh của trẻ em để trống.
+
+      5. Thủ tục đăng ký khai sinh cho trẻ không thuộc diện bị bỏ rơi, chưa xác
+      định được cha và mẹ được thực hiện như quy định tại khoản 3 Điều 14 của Nghị
+      định này; trong Sổ hộ tịch ghi rõ “Trẻ chưa xác định được cha, mẹ”. 
+
+  - document_number: "123/2015/NĐ-CP"
+    article_number: "Điều 16"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 16. Đăng ký khai sinh cho trẻ em sinh ra do mang thai hộ
+      1. Người yêu cầu đăng ký khai sinh nộp giấy tờ theo quy định tại khoản 1
+      Điều 16 của Luật hộ tịch và văn bản xác nhận của cơ sở y tế đã thực hiện kỹ thuật
+      hỗ trợ sinh sản cho việc mang thai hộ. Phần khai về cha, mẹ của trẻ được xác định
+      theo cặp vợ chồng nhờ mang thai hộ.
+
+      2. Thủ tục đăng ký khai sinh được thực hiện theo quy định tại khoản 2 Điều
+      16 của Luật hộ tịch; nội dung đăng ký khai sinh được xác định theo quy định tại
+      khoản 1 Điều 4 của Nghị định này.
+
+  - document_number: "123/2015/NĐ-CP"
+    article_number: "Điều 17"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 17. Đăng ký khai sinh
+      1. Ủy ban nhân dân xã ở khu vực biên giới đăng ký khai sinh cho trẻ sinh ra
+      tại Việt Nam có cha hoặc mẹ là công dân Việt Nam thường trú tại địa bàn xã đó còn
+      mẹ hoặc cha là công dân nước láng giềng thường trú tại đơn vị hành chính tương
+      đương cấp xã của Việt Nam tiếp giáp với xã ở khu vực biên giới của Việt Nam nơi
+      công dân Việt Nam thường trú.
+
+      2. Người yêu cầu đăng ký khai sinh xuất trình giấy tờ theo quy định tại khoản
+      1 Điều 2 của Nghị định này và nộp các giấy tờ sau đây:
+      a) Giấy tờ theo quy định tại khoản 1 Điều 16 của Luật hộ tịch;
+      b) Văn bản thỏa thuận của cha, mẹ về việc chọn quốc tịch cho con theo quy
+      định tại khoản 1 Điều 36 của Luật hộ tịch;
+      c) Bản sao giấy tờ chứng minh nhân thân, chứng minh nơi thường trú ở khu
+      vực biên giới của công dân nước láng giềng.
+
+      3. Thủ tục đăng ký khai sinh được thực hiện theo quy định tại khoản 2 Điều
+      16 của Luật hộ tịch; nội dung đăng ký khai sinh được xác định theo quy định tại
+      khoản 1 Điều 4 của Nghị định này.
+
+  - document_number: "123/2015/NĐ-CP"
+    article_number: "Điều 29"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 29. Đăng ký khai sinh cho trẻ em sinh ra ở nước ngoài về cư trú tại Việt Nam
+
+      1. Ủy ban nhân dân cấp huyện nơi cư trú của trẻ em có cha hoặc mẹ hoặc cả
+      cha và mẹ là công dân Việt Nam, thực hiện đăng ký khai sinh cho trẻ em sinh ra ở
+      nước ngoài mà chưa được đăng ký khai sinh.
+
+      2. Người yêu cầu đăng ký khai sinh xuất trình giấy tờ chứng minh việc trẻ em
+      cư trú tại Việt Nam và nộp các giấy tờ sau đây:
+      a) Tờ khai theo mẫu quy định;
+      b) Giấy chứng sinh hoặc giấy tờ khác do cơ quan có thẩm quyền nước ngoài
+      cấp xác nhận về việc trẻ em được sinh ra ở nước ngoài và quan hệ mẹ - con nếu có;
+      c) Văn bản thỏa thuận của cha mẹ lựa chọn quốc tịch cho con theo quy định
+      tại khoản 1 Điều 36 của Luật hộ tịch đối với trường hợp trẻ em có cha hoặc mẹ là
+      công dân Việt Nam, người kia là công dân nước ngoài.
+
+      3. Trường hợp không có giấy tờ quy định tại điểm b khoản 2 Điều này thì
+      thực hiện việc đăng ký khai sinh cho trẻ em theo thủ tục quy định tại khoản 5 Điều
+      15 của Nghị định này.
+
+      4. Ngay trong ngày tiếp nhận yêu cầu, Phòng Tư pháp kiểm tra hồ sơ. Nếu
+      thấy hồ sơ đầy đủ, chính xác và đúng quy định pháp luật thì đăng ký theo trình tự,
+      thủ tục quy định tại khoản 2 Điều 36 của Luật hộ tịch. Nội dung khai sinh được xác
+      định theo quy định tại khoản 1 Điều 4 của Nghị định này.
+
+  - document_number: "87/2020/NĐ-CP"
+    article_number: "Điều 8"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-002"
+    content: |-
+      Điều 8. Khai thác, sử dụng Cơ sở dữ liệu hộ tịch điện tử
+
+      1. Cơ quan đăng ký hộ tịch khai thác, sử dụng Cơ sở dữ liệu hộ tịch điện từ để đăng ký hộ tịch theo thẩm quyền; cấp bản sao trích lục hộ tịch; cấp Giấy xác nhận tình trạng hôn nhân; thống kê số liệu đăng ký hộ tịch và thực hiện các hoạt động quản lý nhà nước khác trong lĩnh vực hộ tịch theo quy định pháp luật.
+
+      2. Bộ Tư pháp khai thác, sử dụng Cơ sở dữ liệu hộ tịch điện tử để cấp bản sao trích lục hộ tịch, xác nhận thông tin hộ tịch đối với tất cả các trường hợp có thông tin hộ tịch trong Cơ sở dữ liệu hộ tịch điện tử; triển khai việc kết nối, chia sẻ dữ liệu giữa Cơ sở dữ liệu hộ tịch điện tử với các cơ sở dữ liệu khác của bộ, ngành, địa phương; thực hiện các hoạt động quản lý nhà nước khác trong lĩnh vực hộ tịch theo quy định pháp luật.
+
+      3. Bộ Ngoại giao khai thác, sử dụng Cơ sở dữ liệu hộ tịch điện tử để cấp bản sao trích lục hộ tịch, xác nhận thông tin hộ tịch đối với các trường hợp đã đăng ký hộ tịch tại Cơ quan đại diện; thực hiện các hoạt động quản lý nhà nước khác trong lĩnh vực hộ tịch theo quy định pháp luật.
+
+      4. Sở Tư pháp, Phòng Tư pháp khai thác, sử dụng Cơ sở dữ liệu hộ tịch điện tử để cấp bản sao trích lục hộ tịch, xác nhận thông tin hộ tịch đối với các trường hợp đã đăng ký hộ tịch tại các cơ quan đăng ký hộ tịch trên địa bàn hoặc người có yêu cầu đang cư trú trên địa bàn; thực hiện các hoạt động quản lý nhà nước khác trong lĩnh vực hộ tịch trên địa bàn theo quy định pháp luật.
+
+      5. Cơ quan, tổ chức có yêu cầu cung cấp thông tin hộ tịch từ Cơ sở dữ liệu hộ tịch điện tử để phục vụ quản lý nhà nước thì gửi yêu cầu tới cơ quan có thẩm quyền theo quy định tại các khoản 2, 3 và 4 Điều này.
+
+      6. Cá nhân có yêu cầu khai thác thông tin hộ tịch của mình trong Cơ sở dữ liệu hộ tịch điện tử thì gửi yêu cầu cấp bản sao trích lục hộ tịch, xác nhận thông tin hộ tịch tới cơ quan đăng ký, quản lý hộ tịch có thẩm quyền.
+
+  - document_number: "87/2020/NĐ-CP"
+    article_number: "Điều 12"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 12. Tiếp nhận, giải quyết yêu cầu đăng ký hộ tịch trực tuyến
+
+      1. Người có yêu cầu đăng ký hộ tịch trực tuyến truy cập Cổng dịch vụ công quốc gia, Cổng dịch vụ công cấp tỉnh để đăng ký tài khoản, xác thực người dùng theo hướng dẫn. Sau khi đăng nhập tài khoản thành công, người có yêu cầu đăng ký hộ tịch trực tuyến cung cấp thông tin theo biểu mẫu điện tử tương tác, đính kèm bản chụp hoặc bản sao điện từ các giấy tờ, tài liệu theo quy định; nộp phí, lệ phí thông qua chức năng thanh toán trực tuyến hoặc bằng cách thức khác theo quy định pháp luật.
+
+      2. Sau khi hoàn tất việc nộp hồ sơ, người có yêu cầu đăng ký hộ tịch trực tuyến được cấp 01 mã số hồ sơ thủ tục hành chính để theo dõi, tra cứu tiến độ giải quyết hồ sơ hoặc truy cập để hoàn thiện hồ sơ khi có yêu cầu của cơ quan đăng ký hộ tịch.
+
+      Người có yêu cầu đăng ký hộ tịch có trách nhiệm lưu giữ, bảo đảm bí mật mã số hồ sơ thủ tục hành chính.
+
+      3. Ngay trong ngày làm việc, khi nhận được hồ sơ yêu cầu đăng ký hộ tịch trực tuyến, cơ quan đăng ký hộ tịch có thẩm quyền chịu trách nhiệm kiểm tra tính đầy đủ, phù hợp quy định pháp luật của hồ sơ:
+
+      a) Trường hợp hồ sơ chưa đầy đủ, chưa phù hợp thì yêu cầu người có yêu cầu đăng ký hộ tịch bổ sung, hoàn thiện các giấy tờ cần thiết;
+
+      b) Trường hợp hồ sơ đầy đủ, phù hợp quy định pháp luật thì tiếp nhận và gửi ngay Phiếu hẹn trả kết quả theo mẫu qua thư điện tử hoặc gửi tin nhắn hẹn trả kết quả qua điện thoại di động cho người có yêu cầu đăng ký hộ tịch;
+
+      c) Hồ sơ đăng ký hộ tịch chỉ được tiếp nhận chính thức để xử lý trên phần mềm đăng ký hộ tịch trực tuyến sau khi đã được hoàn thiện, bổ sung, bảo đảm đầy đủ, phù hợp quy định pháp luật và nộp phí, lệ phí theo quy định.
+
+      Thời hạn giải quyết thủ tục hành chính được tính từ thời điểm gửi Phiếu hẹn trả kết quả hoặc gửi tin nhắn hẹn trả kết quả cho người có yêu cầu đăng ký hộ tịch.
+
+      d) Trường hợp cần phải kiểm tra, xác minh làm rõ hoặc do nguyên nhân khác mà không thể trả kết quả đăng ký hộ tịch đúng thời gian đã hẹn thì cơ quan đăng ký hộ tịch gửi Phiếu xin lỗi và hẹn lại ngày trả kết quả qua thư điện tử hoặc gửi tin nhắn qua điện thoại di động cho người có yêu cầu đăng ký hộ tịch, trong đó nêu rõ lý do chậm trả kết quả và thời gian hẹn trả kết quả.
+
+      4. Người có yêu cầu đăng ký hộ tịch được nhận kết quả đăng ký hộ tịch theo một trong các phương thức sau đây:
+
+      a) Nhận bản điện tử giấy tờ hộ tịch gửi qua thư điện tử, Kho quản lý dữ liệu điện tử của tổ chức, cá nhân đó;
+
+      b) Nhận bản điện tử giấy tờ hộ tịch gửi vào thiết bị số, thông qua phương pháp truyền số liệu phù hợp, đảm bảo an toàn, bảo mật thông tin;
+
+      c) Nhận kết quả là giấy tờ hộ tịch thông qua hệ thống bưu chính;
+
+      d) Nhận kết quả là giấy tờ hộ tịch tại cơ quan đăng ký hộ tịch.
+
+      Trường hợp nhận kết quả qua hệ thống bưu chính thì phải ghi rõ địa chỉ nhận kết quả, lựa chọn hình thức dịch vụ bưu chính chuyển phát có bảo đảm và phải trả phí dịch vụ cho đơn vị cung cấp dịch vụ bưu chính khi nhận kết quả.
+
+      5. Đối với các việc hộ tịch pháp luật quy định người có yêu cầu đăng ký hộ tịch phải có mặt tại cơ quan đăng ký hộ tịch để ký vào Sổ hộ tịch và nhận kết quả bao gồm: khai sinh; kết hôn; giám hộ; nhận cha, mẹ, con; thay đổi, cải chính hộ tịch, xác định lại dân tộc, bổ sung thông tin hộ tịch; khai tử, thì người có yêu cầu đăng ký hộ tịch chỉ được nhận kết quả theo phương thức quy định tại điểm d khoản 4 Điều này. Khi đến nhận kết quả tại cơ quan đăng ký hộ tịch, người có yêu cầu đăng ký hộ tịch phải nộp, xuất trình các giấy tờ, tài liệu là thành phần hồ sơ đăng ký hộ tịch theo quy định pháp luật hộ tịch.
+
+      Đối với các việc hộ tịch mà người có yêu cầu đăng ký hộ tịch không phải có mặt tại cơ quan đăng ký hộ tịch để ký vào Sổ hộ tịch và nhận kết quả, nhưng vẫn phải nộp, xuất trình các giấy tờ, tài liệu là thành phần hồ sơ đăng ký hộ tịch theo quy định pháp luật hộ tịch, bao gồm: xác nhận thông tin hộ tịch; ghi vào Sổ hộ tịch việc khai sinh, kết hôn, ly hôn, hủy việc kết hôn, giám hộ, nhận cha, mẹ, con, xác định cha, mẹ, con, nuôi con nuôi, thay đổi hộ tịch, khai tử của công dân Việt Nam đã được giải quyết tại cơ quan có thẩm quyền của nước ngoài thì người có yêu cầu đăng ký hộ tịch được lựa chọn nhận kết quả theo một trong các phương thức quy định tại khoản 4 Điều này nhưng phải thực hiện việc nộp, xuất trình các giấy tờ, tài liệu theo quy định trước khi nhận kết quả.
+
+      Trường hợp phải nộp bản sao hoặc xuất trình giấy tờ không phải là giấy tờ tùy thân mà người yêu cầu đăng ký hộ tịch đã có bản sao điện tử giấy tờ hoặc đã có thông tin trong Cơ sở dữ liệu hộ tịch điện tử thì không phải nộp, xuất trình.
+
+      6. Biểu mẫu điện tử giấy tờ hộ tịch do Bộ Tư pháp ban hành, cung cấp thông tin hộ tịch hoặc nguồn tra cứu thông tin hộ tịch của cá nhân, có giá trị như giấy tờ hộ tịch. Cơ quan, tổ chức có trách nhiệm chấp nhận, sử dụng, không được yêu cầu cá nhân phải nộp hoặc xuất trình giấy tờ hộ tịch để đối chiếu.
+
+  - document_number: "87/2020/NĐ-CP"
+    article_number: "Điều 13"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-002"
+    content: |-
+      Điều 13. Cấp bản sao trích lục hộ tịch từ Cơ sở dữ liệu hộ tịch điện tử, xác nhận thông tin hộ tịch
+
+      1. Cơ quan có thẩm quyền theo quy định tại khoản 1, khoản 2, khoản 3, khoản 4 Điều 8 của Nghị định này cấp bản sao trích lục hộ tịch theo yêu cầu của cá nhân, không phụ thuộc vào nơi đã đăng ký việc hộ tịch và nơi cư trú của người có yêu cầu.
+
+      2. Cơ quan có thẩm quyền theo quy định tại khoản 2, khoản 3, khoản 4 Điều 8 của Nghị định này cấp xác nhận thông tin hộ tịch đối với trường hợp cá nhân có yêu cầu khai thác thông tin từ nhiều việc đăng ký hộ tịch hoặc xác nhận các thông tin hộ tịch khác nhau của mình; cơ quan, tổ chức có yêu cầu khai thác nhiều thông tin hộ tịch của một cá nhân hoặc khai thác thông tin hộ tịch của nhiều người.
+
+      3. Người có yêu cầu cấp xác nhận thông tin hộ tịch phải cung cấp thông tin theo biểu mẫu điện từ tương tác, đính kèm bản chụp hoặc bản sao điện tử các giấy tờ, tài liệu có liên quan đến nội dung đề nghị xác nhận thông tin hộ tịch trong trường hợp nộp hồ sơ trực tuyến.
+
+      Trường hợp nộp hồ sơ trực tiếp tại cơ quan đăng ký hộ tịch hoặc gửi hồ sơ qua hệ thống bưu chính thì phải nộp Tờ khai đề nghị xác nhận thông tin hộ tịch theo mẫu, xuất trình bản chính hoặc nộp bản sao có chứng thực các giấy tờ, tài liệu có liên quan đến nội dung đề nghị xác nhận thông tin hộ tịch.
+
+      Trong thời hạn 3 ngày làm việc kể từ ngày tiếp nhận hồ sơ, cơ quan đăng ký, quản lý hộ tịch có thẩm quyền thẩm tra hồ sơ, đối chiếu thông tin trong Cơ sở dữ liệu hộ tịch điện tử, nếu thấy thông tin đề nghị xác nhận là đúng thì có văn bản xác nhận thông tin hộ tịch trả cho người có yêu cầu. Trường hợp phải kiểm tra, xác minh thì thời hạn có thể kéo dài nhưng không quá 10 ngày làm việc.
+
+  - document_number: "04/2020/TT-BTP"
+    article_number: "Điều 2"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-002"
+    content: |-
+      Điều 2. Việc ủy quyền đăng ký hộ tịch
+      1. Người yêu cầu cấp bản sao trích lục hộ tịch, cấp Giấy xác nhận tình
+      trạng hôn nhân, yêu cầu đăng ký các việc hộ tịch theo quy định tại Điều 3 Luật
+      hộ tịch (sau đây gọi là yêu cầu đăng ký hộ tịch) được uỷ quyền cho người khác
+      thực hiện thay; trừ trường hợp đăng ký kết hôn, đăng ký lại việc kết hôn, đăng
+      ký nhận cha, mẹ, con thì không được ủy quyền cho người khác thực hiện, nhưng
+      một bên có thể trực tiếp nộp hồ sơ tại cơ quan đăng ký hộ tịch có thẩm quyền,
+      không phải có văn bản ủy quyền của bên còn lại.
+
+      Việc ủy quyền phải lập thành văn bản, được chứng thực theo quy định của
+      pháp luật. Trường hợp người được ủy quyền là ông, bà, cha, mẹ, con, vợ, chồng,
+      anh, chị, em ruột của người ủy quyền thì văn bản ủy quyền không phải chứng thực.
+
+      2. Trường hợp người đi đăng ký khai sinh cho trẻ em là ông, bà, người
+      thân thích khác theo quy định tại khoản 1 Điều 15 Luật hộ tịch thì không phải có
+      văn bản ủy quyền của cha, mẹ trẻ em, nhưng phải thống nhất với cha, mẹ trẻ em
+      về các nội dung khai sinh.
+
+  - document_number: "04/2020/TT-BTP"
+    article_number: "Điều 6"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 6. Nội dung khai sinh
+      Nội dung khai sinh được xác định theo quy định tại khoản 1 Điều 14 Luật
+      hộ tịch, khoản 1 Điều 4 Nghị định số 123/2015/NĐ-CP và hướng dẫn sau đây:
+
+      1. Việc xác định họ, dân tộc, đặt tên cho trẻ em phải phù hợp với pháp
+      luật và yêu cầu giữ gìn bản sắc dân tộc, tập quán, truyền thống văn hóa tốt đẹp
+      của Việt Nam; không đặt tên quá dài, khó sử dụng.
+
+      2. Trường hợp cha, mẹ không thỏa thuận được về họ, dân tộc, quê quán
+      của con khi đăng ký khai sinh thì họ, dân tộc, quê quán của con được xác định
+      theo tập quán nhưng phải bảo đảm theo họ, dân tộc, quê quán của cha hoặc mẹ.
+
+  - document_number: "04/2020/TT-BTP"
+    article_number: "Điều 7"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 7. Đăng ký khai sinh có yếu tố nước ngoài
+      1. Hồ sơ đăng ký khai sinh cho trẻ em sinh ra ở nước ngoài, có cha hoặc
+      mẹ là công dân Việt Nam hoặc cha và mẹ đều là công dân Việt Nam, chưa được
+      đăng ký khai sinh ở nước ngoài, về cư trú tại Việt Nam, được thực hiện theo quy
+      định tại Điều 29 Nghị định số 123/2015/NĐ-CP và hướng dẫn sau đây:
+
+      a) Giấy tờ chứng minh việc trẻ em đã nhập cảnh hợp pháp và cư trú tại
+      Việt Nam theo quy định tại khoản 2 Điều 29 Nghị định số 123/2015/NĐ-CP
+      gồm: giấy tờ chứng minh việc trẻ em đã nhập cảnh hợp pháp vào Việt Nam
+      (như: hộ chiếu, giấy tờ có giá trị đi lại quốc tế có dấu xác nhận nhập cảnh của cơ
+      quan quản lý xuất, nhập cảnh) và văn bản xác nhận của cơ quan công an có
+      thẩm quyền về việc trẻ em đang cư trú tại Việt Nam.
+
+      b) Việc xác định quốc tịch Việt Nam cho trẻ em khi đăng ký khai sinh
+      được thực hiện theo quy định pháp luật Việt Nam về quốc tịch.
+
+      2. Trường hợp cha, mẹ lựa chọn quốc tịch nước ngoài cho con khi đăng ký
+      khai sinh, thì ngoài văn bản thỏa thuận lựa chọn quốc tịch còn phải có xác nhận
+      của cơ quan có thẩm quyền của nước mà trẻ được chọn mang quốc tịch về việc trẻ
+      có quốc tịch phù hợp quy định pháp luật của nước đó. Nếu cơ quan có thầm
+      quyền nước ngoài không xác nhận thì cơ quan đăng ký hộ tịch thực hiện đăng ký
+      khai sinh cho trẻ, nhưng để trống phần ghi về quốc tịch trong Giấy khai sinh và
+      Sổ đăng ký khai sinh.
+
+  - document_number: "04/2020/TT-BTP"
+    article_number: "Điều 8"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 8. Đăng ký khai sinh cho người đã có hồ sơ, giấy tờ cá nhân
+      1. Ủy ban nhân dân cấp xã nơi cư trú hiện tại thực hiện việc đăng ký khai
+      sinh cho công dân Việt Nam cư trú trong nước, sinh trước ngày 01 tháng 01 năm
+      2016, chưa đăng ký khai sinh nhưng đã có hồ sơ, giấy tờ cá nhân (bản chính hoặc
+      bản sao hợp lệ) như: giấy tờ tùy thân theo quy định tại khoản 1 Điều 2 Nghị định số
+      123/2015/NĐ-CP;4 giấy tờ khác do cơ quan, tổ chức có thẩm quyền của Việt Nam
+      cấp.
+
+      2. Ủy ban nhân dân cấp huyện nơi cư trú trước khi xuất cảnh thực hiện
+      việc đăng ký khai sinh cho người Việt Nam định cư tại nước ngoài, chưa đăng
+      ký khai sinh, nếu có hồ sơ, giấy tờ cá nhân theo quy định tại khoản 1 Điều này,
+      trong đó có ghi nơi sinh tại Việt Nam.
+
+      3. Hồ sơ đăng ký khai sinh đối với các trường hợp quy định tại khoản 1 và
+      khoản 2 Điều này gồm có: Tờ khai đăng ký khai sinh, văn bản cam đoan về việc
+      chưa đăng ký khai sinh; các giấy tờ theo quy định tại điểm b, điểm c khoản 1
+      Điều 26 Nghị định số 123/2015/NĐ-CР.
+
+      Trình tự giải quyết, nội dung đăng ký khai sinh được thực hiện theo quy
+      định tại khoản 2, khoản 3, khoản 5 Điều 26 Nghị định số 123/2015/NĐ-CP và
+      quy định tại khoản 3, khoản 4 Điều 9 và Điều 10 Thông tư này.
+
+  - document_number: "04/2020/TT-BTP"
+    article_number: "Điều 15"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 15. Kết hợp giải quyết việc đăng ký khai sinh và nhận cha, mẹ, con
+      1. Khi đăng ký khai sinh cho trẻ em mà có người yêu cầu đăng ký nhận
+      cha, mẹ, con thì Ủy ban nhân dân cấp xã nơi cư trú của cha hoặc mẹ kết hợp giải
+      quyết thủ tục đăng ký khai sinh và thủ tục đăng ký nhận cha, mẹ, con.
+
+      Trường hợp đăng ký khai sinh kết hợp đăng ký nhận cha, mẹ, con mà một
+      bên có yêu cầu là người nước ngoài, công dân Việt Nam định cư ở nước ngoài
+      thì thẩm quyền thuộc Ủy ban nhân dân cấp huyện nơi cư trú của cha hoặc mẹ là
+      công dân Việt Nam.
+      2. Hồ sơ đăng ký khai sinh kết hợp đăng ký nhận cha, mẹ, con bao gồm:
+
+      a) Tờ khai đăng ký khai sinh, Tờ khai đăng ký nhận cha, me, con theo
+      mẫu quy định;
+      b) Giấy chứng sinh hoặc giấy tờ thay thế Giấy chứng sinh theo quy định
+      tại khoản 1 Điều 16 của Luật hộ tịch;
+      c) Chứng cứ chứng minh quan hệ cha, mẹ, con theo quy định tại Điều 14
+      của Thông tư này.
+
+      3. Trình tự, thủ tục giải quyết việc đăng ký khai sinh kết hợp nhận cha,
+      mẹ, con được thực hiện theo quy định tại khoản 1, khoản 2 Điều 16 và Điều 25
+      Luật hộ tịch trong trường hợp thuộc thẩm quyền của Ủy ban nhân dân cấp xã;
+      theo quy định tại khoản 1, khoản 2 Điều 36 và Điều 44 Luật hộ tịch trong
+      trường hợp thuộc thẩm quyền của Ủy ban nhân dân cấp huyện.
+      Nội dung đăng ký khai sinh xác định theo quy định tại khoản 1 Điều 4
+      Nghị định số 123/2015/NĐ-CP và Điều 6 Thông tư này. Giấy khai sinh và Trích
+      lục đăng ký nhận cha, mẹ, con được cấp đồng thời cho người yêu cầu.
+
+  - document_number: "04/2020/TT-BTP"
+    article_number: "Điều 23"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-002"
+    content: |-
+      Điều 23. Cấp bản sao trích lục hộ tịch
+      1. Cơ quan đăng ký, quản lý hộ tịch đang lưu giữ Sổ hộ tịch hoặc quản lý
+      Cơ sở dữ liệu hộ tịch điện tử có thẩm quyền cấp bản sao trích lục hộ tịch. Nội
+      dung bản sao trích lục hộ tịch được ghi đúng theo thông tin trong Sỗ hộ tịch, Cơ
+      sở dữ liệu hộ tịch điện tử. Những thông tin Sổ hộ tịch, Cơ sở dữ liệu hộ tịch điện
+      tử không có để ghi vào mẫu bản sao trích lục hộ tịch hiện hành thì đề trống.
+
+      2. Trường hợp Sổ hộ tịch trước đây ghi tuổi thì cơ quan đăng ký hộ tịch
+      xác định năm sinh tương ứng ghi vào mục Ghi chú của Sổ hộ tịch, sau đó cấp
+      bản sao trích lục hộ tịch.
+      Ví dụ: Sổ đăng ký khai sinh năm 1975 ghi tuổi của cha là 25 tuổi, tuổi của
+      mẹ là 23 tuổi thì xác định năm sinh của cha: 1950, năm sinh của mẹ: 1952.
+
+      3. Trường hợp thông tin của cá nhân đã được thay đổi, cải chính, bổ sung
+      thông tin hộ tịch, xác định lại dân tộc, ghi vào Sổ hộ tịch việc thay đổi hộ tịch
+      theo bản án, quyết định của cơ quan nhà nước có thẩm quyền, ghi vào Sổ hộ tịch
+      việc hộ tịch của công dân Việt Nam đã được giải quyết tại cơ quan có thẩm
+      quyền của nước ngoài thì thông tin trong bản sao Giấy khai sinh, bản sao trích
+      lục hộ tịch là thông tin đã được cập nhật theo nội dung ghi trong mục Ghi chú
+      của Sổ hộ tịch.
+
+      Trường hợp yêu cầu cấp bản sao Trích lục kết hôn mà trong Sổ đăng ký kết
+      hôn đã ghi chú việc thay đổi hộ tịch theo bản án, quyết định ly hôn đã có hiệu lực
+      pháp luật, ghi vào Sổ hộ tịch việc ly hôn đã được giải quyết tại cơ quan có thẩm
+      quyền nước ngoài thì mục Ghi chú trong Trích lục kết hôn bản sao ghi rõ: Đã ly
+      hôn theo Bản án/Quyết định số... ngày...tháng...năm ... của Tòa án....
+
+  - document_number: "01/2022/TT-BTP"
+    article_number: "Điều 6"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-001"
+    content: |-
+      Điều 6. Nộp, tiếp nhận, trả kết quả đăng ký hộ tịch trực tuyến
+
+      Việc nộp, tiếp nhận, giải quyết yêu cầu đăng ký hộ tịch trực tuyến được thực hiện theo quy định tại Điều 12 của Nghị định số 87/2020/NĐ-CP và hướng dẫn sau đây:
+
+      1. Bản chụp các giấy tờ phải gửi kèm theo hồ sơ đăng ký hộ tịch trực tuyến phải bảo đảm rõ nét, đầy đủ, toàn vẹn về nội dung, là bản chụp bằng máy ảnh, điện thoại hoặc được chụp, được quét bằng thiết bị điện tử, từ giấy tờ được cấp hợp lệ, còn giá trị sử dụng; đã được hợp pháp hóa lãnh sự, dịch sang tiếng Việt theo quy định nếu là giấy tờ do cơ quan có thẩm quyền nước ngoài cấp, trừ trường hợp được miễn hợp pháp hóa lãnh sự.
+
+      Trường hợp người yêu cầu không cung cấp đầy đủ bản chụp các giấy tờ cần thiết theo quy định hoặc bản chụp được gửi kèm theo hồ sơ đăng ký hộ tịch trực tuyến không đáp ứng yêu cầu tại khoản này, thì cơ quan đăng ký hộ tịch thông báo cho người yêu cầu bổ sung, hoàn thiện.
+
+      2. Trường hợp giấy tờ, tài liệu phải gửi kèm theo trong hồ sơ đăng ký hộ tịch trực tuyến đã có bản sao điện tử hoặc đã có bản điện tử giấy tờ hộ tịch thì người yêu cầu được sử dụng các bản điện tử này.
+
+      Trường hợp người yêu cầu đã cung cấp số định danh cá nhân thì không phải gửi kèm theo bản chụp giấy tờ tuỳ thân, giấy tờ chứng minh nơi cư trú trong hồ sơ đăng ký hộ tịch trực tuyến. Cơ quan đăng ký hộ tịch có trách nhiệm khai thác, sử dụng thông tin từ Cơ sở dữ liệu hộ tịch điện tử, Cơ sở dữ liệu quốc gia về dân cư trên cơ sở số định danh cá nhân do người yêu cầu cung cấp.
+
+      3. Sau khi tiếp nhận hồ sơ trên hệ thống, công chức làm công tác hộ tịch có trách nhiệm kiểm tra, đối chiếu thông tin trong hồ sơ và gửi lại biểu mẫu điện tử với thông tin đầy đủ cho người yêu cầu qua thư điện tử hoặc thiết bị số. Trong thời hạn 01 ngày làm việc, người yêu cầu có trách nhiệm kiểm tra tính chính xác, đầy đủ của các thông tin trên biểu mẫu điện tử.
+
+      Nếu người yêu cầu xác nhận thông tin đã thống nhất, đầy đủ hoặc không có phản hồi sau thời hạn yêu cầu thì công chức làm công tác hộ tịch tiến hành giải quyết hồ sơ.
+
+      4. Trình tự, thủ tục giải quyết các việc đăng ký hộ tịch sau khi tiếp nhận hồ sơ đăng ký hộ tịch trực tuyến được thực hiện theo quy định của Luật hộ tịch, Nghị định số 123/2015/NĐ-CP ngày 15/11/2015 của Chính phủ quy định chi tiết một số điều và biện pháp thi hành Luật hộ tịch, Điều 12, Điều 13 Nghị định số 87/2020/NĐ-CP và Thông tư số 04/2020/TT-BTP ngày 28/5/2020 của Bộ trưởng Bộ Tư pháp quy định chi tiết thi hành một số điều của Luật hộ tịch và Nghị định số 123/2015/NĐ-CP (sau đây gọi là Thông tư số 04/2020/TT-BTP).
+
+      5. Việc trả kết quả đăng ký hộ tịch trực tuyến được thực hiện theo quy định tại Khoản 4, Khoản 5 Điều 12 của Nghị định số 87/2020/NĐ-CP và hướng dẫn sau đây:
+
+      a) Đối với các việc hộ tịch pháp luật quy định người có yêu cầu đăng ký hộ tịch phải có mặt tại cơ quan đăng ký hộ tịch, khi đến nhận kết quả theo Phiếu hẹn trả kết quả, người có yêu cầu đăng ký hộ tịch phải xuất trình giấy tờ tùy thân để chứng minh về nhân thân; nộp hoặc xuất trình giấy tờ đã gửi bản chụp trong hồ sơ đăng ký hộ tịch trực tuyến để cơ quan đăng ký hộ tịch lưu hồ sơ hoặc kiểm tra, đối chiếu theo quy định pháp luật hộ tịch, trừ các giấy tờ đã nộp bản điện tử (nếu có).
+
+      b) Trường hợp người yêu cầu đăng ký hộ tịch không cung cấp được giấy tờ quy định tại điểm a khoản này hoặc giấy tờ nộp, xuất trình bị tẩy xóa, sửa chữa, làm giả thì cơ quan đăng ký hộ tịch có thẩm quyền hủy bỏ kết quả đăng ký hộ tịch.
+  
+  - document_number: "281/2016/TT-BTC"
+    article_number: "Điều 4"
+    location_scope: "VN"
+    procedure_tags:
+      - "TTHC-CR-002"
+    content: |-
+      Điều 4. Mức thu phí, lệ phí
+      | Stt | Nội dung | Mức thu |	
+      | 1 | Phí khai thác, sử dụng thông tin trong cơ sở dữ liệu hộ tịch | 8.000 đồng/bản sao trích lục/sự kiện hộ tịch đã đăng ký |

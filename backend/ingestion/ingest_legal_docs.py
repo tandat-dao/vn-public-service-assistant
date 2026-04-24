@@ -69,13 +69,15 @@ DOCUMENT_FILE_MAP: dict[str, str] = {
     "123/2015/NĐ-CP": "123.2015.ND.CP.pdf",
     "87/2020/NĐ-CP":  "87.2020.ND.CP.pdf",
     "04/2020/TT-BTP": "04.2020.TT.BTP.pdf",
-    "01/2022/TT-BTP": "01.2022.TT.BTP.pdf",
-    "07/2025/NĐ-CP":  "07.2025.ND.CP.pdf",
-    "18/2026/NĐ-CP":  "18.2026.ND.CP.pdf",
+    "01/2022/TT-BTP":  "01.2022.TT.BTP.pdf",
+    "281/2016/TT-BTC": "281_2016_TT-BTC.pdf",
+    "07/2025/NĐ-CP":   "07.2025.ND.CP.pdf",
+    "18/2026/NĐ-CP":   "18.2026.ND.CP.pdf",
     # Adoption domain
     "52/2010/QH12":   "52_2010_QH12_108082.pdf",
     "19/2011/NĐ-CP":  "19_2011_ND-CP_120635.pdf",
     "24/2019/NĐ-CP":  "24_2019_ND-CP_392822.pdf",
+    "114/2016/NĐ-CP": "114_2016_ND-CP.pdf",
     # Shared across civil_registration + adoption (2025 decree)
     "120/2025/NĐ-CP": "120_2025_ND-CP_660588.pdf",
 }
@@ -92,13 +94,15 @@ DOCUMENT_NAME_MAP: dict[str, str] = {
     "123/2015/NĐ-CP": "Nghị định 123/2015/NĐ-CP",
     "87/2020/NĐ-CP":  "Nghị định 87/2020/NĐ-CP",
     "04/2020/TT-BTP": "Thông tư 04/2020/TT-BTP",
-    "01/2022/TT-BTP": "Thông tư 01/2022/TT-BTP",
-    "07/2025/NĐ-CP":  "Nghị định 07/2025/NĐ-CP",
+    "01/2022/TT-BTP":  "Thông tư 01/2022/TT-BTP",
+    "281/2016/TT-BTC": "Thông tư 281/2016/TT-BTC",
+    "07/2025/NĐ-CP":   "Nghị định 07/2025/NĐ-CP",
     "18/2026/NĐ-CP":  "Nghị định 18/2026/NĐ-CP",
     # Adoption domain
     "52/2010/QH12":   "Luật Nuôi con nuôi 2010",
     "19/2011/NĐ-CP":  "Nghị định 19/2011/NĐ-CP",
     "24/2019/NĐ-CP":  "Nghị định 24/2019/NĐ-CP",
+    "114/2016/NĐ-CP": "Nghị định 114/2016/NĐ-CP",
     # Shared
     "120/2025/NĐ-CP": "Nghị định 120/2025/NĐ-CP",
 }
@@ -326,6 +330,27 @@ def validate_document_file_map(config: dict[str, Any]) -> None:
                     f"PDF file not found: {pdf_path}. "
                     f"Check that '{DOCUMENT_FILE_MAP[doc_num]}' exists in "
                     f"backend/data/legal_documents/."
+                )
+
+
+def validate_document_numbers_only(config: dict[str, Any]) -> None:
+    """Validate that every document_number in the config exists
+    in DOCUMENT_FILE_MAP.
+
+    Does NOT check whether the PDF file exists on disk.
+    Use this for the manual chunking workflow where PDF files
+    are not required.
+
+    Raises KeyError if any document_number is unrecognized.
+    """
+    for proc in config.get("procedures", []):
+        for doc_entry in proc.get("relevant_documents", []):
+            doc_num = doc_entry["document_number"]
+            if doc_num not in DOCUMENT_FILE_MAP:
+                raise KeyError(
+                    f"document_number '{doc_num}' in domain config has no "
+                    f"entry in DOCUMENT_FILE_MAP. Add it to DOCUMENT_FILE_MAP "
+                    f"before ingesting."
                 )
 
 

@@ -1,0 +1,568 @@
+[
+  {
+    "id": "C-001",
+    "domain": "civil_registration",
+    "procedure_id": "TTHC-CR-001",
+    "input_message": "Thời hạn đăng ký khai sinh cho trẻ sơ sinh là bao lâu kể từ ngày sinh?",
+    "expected_articles": [
+      {
+        "document_number": "60/2014/QH13",
+        "article_number": 15,
+        "khoản": 1,
+        "content_excerpt": "Trong thời hạn 60 ngày kể từ ngày sinh con, cha hoặc mẹ có trách nhiệm đăng ký khai sinh cho con; trường hợp cha, mẹ không thể đăng ký khai sinh cho con thì ông hoặc bà hoặc người thân thích khác hoặc cán bộ tư pháp - hộ tịch thực hiện đăng ký khai sinh cho trẻ em.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Câu hỏi điển hình về thời hạn. Điều 15 khoản 1 là điều khoản chính. Kiểm tra xem response có trích dẫn đúng [Điều 15 Khoản 1, Luật Hộ tịch 60/2014/QH13] không."
+  },
+  {
+    "id": "C-002",
+    "domain": "civil_registration",
+    "procedure_id": "TTHC-CR-001",
+    "input_message": "Cơ quan nào có thẩm quyền tiếp nhận và giải quyết đăng ký khai sinh?",
+    "expected_articles": [
+      {
+        "document_number": "60/2014/QH13",
+        "article_number": 13,
+        "khoản": null,
+        "content_excerpt": "Ủy ban nhân dân cấp xã nơi cư trú của người cha hoặc người mẹ thực hiện đăng ký khai sinh.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Hỏi về thẩm quyền. Điều 13 quy định UBND cấp xã nơi cư trú của cha/mẹ là cơ quan có thẩm quyền. Không cần trích đến cấp khoản."
+  },
+  {
+    "id": "C-003",
+    "domain": "civil_registration",
+    "procedure_id": "TTHC-CR-001",
+    "input_message": "Nếu quá 60 ngày mà chưa đăng ký khai sinh thì có làm được không? Thủ tục như thế nào?",
+    "expected_articles": [
+      {
+        "document_number": "60/2014/QH13",
+        "article_number": 16,
+        "khoản": null,
+        "content_excerpt": "Đăng ký khai sinh quá hạn được thực hiện tại Ủy ban nhân dân cấp xã nơi có thẩm quyền đăng ký khai sinh theo quy định. Hồ sơ đăng ký khai sinh quá hạn gồm các giấy tờ tương tự như đăng ký trong hạn cùng với văn bản giải trình về lý do khai sinh quá hạn.",
+        "verified": false
+      },
+      {
+        "document_number": "123/2015/NĐ-CP",
+        "article_number": 27,
+        "khoản": null,
+        "content_excerpt": "Việc đăng ký khai sinh quá hạn được thực hiện theo quy định của Luật hộ tịch và nghị định này.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Khai sinh quá hạn. Điều 16 Luật Hộ tịch và Điều 27 NĐ-123 cần được trích dẫn. Reviewer cần xác minh số điều khoản trong NĐ 123/2015/NĐ-CP."
+  },
+  {
+    "id": "C-004",
+    "domain": "civil_registration",
+    "procedure_id": "TTHC-CR-001",
+    "input_message": "Cần chuẩn bị những giấy tờ gì để đăng ký khai sinh cho con?",
+    "expected_articles": [
+      {
+        "document_number": "60/2014/QH13",
+        "article_number": 15,
+        "khoản": 2,
+        "content_excerpt": "Người đi đăng ký khai sinh xuất trình giấy tờ theo quy định và nộp tờ khai theo mẫu quy định.",
+        "verified": false
+      },
+      {
+        "document_number": "123/2015/NĐ-CP",
+        "article_number": 9,
+        "khoản": 1,
+        "content_excerpt": "Người đi đăng ký khai sinh nộp tờ khai theo mẫu quy định và giấy chứng sinh do cơ sở y tế cấp cho cơ quan đăng ký hộ tịch.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Hỏi về hồ sơ. Điều 9 khoản 1 của NĐ 123 quy định giấy tờ cụ thể. Reviewer cần xác minh nội dung Điều 9 trong nghị định."
+  },
+  {
+    "id": "C-005",
+    "domain": "civil_registration",
+    "procedure_id": "TTHC-CR-001",
+    "input_message": "Lệ phí đăng ký khai sinh là bao nhiêu? Có trường hợp nào được miễn phí không?",
+    "expected_articles": [
+      {
+        "document_number": "281/2016/TT-BTC",
+        "article_number": 4,
+        "khoản": null,
+        "content_excerpt": "Mức thu lệ phí đăng ký khai sinh: miễn thu đối với trường hợp đăng ký trong hạn tại khu vực nông thôn; thu theo biểu mức lệ phí đối với đô thị và khu vực khác.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Câu hỏi về lệ phí. Thông tư 281/2016/TT-BTC quy định biểu phí hộ tịch. Reviewer cần xác minh điều khoản cụ thể và mức thu tại Phụ lục hoặc Điều 4. Nội dung excerpt chưa chính xác — cần đối chiếu với văn bản gốc."
+  },
+  {
+    "id": "C-006",
+    "domain": "civil_registration",
+    "procedure_id": "TTHC-CR-002",
+    "input_message": "Ai có quyền yêu cầu cấp bản sao trích lục hộ tịch? Người không cùng địa chỉ có được không?",
+    "expected_articles": [
+      {
+        "document_number": "60/2014/QH13",
+        "article_number": 63,
+        "khoản": 1,
+        "content_excerpt": "Cá nhân, tổ chức có quyền yêu cầu cơ quan đăng ký hộ tịch cấp bản sao trích lục hộ tịch về sự kiện hộ tịch đã được đăng ký. Người yêu cầu không cần phải cư trú tại nơi đã đăng ký sự kiện hộ tịch.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Điều 63 khoản 1 khẳng định quyền yêu cầu không phụ thuộc vào nơi cư trú — đây là điểm quan trọng. Kiểm tra xem response có nhấn mạnh điều này không."
+  },
+  {
+    "id": "C-007",
+    "domain": "civil_registration",
+    "procedure_id": "TTHC-CR-002",
+    "input_message": "Thủ tục cấp bản sao trích lục hộ tịch như thế nào? Mất bao lâu?",
+    "expected_articles": [
+      {
+        "document_number": "60/2014/QH13",
+        "article_number": 64,
+        "khoản": 1,
+        "content_excerpt": "Ngay sau khi nhận đủ hồ sơ hợp lệ, cơ quan đăng ký hộ tịch phải cấp ngay bản sao trích lục hộ tịch cho người yêu cầu.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Điều 64 khoản 1 quy định 'cấp ngay' — không có thời hạn ngày mà yêu cầu xử lý tức thì. Kiểm tra response không nói sai về thời hạn (ví dụ: '3 ngày làm việc')."
+  },
+  {
+    "id": "C-008",
+    "domain": "civil_registration",
+    "procedure_id": "TTHC-CR-002",
+    "input_message": "Tôi cần xin bản sao trích lục giấy khai sinh của mình nhưng hiện đang ở TP.HCM, còn giấy khai sinh gốc ở Đà Nẵng. Phải làm thế nào?",
+    "expected_articles": [
+      {
+        "document_number": "60/2014/QH13",
+        "article_number": 63,
+        "khoản": null,
+        "content_excerpt": "Cá nhân có quyền yêu cầu bất kỳ cơ quan đăng ký hộ tịch nào có lưu trữ sự kiện đó cấp bản sao trích lục.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Trường hợp thực tế: người dùng ở tỉnh khác với nơi đăng ký gốc. Điều 63 quy định quyền yêu cầu không theo địa bàn. Nội dung excerpt cần reviewer kiểm tra lại."
+  },
+  {
+    "id": "C-009",
+    "domain": "civil_registration",
+    "procedure_id": "TTHC-CR-001",
+    "input_message": "Đăng ký khai sinh cho trẻ khi chưa xác định được cha thì khai tên cha như thế nào trong giấy khai sinh?",
+    "expected_articles": [
+      {
+        "document_number": "60/2014/QH13",
+        "article_number": 15,
+        "khoản": 3,
+        "content_excerpt": "Trường hợp chưa xác định được cha thì phần khai về người cha trong giấy khai sinh và sổ hộ tịch để trống.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Tình huống cụ thể khi chưa xác định cha. Điều 15 khoản 3 quy định để trống phần khai về cha. Reviewer cần xác minh nội dung khoản 3 Điều 15."
+  },
+  {
+    "id": "C-010",
+    "domain": "civil_registration",
+    "procedure_id": "TTHC-CR-001",
+    "input_message": "Trẻ em sinh ra tại bệnh viện mà bố mẹ không có hộ khẩu TP.HCM thì đăng ký khai sinh ở đâu?",
+    "expected_articles": [
+      {
+        "document_number": "60/2014/QH13",
+        "article_number": 13,
+        "khoản": null,
+        "content_excerpt": "Ủy ban nhân dân cấp xã nơi cư trú của người cha hoặc người mẹ thực hiện đăng ký khai sinh. Trường hợp người cha và người mẹ không có nơi cư trú thì Ủy ban nhân dân cấp xã nơi trẻ đang sinh sống thực hiện đăng ký khai sinh.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Tình huống thực tế: không có hộ khẩu. Điều 13 quy định thẩm quyền nơi cư trú của cha/mẹ. Reviewer cần xác minh điều khoản về trường hợp không có nơi cư trú xác định."
+  },
+  {
+    "id": "C-011",
+    "domain": "adoption",
+    "procedure_id": "TTHC-AD-001",
+    "input_message": "Trẻ em bao nhiêu tuổi thì được nhận làm con nuôi? Có trường hợp ngoại lệ không?",
+    "expected_articles": [
+      {
+        "document_number": "52/2010/QH12",
+        "article_number": 8,
+        "khoản": 1,
+        "content_excerpt": "Trẻ em dưới 16 tuổi được nhận làm con nuôi.",
+        "verified": false
+      },
+      {
+        "document_number": "52/2010/QH12",
+        "article_number": 8,
+        "khoản": 2,
+        "content_excerpt": "Người từ đủ 16 tuổi đến dưới 18 tuổi có thể được nhận làm con nuôi nếu được nhận làm con nuôi bởi cha dượng, mẹ kế hoặc cô, cậu, dì, chú, bác ruột.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Điều 8 khoản 1 quy định giới hạn 16 tuổi; khoản 2 là ngoại lệ. Cả hai khoản phải xuất hiện trong response nếu câu hỏi hỏi về ngoại lệ."
+  },
+  {
+    "id": "C-012",
+    "domain": "adoption",
+    "procedure_id": "TTHC-AD-001",
+    "input_message": "Người muốn nhận con nuôi phải hơn tuổi con nuôi bao nhiêu? Có điều kiện gì khác không?",
+    "expected_articles": [
+      {
+        "document_number": "52/2010/QH12",
+        "article_number": 14,
+        "khoản": 1,
+        "content_excerpt": "Người nhận con nuôi phải đáp ứng các điều kiện: hơn con nuôi từ đủ 20 tuổi trở lên; có năng lực hành vi dân sự đầy đủ; có sức khỏe, kinh tế, chỗ ở bảo đảm quyền lợi cho con nuôi; có tư cách đạo đức tốt.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Điều 14 khoản 1 liệt kê đầy đủ điều kiện. Reviewer cần đối chiếu với văn bản gốc để xác nhận 4 điều kiện chính xác và phân biệt khoản 1a/1b/1c/1d nếu luật chia theo điểm."
+  },
+  {
+    "id": "C-013",
+    "domain": "adoption",
+    "procedure_id": "TTHC-AD-001",
+    "input_message": "Nếu vợ chồng cùng muốn nhận con nuôi thì cả hai vợ chồng đều phải ký không?",
+    "expected_articles": [
+      {
+        "document_number": "52/2010/QH12",
+        "article_number": 14,
+        "khoản": 2,
+        "content_excerpt": "Trường hợp cha dượng hoặc mẹ kế nhận con riêng của vợ hoặc chồng làm con nuôi hoặc cô, cậu, dì, chú, bác ruột nhận cháu làm con nuôi thì không áp dụng quy định tại khoản 1 Điều này. Trường hợp một người nhận con nuôi mà đang có vợ hoặc chồng thì vợ hoặc chồng người đó cũng phải đồng ý nhận con nuôi.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Điều 14 khoản 2 yêu cầu đồng ý của cả vợ lẫn chồng. Reviewer cần xác minh nội dung khoản 2 trong văn bản gốc — phần về sự đồng ý của vợ/chồng."
+  },
+  {
+    "id": "C-014",
+    "domain": "adoption",
+    "procedure_id": "TTHC-AD-001",
+    "input_message": "Hồ sơ đăng ký nhận nuôi con nuôi trong nước gồm những giấy tờ gì?",
+    "expected_articles": [
+      {
+        "document_number": "52/2010/QH12",
+        "article_number": 18,
+        "khoản": 1,
+        "content_excerpt": "Hồ sơ của người nhận con nuôi gồm: đơn xin nhận con nuôi; bản sao hộ chiếu, giấy chứng minh nhân dân hoặc giấy tờ có giá trị thay thế; phiếu lý lịch tư pháp; văn bản xác nhận tình trạng hôn nhân; văn bản xác nhận về điều kiện gia đình.",
+        "verified": false
+      },
+      {
+        "document_number": "19/2011/NĐ-CP",
+        "article_number": 10,
+        "khoản": 1,
+        "content_excerpt": "Người nhận con nuôi nộp hồ sơ tại Ủy ban nhân dân cấp xã nơi trẻ em thường trú. Hồ sơ gồm các giấy tờ theo quy định của Luật nuôi con nuôi.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Điều 18 Luật 52/2010 và Điều 10 NĐ 19/2011 quy định hồ sơ. Reviewer cần xác minh danh sách giấy tờ chính xác trong cả hai văn bản."
+  },
+  {
+    "id": "C-015",
+    "domain": "adoption",
+    "procedure_id": "TTHC-AD-001",
+    "input_message": "Sau khi nộp hồ sơ nhận con nuôi, bao lâu thì được giải quyết?",
+    "expected_articles": [
+      {
+        "document_number": "52/2010/QH12",
+        "article_number": 19,
+        "khoản": 2,
+        "content_excerpt": "Trong thời hạn 30 ngày, kể từ ngày nhận đủ hồ sơ hợp lệ, Ủy ban nhân dân cấp xã xem xét, giải quyết việc nuôi con nuôi.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Điều 19 khoản 2 quy định đúng 30 ngày. Đây là điểm quan trọng cần trích dẫn chính xác. Kiểm tra response không nêu sai thời hạn."
+  },
+  {
+    "id": "C-016",
+    "domain": "adoption",
+    "procedure_id": "TTHC-AD-001",
+    "input_message": "Lệ phí đăng ký nuôi con nuôi trong nước là bao nhiêu?",
+    "expected_articles": [
+      {
+        "document_number": "114/2016/NĐ-CP",
+        "article_number": 6,
+        "khoản": 1,
+        "content_excerpt": "Đăng ký việc nuôi con nuôi trong nước: 400.000 đồng.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Điều 6 khoản 1 NĐ 114/2016 quy định mức phí 400.000 đồng. Reviewer cần xác nhận số điều/khoản và số tiền chính xác trong văn bản gốc."
+  },
+  {
+    "id": "C-017",
+    "domain": "adoption",
+    "procedure_id": "TTHC-AD-002",
+    "input_message": "Trong trường hợp nào thì phải đăng ký lại việc nuôi con nuôi?",
+    "expected_articles": [
+      {
+        "document_number": "19/2011/NĐ-CP",
+        "article_number": 29,
+        "khoản": 1,
+        "content_excerpt": "Đăng ký lại việc nuôi con nuôi trong nước được thực hiện khi sổ hộ tịch và bản chính giấy tờ hộ tịch về việc nuôi con nuôi đều bị mất hoặc hư hỏng không thể phục hồi được.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Điều 29 khoản 1 quy định điều kiện kép: cả sổ hộ tịch VÀ bản chính đều bị mất. Kiểm tra response có nêu đúng cả hai điều kiện không, không chỉ một."
+  },
+  {
+    "id": "C-018",
+    "domain": "adoption",
+    "procedure_id": "TTHC-AD-001",
+    "input_message": "Thủ tục nộp hồ sơ nhận nuôi như thế nào? Nộp ở đâu?",
+    "expected_articles": [
+      {
+        "document_number": "52/2010/QH12",
+        "article_number": 17,
+        "khoản": null,
+        "content_excerpt": "Người nhận con nuôi nộp hồ sơ tại Ủy ban nhân dân cấp xã nơi người được nhận làm con nuôi đang thường trú.",
+        "verified": false
+      },
+      {
+        "document_number": "19/2011/NĐ-CP",
+        "article_number": 10,
+        "khoản": 2,
+        "content_excerpt": "Sau khi nhận đủ hồ sơ hợp lệ, cán bộ tư pháp - hộ tịch kiểm tra, lập tờ trình trình Chủ tịch Ủy ban nhân dân cấp xã.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Nơi nộp hồ sơ là UBND cấp xã nơi trẻ em thường trú (không phải nơi người nhận nuôi cư trú). Điểm này thường gây nhầm lẫn — kiểm tra response có nêu đúng không."
+  },
+  {
+    "id": "C-019",
+    "domain": "adoption",
+    "procedure_id": "TTHC-AD-001",
+    "input_message": "Con nuôi có được thừa kế tài sản của cha mẹ nuôi không?",
+    "expected_articles": [
+      {
+        "document_number": "52/2010/QH12",
+        "article_number": 24,
+        "khoản": null,
+        "content_excerpt": "Con nuôi và cha mẹ nuôi có các quyền và nghĩa vụ của cha, mẹ và con theo quy định của pháp luật về hôn nhân và gia đình, kể từ thời điểm đăng ký việc nuôi con nuôi.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Câu hỏi về quyền thừa kế — liên quan đến Điều 24 Luật Nuôi con nuôi. RAG có thể truy xuất điều này nếu corpus đủ rộng. Reviewer cần xác minh số điều chính xác."
+  },
+  {
+    "id": "C-020",
+    "domain": "adoption",
+    "procedure_id": "TTHC-AD-001",
+    "input_message": "Người chưa thành niên có được nhận con nuôi không?",
+    "expected_articles": [
+      {
+        "document_number": "52/2010/QH12",
+        "article_number": 14,
+        "khoản": 1,
+        "content_excerpt": "Người nhận con nuôi phải có năng lực hành vi dân sự đầy đủ. Người chưa thành niên (dưới 18 tuổi) không có đủ năng lực hành vi dân sự đầy đủ và không đáp ứng điều kiện này.",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Câu hỏi gián tiếp về điều kiện năng lực. Điều 14 khoản 1 yêu cầu năng lực hành vi dân sự đầy đủ — người chưa thành niên không đủ. Reviewer cần kiểm tra liệu luật có quy định tường minh độ tuổi tối thiểu không."
+  },
+  {
+    "id": "C-021",
+    "domain": "housing",
+    "procedure_id": "TTHC-001",
+    "input_message": "Điều kiện để đăng ký thường trú tại TP.HCM là gì? Cần có chỗ ở hợp pháp như thế nào?",
+    "expected_articles": [
+      {
+        "document_number": "68/2020/QH14",
+        "article_number": 13,
+        "khoản": null,
+        "content_excerpt": "Chưa xác minh — xem Qdrant trực tiếp",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Housing domain: chunks từ Docling ingestion, không phải YAML thủ công. Số điều dự kiến dựa trên cấu trúc Luật Cư trú 2020. Reviewer phải truy vấn Qdrant (collection legal_documents, procedure_tags=[TTHC-001]) để lấy content_excerpt chính xác trước khi dùng trong automated benchmark."
+  },
+  {
+    "id": "C-022",
+    "domain": "housing",
+    "procedure_id": "TTHC-001",
+    "input_message": "Hồ sơ đăng ký thường trú gồm những giấy tờ gì?",
+    "expected_articles": [
+      {
+        "document_number": "68/2020/QH14",
+        "article_number": 17,
+        "khoản": null,
+        "content_excerpt": "Chưa xác minh — xem Qdrant trực tiếp",
+        "verified": false
+      },
+      {
+        "document_number": "62/2021/NĐ-CP",
+        "article_number": 4,
+        "khoản": null,
+        "content_excerpt": "Chưa xác minh — xem Qdrant trực tiếp",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Hồ sơ đăng ký thường trú. Luật 68/2020 và NĐ 62/2021 đều có quy định. Reviewer cần Qdrant scroll để lấy chunks thực tế."
+  },
+  {
+    "id": "C-023",
+    "domain": "housing",
+    "procedure_id": "TTHC-001",
+    "input_message": "Bao lâu thì được giải quyết hồ sơ đăng ký thường trú? Thời hạn tối đa là mấy ngày?",
+    "expected_articles": [
+      {
+        "document_number": "68/2020/QH14",
+        "article_number": 18,
+        "khoản": null,
+        "content_excerpt": "Chưa xác minh — xem Qdrant trực tiếp",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Thời hạn giải quyết. Reviewer tra Qdrant tìm chunk về thời hạn xử lý đăng ký thường trú."
+  },
+  {
+    "id": "C-024",
+    "domain": "housing",
+    "procedure_id": "TTHC-001",
+    "input_message": "Cơ quan nào có thẩm quyền tiếp nhận và giải quyết đăng ký thường trú?",
+    "expected_articles": [
+      {
+        "document_number": "68/2020/QH14",
+        "article_number": 12,
+        "khoản": null,
+        "content_excerpt": "Chưa xác minh — xem Qdrant trực tiếp",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Thẩm quyền đăng ký thường trú. Reviewer kiểm tra chunk về cơ quan đăng ký (Công an cấp xã hay UBND)."
+  },
+  {
+    "id": "C-025",
+    "domain": "housing",
+    "procedure_id": "TTHC-002",
+    "input_message": "Điều kiện để đăng ký tạm trú là gì? Tạm trú khác thường trú như thế nào?",
+    "expected_articles": [
+      {
+        "document_number": "68/2020/QH14",
+        "article_number": 24,
+        "khoản": null,
+        "content_excerpt": "Chưa xác minh — xem Qdrant trực tiếp",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Điều kiện tạm trú. Reviewer tra Qdrant để lấy chunk về Điều kiện tạm trú và so sánh với thường trú."
+  },
+  {
+    "id": "C-026",
+    "domain": "housing",
+    "procedure_id": "TTHC-002",
+    "input_message": "Cần chuẩn bị hồ sơ gì để đăng ký tạm trú?",
+    "expected_articles": [
+      {
+        "document_number": "68/2020/QH14",
+        "article_number": 25,
+        "khoản": null,
+        "content_excerpt": "Chưa xác minh — xem Qdrant trực tiếp",
+        "verified": false
+      },
+      {
+        "document_number": "62/2021/NĐ-CP",
+        "article_number": 6,
+        "khoản": null,
+        "content_excerpt": "Chưa xác minh — xem Qdrant trực tiếp",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Hồ sơ đăng ký tạm trú. Reviewer Qdrant scroll với procedure_tags=[TTHC-002] để lấy chunks chứa danh sách giấy tờ."
+  },
+  {
+    "id": "C-027",
+    "domain": "housing",
+    "procedure_id": "TTHC-002",
+    "input_message": "Thời hạn tạm trú tối đa là bao lâu? Có gia hạn được không?",
+    "expected_articles": [
+      {
+        "document_number": "68/2020/QH14",
+        "article_number": 27,
+        "khoản": null,
+        "content_excerpt": "Chưa xác minh — xem Qdrant trực tiếp",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Thời hạn tạm trú và gia hạn. Reviewer cần tìm chunk nói về thời hạn và quy trình gia hạn."
+  },
+  {
+    "id": "C-028",
+    "domain": "housing",
+    "procedure_id": "TTHC-003",
+    "input_message": "Giấy xác nhận cư trú là gì? Dùng để làm gì?",
+    "expected_articles": [
+      {
+        "document_number": "68/2020/QH14",
+        "article_number": 30,
+        "khoản": null,
+        "content_excerpt": "Chưa xác minh — xem Qdrant trực tiếp",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Định nghĩa xác nhận cư trú. Reviewer tra Qdrant tìm chunk giải thích về loại giấy tờ này và các trường hợp cần dùng."
+  },
+  {
+    "id": "C-029",
+    "domain": "housing",
+    "procedure_id": "TTHC-003",
+    "input_message": "Thủ tục xin xác nhận thông tin cư trú như thế nào? Có thể làm online không?",
+    "expected_articles": [
+      {
+        "document_number": "68/2020/QH14",
+        "article_number": 31,
+        "khoản": null,
+        "content_excerpt": "Chưa xác minh — xem Qdrant trực tiếp",
+        "verified": false
+      },
+      {
+        "document_number": "55/2021/TT-BCA",
+        "article_number": 10,
+        "khoản": null,
+        "content_excerpt": "Chưa xác minh — xem Qdrant trực tiếp",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Thủ tục xác nhận cư trú. Thông tư 55/2021/TT-BCA quy định chi tiết. Reviewer cần Qdrant để xác nhận số điều và nội dung."
+  },
+  {
+    "id": "C-030",
+    "domain": "housing",
+    "procedure_id": "TTHC-001",
+    "input_message": "Lệ phí đăng ký thường trú là bao nhiêu? Có trường hợp được miễn phí không?",
+    "expected_articles": [
+      {
+        "document_number": "104/2022/NĐ-CP",
+        "article_number": 4,
+        "khoản": null,
+        "content_excerpt": "Chưa xác minh — xem Qdrant trực tiếp",
+        "verified": false
+      }
+    ],
+    "tier": 2,
+    "notes": "Lệ phí cư trú. NĐ 104/2022/NĐ-CP thay thế NĐ 146/2016. Reviewer tra Qdrant tìm chunk về mức phí và các trường hợp miễn thu."
+  }
+]

@@ -44,9 +44,8 @@ class TestValidExtensionAndMime:
             await validate_upload(f)  # must not raise
 
     async def test_valid_png_passes(self):
-        f = _make_upload_file("scan.png", content=b"\x89PNG" + b"\x00" * 2044)
-        with patch("magic.from_buffer", return_value="image/png"):
-            await validate_upload(f)
+        f = _make_upload_file("scan.png", content=b"\x89PNG\r\n\x1a\n" + b"\x00" * 2040)
+        await validate_upload(f)
 
 
 class TestExtensionRejection:
@@ -90,13 +89,12 @@ class TestSizeRejection:
 
 class TestMimeMismatch:
     async def test_pdf_extension_but_exe_mime_rejected(self):
-        """File named .pdf but magic detects application/x-executable → reject."""
+        """File named .pdf but bytes don't match any known signature → reject."""
         f = _make_upload_file("trick.pdf", content=b"MZ" + b"\x00" * 2046)
-        with patch("magic.from_buffer", return_value="application/x-executable"):
-            with pytest.raises(HTTPException) as exc_info:
-                await validate_upload(f)
+        with pytest.raises(HTTPException) as exc_info:
+            await validate_upload(f)
         assert exc_info.value.status_code == 422
-        assert "application/x-executable" in exc_info.value.detail
+        assert "application/octet-stream" in exc_info.value.detail
 
     async def test_jpg_extension_but_html_mime_rejected(self):
         f = _make_upload_file("photo.jpg", content=b"<html>" + b" " * 2042)

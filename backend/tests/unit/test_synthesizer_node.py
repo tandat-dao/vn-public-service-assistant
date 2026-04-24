@@ -323,13 +323,13 @@ async def test_synthesizer_includes_retrieved_sources_in_metadata(mock_llm):
         status="active",
         rrf_score=0.9,
     )
-    # content longer than 600 chars — must be capped
+    # content longer than 1200 chars — must be capped
     chunk_long = DocumentChunk(
         point_id="pt-5",
         legal_document_id="doc-002",
         document_number="104/2022/NĐ-CP",
         article_number="5",
-        content="X" * 700,
+        content="X" * 1300,
         procedure_tags=["TTHC-002"],
         status="active",
         rrf_score=0.7,
@@ -357,7 +357,7 @@ async def test_synthesizer_includes_retrieved_sources_in_metadata(mock_llm):
     assert len(sources) == 2
     # Content cap enforced
     for source in sources:
-        assert len(source["content"]) <= 600
+        assert len(source["content"]) <= 1200
     article_numbers = {s["article_number"] for s in sources}
     doc_numbers = {s["document_number"] for s in sources}
     assert "19" in article_numbers
@@ -479,3 +479,111 @@ def test_synthesizer_ocr_document_type_does_not_trigger_draft_mode():
     assert mode == "fallback", (
         f"OCR document type 'cccd' must NOT trigger document_draft mode; got {mode!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Guided wizard extended to new procedures — State 2 directs to page form
+# ---------------------------------------------------------------------------
+
+async def test_synthesizer_guided_step2_tthc_cr_001_directs_to_page_form():
+    """State 2 for TTHC-CR-001 returns hardcoded page-form guidance without calling LLM."""
+    from app.agents.nodes.synthesizer import synthesizer_node
+
+    svc = MagicMock()
+    svc.async_invoke = AsyncMock(return_value="LLM response that must NOT be used")
+
+    state = _base_state(
+        guided_step=2,
+        guided_procedure_id="TTHC-CR-001",
+        errors=[],
+        retrieved_chunks=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+    )
+
+    with patch("app.agents.nodes.synthesizer._get_llm", return_value=svc):
+        result = await synthesizer_node(state)
+
+    assert result["response_metadata"]["mode"] == "guided_step"
+    assert result["response_metadata"]["guided_step"] == 2
+    assert result["response_metadata"]["filled_form_path"] is None
+    assert "Điền thông tin vào mẫu đơn" in result["final_response"]
+    svc.async_invoke.assert_not_called()
+
+
+async def test_synthesizer_guided_step2_tthc_cr_002_directs_to_page_form():
+    """State 2 for TTHC-CR-002 returns hardcoded page-form guidance without calling LLM."""
+    from app.agents.nodes.synthesizer import synthesizer_node
+
+    svc = MagicMock()
+    svc.async_invoke = AsyncMock(return_value="LLM response that must NOT be used")
+
+    state = _base_state(
+        guided_step=2,
+        guided_procedure_id="TTHC-CR-002",
+        errors=[],
+        retrieved_chunks=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+    )
+
+    with patch("app.agents.nodes.synthesizer._get_llm", return_value=svc):
+        result = await synthesizer_node(state)
+
+    assert result["response_metadata"]["mode"] == "guided_step"
+    assert result["response_metadata"]["guided_step"] == 2
+    assert result["response_metadata"]["filled_form_path"] is None
+    assert "Điền thông tin vào mẫu đơn" in result["final_response"]
+    svc.async_invoke.assert_not_called()
+
+
+async def test_synthesizer_guided_step2_tthc_ad_001_directs_to_page_form():
+    """State 2 for TTHC-AD-001 returns hardcoded page-form guidance without calling LLM."""
+    from app.agents.nodes.synthesizer import synthesizer_node
+
+    svc = MagicMock()
+    svc.async_invoke = AsyncMock(return_value="LLM response that must NOT be used")
+
+    state = _base_state(
+        guided_step=2,
+        guided_procedure_id="TTHC-AD-001",
+        errors=[],
+        retrieved_chunks=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+    )
+
+    with patch("app.agents.nodes.synthesizer._get_llm", return_value=svc):
+        result = await synthesizer_node(state)
+
+    assert result["response_metadata"]["mode"] == "guided_step"
+    assert result["response_metadata"]["guided_step"] == 2
+    assert result["response_metadata"]["filled_form_path"] is None
+    assert "Điền thông tin vào mẫu đơn" in result["final_response"]
+    svc.async_invoke.assert_not_called()
+
+
+async def test_synthesizer_guided_step2_tthc_ad_002_directs_to_page_form():
+    """State 2 for TTHC-AD-002 returns hardcoded page-form guidance without calling LLM."""
+    from app.agents.nodes.synthesizer import synthesizer_node
+
+    svc = MagicMock()
+    svc.async_invoke = AsyncMock(return_value="LLM response that must NOT be used")
+
+    state = _base_state(
+        guided_step=2,
+        guided_procedure_id="TTHC-AD-002",
+        errors=[],
+        retrieved_chunks=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+    )
+
+    with patch("app.agents.nodes.synthesizer._get_llm", return_value=svc):
+        result = await synthesizer_node(state)
+
+    assert result["response_metadata"]["mode"] == "guided_step"
+    assert result["response_metadata"]["guided_step"] == 2
+    assert result["response_metadata"]["filled_form_path"] is None
+    assert "Điền thông tin vào mẫu đơn" in result["final_response"]
+    svc.async_invoke.assert_not_called()
