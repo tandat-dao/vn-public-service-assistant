@@ -96,13 +96,73 @@ class RedisService:
             )
             return None
 
+    async def _compact_history(
+        self,
+        history: list[dict],
+        max_turns: int = 6,
+        llm_service=None,  # type: LLMService | None — lazy import avoids circ dep
+    ) -> list[dict]:
+        """Compact history exceeding max_turns into a summary + recent turns.
+
+        Returns history unchanged if len(history) <= max_turns.
+
+        When llm_service is provided, summarises the oldest turns in Vietnamese via LLM
+        (adds 1-3s latency per save_session call beyond the threshold). When None, falls
+        back to plain concatenation of the first 3 user messages — sufficient for DoD and
+        keeps save_session fast by default.
+        """
+        if len(history) <= max_turns:
+            return history
+
+        # Turns to compact: everything older than the most recent (max_turns - 1) turns
+        cutoff = len(history) - (max_turns - 1)
+        turns_to_compact = history[:cutoff]
+        recent_turns = history[cutoff:]
+
+        if llm_service is not None:
+            # LLM path: summarise in Vietnamese
+            compact_text = "\n".join(
+                f"{t['role'].upper()}: {t['content']}" for t in turns_to_compact
+            )
+            summary = await llm_service.async_invoke(
+                system=(
+                    "Hãy tóm tắt đoạn hội thoại dưới đây thành 2-3 câu bằng tiếng Việt, "
+                    "ghi lại thông tin quan trọng như thủ tục đã hỏi, thông tin cá nhân "
+                    "đã xác nhận, và kết quả của cuộc trò chuyện. "
+                    "Chỉ trả về bản tóm tắt, không giải thích thêm."
+                ),
+                messages=[{"role": "user", "content": compact_text}],
+                max_tokens=256,
+            )
+        else:
+            # Fallback: concatenate user messages (no LLM cost, < 1ms)
+            user_msgs = [t["content"] for t in turns_to_compact if t.get("role") == "user"]
+            summary = " | ".join(user_msgs[:3])
+
+        synthetic = {"role": "assistant", "content": f"Tóm tắt trước đó: {summary}"}
+        return [synthetic] + recent_turns
+
     async def save_session(self, session_id: str, data: SessionData) -> None:
-        """Trim history, update timestamp, encrypt, and persist with TTL of 3600 seconds."""
-        # Enforce 6-turn window and update timestamp
-        trimmed_history = data.conversation_history[-_MAX_HISTORY_TURNS:]
+        """Compact history, update timestamp, encrypt, and persist with TTL of 3600 seconds.
+
+        Compaction condenses turns older than the 6-turn window into a synthetic
+        assistant summary entry rather than silently discarding them. llm_service is
+        passed as None here (plain-concatenation fallback) to keep save_session fast;
+        the LLM-enhanced path is opt-in via explicit injection in callers that can
+        afford the extra 1-3s latency.
+        """
+        try:
+            compacted = await self._compact_history(data.conversation_history)
+        except Exception as exc:
+            logger.warning(
+                "History compaction failed — falling back to raw 6-turn trim",
+                error=str(exc),
+            )
+            compacted = data.conversation_history[-_MAX_HISTORY_TURNS:]
+
         data = data.model_copy(
             update={
-                "conversation_history": trimmed_history,
+                "conversation_history": compacted,
                 "updated_at": datetime.utcnow(),
             }
         )

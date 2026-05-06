@@ -44,6 +44,7 @@ logs/
 # backend/data/legal_documents/
 backend/data/mock_documents/
 backend/data/form_templates/
+backend/data/feedback.jsonl
 uploads/
 outputs/
 
@@ -68,6 +69,9 @@ desktop.ini
 
 # ── Model caches ─────────────────────────────────────────────
 backend/.cache/
+
+# ── Benchmark reports (generated at runtime) ─────────────────
+backend/scripts/benchmark/reports/
 
 # ── Claude Code / AI dev tooling ─────────────────────────────
 .claude/

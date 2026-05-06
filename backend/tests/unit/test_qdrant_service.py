@@ -275,3 +275,111 @@ async def test_create_collection_is_idempotent(service, mock_qdrant_client):
 
     # Second call — should NOT raise
     await service.create_collection()
+
+
+# ---------------------------------------------------------------------------
+# Helpers shared by deduplication tests
+# ---------------------------------------------------------------------------
+
+def _make_doc_chunk(
+    article_number: str,
+    document_number: str,
+    rrf_score: float,
+    pid_suffix: str = "",
+):
+    from app.schemas.rag import DocumentChunk
+
+    return DocumentChunk(
+        point_id=f"p-{article_number}-{pid_suffix or rrf_score}",
+        legal_document_id="doc-1",
+        document_number=document_number,
+        article_number=article_number,
+        content="test content",
+        procedure_tags=[],
+        status="active",
+        rrf_score=rrf_score,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test 10 — _deduplicate_by_article collapses plain article duplicates
+# ---------------------------------------------------------------------------
+
+def test_deduplication_collapses_plain_article_duplicates(service):
+    """Two chunks with the same (article_number, document_number) → only highest score kept.
+
+    Chunks are passed in descending rrf_score order (as search() pre-sorts them).
+    The first-seen chunk per key is kept — i.e. the highest-scoring one.
+    """
+    chunks = [
+        _make_doc_chunk("13", "123/2015/NĐ-CP", rrf_score=0.030, pid_suffix="high"),
+        _make_doc_chunk("14", "123/2015/NĐ-CP", rrf_score=0.028),
+        _make_doc_chunk("13", "123/2015/NĐ-CP", rrf_score=0.025, pid_suffix="low"),
+        _make_doc_chunk("13", "123/2015/NĐ-CP", rrf_score=0.020, pid_suffix="lowest"),
+    ]
+
+    result = service._deduplicate_by_article(chunks)
+
+    article_numbers = [c.article_number for c in result]
+    assert article_numbers.count("13") == 1, "Article 13 must appear exactly once after dedup"
+    assert len(result) == 2, f"Expected 2 unique articles, got {len(result)}: {article_numbers}"
+
+    kept_13 = next(c for c in result if c.article_number == "13")
+    assert kept_13.rrf_score == 0.030, "The highest-scoring chunk for article 13 must be kept"
+
+
+# ---------------------------------------------------------------------------
+# Test 11 — _deduplicate_by_article preserves khoản-split articles
+# ---------------------------------------------------------------------------
+
+def test_deduplication_preserves_khoan_split_articles(service):
+    """'Điều 20 Khoản 1' and 'Điều 20 Khoản 2' are distinct keys — both survive dedup."""
+    chunks = [
+        _make_doc_chunk("Điều 20 Khoản 1", "123/2015/NĐ-CP", rrf_score=0.030),
+        _make_doc_chunk("Điều 20 Khoản 2", "123/2015/NĐ-CP", rrf_score=0.028),
+        _make_doc_chunk("Điều 21", "123/2015/NĐ-CP", rrf_score=0.025),
+    ]
+
+    result = service._deduplicate_by_article(chunks)
+
+    assert len(result) == 3, (
+        f"Khoản-split articles must NOT be collapsed. Got {len(result)}: "
+        f"{[c.article_number for c in result]}"
+    )
+    article_numbers = [c.article_number for c in result]
+    assert "Điều 20 Khoản 1" in article_numbers
+    assert "Điều 20 Khoản 2" in article_numbers
+
+
+# ---------------------------------------------------------------------------
+# Test 12 — top_k slice applied AFTER deduplication
+# ---------------------------------------------------------------------------
+
+def test_top_k_applied_after_deduplication(service):
+    """The [:top_k] slice is applied to the deduplicated list, not the raw list.
+
+    If slice happens BEFORE dedup: raw[:2] → [A(0.9), A_dup(0.8)] → dedup → [A] (1 item, wrong).
+    If dedup happens BEFORE slice: dedup([A, A_dup, B, C]) → [A, B, C] → [:2] → [A, B] (correct).
+
+    This test calls _deduplicate_by_article() directly and then applies [:2] to verify
+    the dedup method does NOT itself apply any top_k capping — the caller (search) does.
+    """
+    raw_sorted = [
+        _make_doc_chunk("13", "X", rrf_score=0.030, pid_suffix="high"),   # rank 1
+        _make_doc_chunk("13", "X", rrf_score=0.028, pid_suffix="low"),    # rank 2 — duplicate
+        _make_doc_chunk("14", "X", rrf_score=0.026),                      # rank 3 — missed if sliced[:2] first
+        _make_doc_chunk("15", "X", rrf_score=0.020),                      # rank 4
+    ]
+
+    deduplicated = service._deduplicate_by_article(raw_sorted)
+
+    assert len(deduplicated) == 3, (
+        f"Dedup should yield 3 unique articles (13, 14, 15), got {len(deduplicated)}: "
+        f"{[c.article_number for c in deduplicated]}"
+    )
+
+    final = deduplicated[:2]
+    article_numbers = [c.article_number for c in final]
+    assert "13" in article_numbers, "Article 13 (highest score) must be in top-2"
+    assert "14" in article_numbers, "Article 14 must be in top-2 (not displaced by duplicate 13)"
+    assert article_numbers.count("13") == 1, "Article 13 must not appear twice in final result"

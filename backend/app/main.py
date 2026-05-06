@@ -50,9 +50,7 @@ async def lifespan(app: FastAPI):
     # running model load when unit tests import main.py.
     try:
         from app.services.embedder import _get_embedder
-        logger.info("Loading embedding model...")
         _get_embedder()
-        logger.info("Embedding model loaded and ready.")
     except Exception as exc:
         # bge-m3 load failure is non-fatal — OpenAI fallback handles live
         # requests.  Log a warning and continue startup.
@@ -78,9 +76,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
 app.add_middleware(SlowAPIMiddleware)
 
 # CORS — locked to configured origins, never wildcard
+_cors_base = [o.strip() for o in settings.CORS_ALLOW_ORIGINS.split(",") if o.strip()]
+_cors_extra = [o.strip() for o in settings.CORS_EXTRA_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ALLOW_ORIGINS.split(","),
+    allow_origins=_cors_base + _cors_extra,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -138,6 +138,8 @@ async def health():
     except Exception:
         pass
 
+    import torch
+
     body = {
         "status": "ready" if model_loaded else "warming_up",
         "embedding_model": embedding_status,
@@ -145,6 +147,20 @@ async def health():
             "qdrant": qdrant_ok,
             "redis": redis_ok,
             "postgres": postgres_ok,
+        },
+        "gpu": {
+            "cuda_available": torch.cuda.is_available(),
+            "device_name": (
+                torch.cuda.get_device_name(0)
+                if torch.cuda.is_available() else None
+            ),
+            "vram_total_mb": (
+                round(
+                    torch.cuda.get_device_properties(0).total_memory
+                    / 1024 / 1024
+                )
+                if torch.cuda.is_available() else None
+            ),
         },
     }
     status_code = 200 if model_loaded else 503

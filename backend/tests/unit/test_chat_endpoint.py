@@ -134,6 +134,28 @@ def test_chat_endpoint_redis_save_failure_does_not_fail_request(client):
 # Test — 3-char group SSE streaming (TASK-APP-04)
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Input validation — Fix A
+# ---------------------------------------------------------------------------
+
+def test_chat_message_too_long_returns_422(client):
+    """Message longer than 2000 chars → HTTP 422."""
+    response = client.post(
+        "/api/v1/chat",
+        json={"message": "X" * 2001, "session_id": "sess-valid-001"},
+    )
+    assert response.status_code == 422
+
+
+def test_chat_message_blank_returns_422(client):
+    """Whitespace-only message → HTTP 422."""
+    response = client.post(
+        "/api/v1/chat",
+        json={"message": "   ", "session_id": "sess-valid-002"},
+    )
+    assert response.status_code == 422
+
+
 def test_generate_streams_char_groups(client):
     """generate() emits content in chunks of ≤3 chars; concatenation is lossless."""
     final_response = "Xin chào bạn!"

@@ -103,6 +103,7 @@ class LLMService:
             import anthropic as _anthropic
             self._client = _anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
             self._model: str = settings.LLM_MODEL
+            logger.warning(f"[LLM INIT] model={self._model}")
             # LangSmith tracing — wire env vars at construction so every call is traced
             if settings.LANGSMITH_API_KEY:
                 os.environ["LANGCHAIN_TRACING_V2"] = "true"
@@ -144,6 +145,7 @@ class LLMService:
             messages = []
 
         if self.backend == "anthropic":
+            logger.warning(f"[LLM CALL] sending model={self._model} to API")
             response = await self._client.messages.create(
                 model=self._model,
                 system=system or "",

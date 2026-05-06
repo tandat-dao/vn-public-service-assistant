@@ -1,7 +1,4 @@
 'use client'
-import { useState } from 'react'
-import { useChatStore } from '@/lib/stores/chatStore'
-import { api } from '@/lib/api/client'
 import { ChatWidget } from '@/components/chat/ChatWidget'
 import { ProcedureForm } from '@/components/procedure/ProcedureForm'
 
@@ -12,7 +9,6 @@ interface ProcedurePageLayoutProps {
   processingDays: string
   fee: string
   documentsSection: React.ReactNode
-  showCccdUpload: boolean
   chatContext: string
 }
 
@@ -23,86 +19,75 @@ export function ProcedurePageLayout({
   processingDays,
   fee,
   documentsSection,
-  showCccdUpload,
   chatContext,
 }: ProcedurePageLayoutProps) {
-  const { sessionId, citizenId } = useChatStore()
-  const [cccdStatus, setCccdStatus] = useState<string | null>(null)
-
-  const handleCccdUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setCccdStatus('Đang xử lý CCCD...')
-    try {
-      await api.documents.upload(file, sessionId, citizenId || undefined)
-      setCccdStatus('✅ Đã đọc thông tin CCCD thành công')
-    } catch {
-      setCccdStatus('❌ Không thể đọc CCCD. Vui lòng thử lại.')
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+    <div className="min-h-screen bg-[var(--bg-page)]">
+      {/* Procedure name banner */}
+      <div className="bg-[var(--terracotta-lt)] border-t-4 border-[var(--terracotta)] px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <p className="text-[var(--terracotta)] text-xs uppercase tracking-widest font-medium mb-2">
+            Thủ tục hành chính
+          </p>
+          <h1 className="text-[var(--navy)] text-xl font-semibold">
+            {procedureName}
+          </h1>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-5">
 
         {/* Section 1 — Basic Info Card */}
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <h1 className="text-xl font-semibold text-gray-900 mb-4">{procedureName}</h1>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Cơ quan thực hiện</p>
-              <p className="text-sm font-medium text-gray-800 mt-1">{agency}</p>
+        <div className="bg-white border border-[var(--border-card)] rounded-xl overflow-hidden">
+          <div className="bg-[var(--navy-faint)] border-b border-[var(--border-card)] px-6 py-3">
+            <h2 className="text-xs font-semibold text-[var(--navy)] uppercase tracking-wider">
+              Thông tin thủ tục
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-card)]">
+            <div className="px-6 py-4">
+              <p className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-1">
+                Cơ quan thực hiện
+              </p>
+              <p className="text-sm font-medium text-[var(--text-primary)]">{agency}</p>
             </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Thời hạn giải quyết</p>
-              <p className="text-sm font-medium text-gray-800 mt-1">{processingDays}</p>
+            <div className="px-6 py-4">
+              <p className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-1">
+                Thời hạn giải quyết
+              </p>
+              <p className="text-sm font-medium text-[var(--text-primary)]">{processingDays}</p>
             </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Lệ phí</p>
-              <p className="text-sm font-medium text-gray-800 mt-1">{fee}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Mã thủ tục</p>
-              <p className="text-sm font-medium text-gray-800 mt-1">{procedureId}</p>
+            <div className="px-6 py-4">
+              <p className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-1">
+                Lệ phí
+              </p>
+              <p className="text-sm font-medium text-[var(--text-primary)]">{fee}</p>
             </div>
           </div>
         </div>
 
-        {/* Section 2 — Interactive Form (renders nothing when no forms exist for this procedure) */}
+        {/* Section 2 — Interactive Form */}
         <ProcedureForm procedureId={procedureId} />
 
         {/* Section 3 — Required Documents */}
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">Hồ sơ cần chuẩn bị</h2>
-          {documentsSection}
-
-          {showCccdUpload && (
-            <div className="mt-4 border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50">
-              <p className="text-sm font-medium text-gray-700 mb-1">
-                Tải lên CCCD để điền tự động
-              </p>
-              <p className="text-xs text-gray-500 mb-3">
-                Hệ thống sẽ đọc thông tin từ CCCD và tự động điền vào mẫu đơn.
-              </p>
-              <label className="inline-flex items-center gap-2 cursor-pointer bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-700 hover:border-[#CE7A58] transition-colors">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleCccdUpload}
-                />
-                Chọn ảnh CCCD
-              </label>
-              {cccdStatus && (
-                <p className="text-xs mt-2 text-gray-600">{cccdStatus}</p>
-              )}
-            </div>
-          )}
+        <div className="bg-white border border-[var(--border-card)] rounded-xl overflow-hidden">
+          <div className="bg-[var(--navy-faint)] border-b border-[var(--border-card)] px-6 py-3">
+            <h2 className="text-xs font-semibold text-[var(--navy)] uppercase tracking-wider">
+              Hồ sơ cần chuẩn bị
+            </h2>
+          </div>
+          <div className="p-6">
+            {documentsSection}
+          </div>
         </div>
 
         {/* Section 4 — Embedded Chat */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <h2 className="text-base font-semibold text-gray-900 p-6 pb-0">Hỏi trợ lý AI</h2>
+        <div className="bg-white border border-[var(--border-card)] rounded-xl overflow-hidden">
+          <div className="bg-[var(--navy-faint)] border-b border-[var(--border-card)] px-6 py-3">
+            <h2 className="text-xs font-semibold text-[var(--navy)] uppercase tracking-wider">
+              Hỏi trợ lý AI
+            </h2>
+          </div>
           <ChatWidget variant="inline" initialContext={chatContext} />
         </div>
 

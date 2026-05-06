@@ -1,0 +1,99 @@
+{
+  "description": "Labeled queries for router accuracy evaluation. Tier 1 (self-labelable). NOTE: 'mode' field uses synthesizer mode names (rag_only, guided_step, out_of_scope) not router intent names (rag_query, start_guided) — the chat endpoint metadata exposes synthesizer mode, not raw router intent. NOTE: R16 should be excluded from accuracy calculation if it times out (90s) — the timeout is a network/API issue not a classification failure.",
+  "threshold": 0.80,
+  "test_cases": [
+    {
+      "id": "R01", "query": "Điều kiện đăng ký thường trú tại TP.HCM là gì?",
+      "expected": {"mode": "rag_only", "domain": "housing", "procedure_id": "TTHC-001", "location_scope": "VN-HCM"}
+    },
+    {
+      "id": "R02", "query": "Hồ sơ đăng ký tạm trú gồm những gì?",
+      "expected": {"mode": "rag_only", "domain": "housing", "procedure_id": "TTHC-002", "location_scope": null}
+    },
+    {
+      "id": "R03", "query": "Xác nhận thông tin cư trú cần làm như thế nào?",
+      "expected": {"mode": "rag_only", "domain": "housing", "procedure_id": "TTHC-003", "location_scope": null}
+    },
+    {
+      "id": "R04", "query": "Thời hạn xử lý hồ sơ đăng ký cư trú là bao lâu?",
+      "expected": {"mode": "rag_only", "domain": "housing", "procedure_id": null, "location_scope": null}
+    },
+    {
+      "id": "R05", "query": "Lệ phí đăng ký thường trú tại Hà Nội là bao nhiêu?",
+      "expected": {"mode": "rag_only", "domain": "housing", "procedure_id": "TTHC-001", "location_scope": "VN-HN"}
+    },
+    {
+      "id": "R06", "query": "Lệ phí đăng ký khai sinh tại TP.HCM là bao nhiêu?",
+      "expected": {"mode": "rag_only", "domain": "civil_registration", "procedure_id": "TTHC-CR-001", "location_scope": "VN-HCM"}
+    },
+    {
+      "id": "R07", "query": "Điều kiện cấp bản sao trích lục hộ tịch là gì?",
+      "expected": {"mode": "rag_only", "domain": "civil_registration", "procedure_id": "TTHC-CR-002", "location_scope": null}
+    },
+    {
+      "id": "R08", "query": "Đăng ký khai sinh ở Đà Nẵng tốn bao nhiêu tiền?",
+      "expected": {"mode": "rag_only", "domain": "civil_registration", "procedure_id": "TTHC-CR-001", "location_scope": "VN-DN"}
+    },
+    {
+      "id": "R09", "query": "Thủ tục đăng ký khai sinh cần những giấy tờ gì?",
+      "expected": {"mode": "rag_only", "domain": "civil_registration", "procedure_id": "TTHC-CR-001", "location_scope": null}
+    },
+    {
+      "id": "R10", "query": "Lệ phí đăng ký hộ tịch tại HN là bao nhiêu?",
+      "expected": {"mode": "rag_only", "domain": "civil_registration", "procedure_id": "TTHC-CR-001", "location_scope": "VN-HN"}
+    },
+    {
+      "id": "R11", "query": "Điều kiện để nhận con nuôi trong nước là gì?",
+      "expected": {"mode": "rag_only", "domain": "adoption", "procedure_id": "TTHC-AD-001", "location_scope": null}
+    },
+    {
+      "id": "R12", "query": "Hồ sơ đăng ký nuôi con nuôi bao gồm những gì?",
+      "expected": {"mode": "rag_only", "domain": "adoption", "procedure_id": "TTHC-AD-001", "location_scope": null}
+    },
+    {
+      "id": "R13", "query": "Đăng ký lại việc nuôi con nuôi trong nước cần điều kiện gì?",
+      "expected": {"mode": "rag_only", "domain": "adoption", "procedure_id": "TTHC-AD-002", "location_scope": null}
+    },
+    {
+      "id": "R14", "query": "Người nước ngoài có được nhận con nuôi tại Việt Nam không?",
+      "expected": {"mode": "rag_only", "domain": "adoption", "procedure_id": null, "location_scope": null}
+    },
+    {
+      "id": "R15", "query": "Hành vi nào bị cấm trong việc nuôi con nuôi?",
+      "expected": {"mode": "rag_only", "domain": "adoption", "procedure_id": null, "location_scope": null}
+    },
+    {
+      "id": "R16", "query": "Hướng dẫn tôi làm thủ tục đăng ký thường trú từng bước",
+      "expected": {"mode": "guided_step", "domain": "housing", "procedure_id": "TTHC-001", "location_scope": null}
+    },
+    {
+      "id": "R17", "query": "Giúp tôi làm thủ tục đăng ký khai sinh",
+      "expected": {"mode": "guided_step", "domain": "civil_registration", "procedure_id": "TTHC-CR-001", "location_scope": null}
+    },
+    {
+      "id": "R18", "query": "Hướng dẫn đăng ký tạm trú từng bước một",
+      "expected": {"mode": "guided_step", "domain": "housing", "procedure_id": "TTHC-002", "location_scope": null}
+    },
+    {
+      "id": "R19", "query": "Thời tiết hôm nay ở Hà Nội thế nào?",
+      "expected": {"mode": "out_of_scope", "domain": null, "procedure_id": null, "location_scope": null}
+    },
+    {
+      "id": "R20", "query": "Cách đăng ký thành lập doanh nghiệp mới nhất?",
+      "expected": {"mode": "out_of_scope", "domain": null, "procedure_id": null, "location_scope": null}
+    },
+    {
+      "id": "R21", "query": "Hướng dẫn nộp thuế thu nhập cá nhân trực tuyến",
+      "expected": {"mode": "out_of_scope", "domain": null, "procedure_id": null, "location_scope": null}
+    },
+    {
+      "id": "R22", "query": "Cấp CCCD gắn chip cần những giấy tờ gì?",
+      "expected": {"mode": "out_of_scope", "domain": null, "procedure_id": null, "location_scope": null}
+    },
+    {
+      "id": "R23", "query": "Xin chào, bạn có thể giúp gì cho tôi?",
+      "expected": {"mode": "fallback", "domain": null, "procedure_id": null, "location_scope": null},
+      "notes": "Greeting — fallback is correct. Router returns empty plan, synthesizer defaults to fallback introducing the 3 supported domains."
+    }
+  ]
+}

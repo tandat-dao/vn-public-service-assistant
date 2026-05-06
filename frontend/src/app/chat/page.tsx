@@ -2,7 +2,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import {
   Send, Paperclip, Plus, ChevronRight,
-  CheckCircle2, Clock, Lock, MessageSquare,
+  CheckCircle2, Clock, Lock,
 } from 'lucide-react'
 import { useChatStore } from '@/lib/stores/chatStore'
 import { streamChat, api } from '@/lib/api/client'
@@ -100,12 +100,6 @@ function ProcedurePlanPanel({
 
 /* ─── Sidebar session list ───────────────────────────────────── */
 function Sidebar({ onNewChat }: { onNewChat: () => void }) {
-  const MOCK_SESSIONS = [
-    { id: '1', title: 'Đăng ký khai sinh cho con', date: '11/03/2026' },
-    { id: '2', title: 'Thủ tục đăng ký kết hôn',  date: '10/03/2026' },
-    { id: '3', title: 'Cấp CCCD gắn chip',          date: '09/03/2026' },
-  ]
-
   return (
     <aside className="w-56 flex-shrink-0 border-r border-[#DDDDDD] flex flex-col bg-[#FAFAFA]">
       <div className="p-3 border-b border-[#DDDDDD]">
@@ -120,26 +114,9 @@ function Sidebar({ onNewChat }: { onNewChat: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto py-2">
-        <p className="px-3 py-1 text-[11px] text-[#999] uppercase tracking-wide font-semibold">
-          Gần đây
-        </p>
-        {MOCK_SESSIONS.map((s) => (
-          <button
-            key={s.id}
-            className="w-full text-left px-3 py-2.5 hover:bg-[#F0F0F0] transition-colors
-                       border-b border-[#F0F0F0] group"
-          >
-            <div className="flex items-start gap-2">
-              <MessageSquare className="w-3.5 h-3.5 text-[#CE7A58] flex-shrink-0 mt-0.5" />
-              <div className="min-w-0">
-                <p className="text-xs text-[#1E2F41] leading-snug line-clamp-2 group-hover:text-[#CE7A58] transition-colors">
-                  {s.title}
-                </p>
-                <p className="text-[10px] text-[#999] mt-0.5">{s.date}</p>
-              </div>
-            </div>
-          </button>
-        ))}
+        <div className="text-sm text-gray-400 italic px-3 py-4">
+          Chưa có lịch sử cuộc trò chuyện.
+        </div>
       </div>
     </aside>
   )
@@ -260,10 +237,10 @@ export default function ChatPage() {
   }
 
   const SUGGESTIONS = [
-    'Thủ tục đăng ký khai sinh?',
-    'Cấp CCCD gắn chip cần giấy tờ gì?',
-    'Đăng ký thành lập doanh nghiệp mới nhất?',
-    'Nộp thuế thu nhập cá nhân trực tuyến?',
+    'Tôi muốn đăng ký thường trú tại TP.HCM, cần những gì?',
+    'Lệ phí đăng ký khai sinh tại Hà Nội là bao nhiêu?',
+    'Điều kiện để nhận con nuôi trong nước là gì?',
+    'Hướng dẫn tôi làm thủ tục đăng ký khai sinh',
   ]
 
   return (
@@ -343,7 +320,7 @@ export default function ChatPage() {
                 {msg.role === 'assistant' && !msg.isStreaming && msg.filledFormPath && (
                   <div className="mt-2">
                     <a
-                      href={`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/v1/documents/download?path=${encodeURIComponent(msg.filledFormPath)}&session_id=${encodeURIComponent(sessionId)}`}
+                      href={`${process.env.NEXT_PUBLIC_API_URL_PUBLIC || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/documents/download?path=${encodeURIComponent(msg.filledFormPath)}&session_id=${encodeURIComponent(sessionId)}`}
                       download
                       className="inline-flex items-center gap-2 px-3 py-2 rounded
                                  bg-[#CE7A58] text-white text-sm font-medium

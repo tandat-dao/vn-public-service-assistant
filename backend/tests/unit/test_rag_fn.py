@@ -102,6 +102,9 @@ async def test_rag_fn_returns_citations_for_residence_query(mock_qdrant, mock_ll
     assert "citations" in result
     assert "final_response" in result
     assert "scope_used" in result
+    # _base_state has no location_scope set — city scope comes from the router LLM
+    # (not from keyword detection in rag.py). Without location_scope in state,
+    # the cascade starts at "VN" (the default when no filing_jurisdiction is set).
     assert result["scope_used"] == "VN"
     assert len(result["retrieved_chunks"]) > 0
     assert len(result["citations"]) > 0
@@ -118,7 +121,7 @@ async def test_rag_fn_cascade_fallback_to_broader_scope(mock_qdrant, mock_llm):
         _make_chunk("11", "62/2021/NĐ-CP", rrf_score=0.75),
     ]
 
-    def search_side_effect(query=None, procedure_id=None, scope=None, top_k=8):
+    def search_side_effect(query=None, procedure_id=None, scope=None, top_k=None):
         if scope in ("VN-HCM-26968", "VN-HCM"):
             return []
         return chunks_vn
@@ -248,11 +251,12 @@ async def test_threshold_stopping_drops_low_score_chunks(mock_qdrant, mock_llm):
 # ---------------------------------------------------------------------------
 
 async def test_confidence_scoring_high(mock_qdrant, mock_llm):
-    """confidence is 'high' when top RRF > 0.85 AND at least 3 chunks returned."""
+    """confidence is 'high' when top RRF > 0.025 AND at least 3 chunks returned.
+    RRF max is ~0.033 (1/(1+60) per source); scores are calibrated to that range."""
     chunks = [
-        _make_chunk("10", "62/2021/NĐ-CP", rrf_score=0.92),
-        _make_chunk("11", "62/2021/NĐ-CP", rrf_score=0.88),
-        _make_chunk("12", "62/2021/NĐ-CP", rrf_score=0.87),
+        _make_chunk("10", "62/2021/NĐ-CP", rrf_score=0.030),
+        _make_chunk("11", "62/2021/NĐ-CP", rrf_score=0.028),
+        _make_chunk("12", "62/2021/NĐ-CP", rrf_score=0.026),
     ]
     mock_qdrant.search.return_value = chunks
     mock_llm.async_invoke.return_value = "Trả lời."
@@ -269,9 +273,9 @@ async def test_confidence_scoring_high(mock_qdrant, mock_llm):
 # ---------------------------------------------------------------------------
 
 async def test_confidence_scoring_low(mock_qdrant, mock_llm):
-    """confidence is 'low' when top RRF score ≤ 0.65."""
+    """confidence is 'low' when top RRF score ≤ 0.016."""
     chunks = [
-        _make_chunk("10", "62/2021/NĐ-CP", rrf_score=0.5),
+        _make_chunk("10", "62/2021/NĐ-CP", rrf_score=0.012),
     ]
     mock_qdrant.search.return_value = chunks
     mock_llm.async_invoke.return_value = "Trả lời."
@@ -281,6 +285,53 @@ async def test_confidence_scoring_low(mock_qdrant, mock_llm):
     result = await rag_fn(_base_state())
 
     assert result["response_metadata"]["rag_confidence"] == "low"
+
+
+# ---------------------------------------------------------------------------
+# Test 10b — confidence scoring: medium
+# ---------------------------------------------------------------------------
+
+async def test_confidence_scoring_medium(mock_qdrant, mock_llm):
+    """confidence is 'medium' when 0.016 < top RRF ≤ 0.025."""
+    chunks = [
+        _make_chunk("10", "62/2021/NĐ-CP", rrf_score=0.020),
+        _make_chunk("11", "62/2021/NĐ-CP", rrf_score=0.018),
+    ]
+    mock_qdrant.search.return_value = chunks
+    mock_llm.async_invoke.return_value = "Trả lời."
+
+    from app.agents.nodes.rag import rag_fn
+
+    result = await rag_fn(_base_state())
+
+    assert result["response_metadata"]["rag_confidence"] == "medium"
+
+
+# ---------------------------------------------------------------------------
+# Test 10c — threshold-filtered empty → rag_returned_empty=True (not fallback)
+# ---------------------------------------------------------------------------
+
+async def test_threshold_filtered_empty_sets_rag_returned_empty(mock_qdrant, mock_llm):
+    """When all chunks are above Qdrant's minimum score but below RAG_MIN_SCORE_THRESHOLD,
+    the filtered-empty path must set rag_returned_empty=True so the synthesizer uses
+    the rag_empty mode instead of fallback (which can hallucinate constraints)."""
+    # Qdrant returns chunks but all scores are below RAG_MIN_SCORE_THRESHOLD (0.01)
+    chunks = [
+        _make_chunk("10", "62/2021/NĐ-CP", rrf_score=0.005),
+        _make_chunk("11", "62/2021/NĐ-CP", rrf_score=0.003),
+    ]
+    mock_qdrant.search.return_value = chunks
+
+    from app.agents.nodes.rag import rag_fn
+
+    result = await rag_fn(_base_state())
+
+    mock_llm.async_invoke.assert_not_called()
+    assert result["retrieved_chunks"] == []
+    assert result.get("rag_returned_empty") is True, (
+        "Threshold-filtered empty must set rag_returned_empty=True to prevent "
+        "synthesizer from entering fallback mode and hallucinating constraints"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -370,3 +421,116 @@ async def test_no_history_uses_raw_query(mock_qdrant, mock_llm):
     assert actual_query == short_message, (
         f"No history → raw query. Expected {short_message!r}, got {actual_query!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Tests 14–17 — _build_search_query proportional augmentation
+# ---------------------------------------------------------------------------
+
+def test_augment_short_query_gets_max_context():
+    """1-word query receives ~450 chars of prior context (ratio=0.1, result≈450)."""
+    from app.agents.nodes.rag import _build_search_query
+
+    prior = "A" * 600  # longer than max to verify truncation
+    state = {
+        "user_message": "Còn?",  # 1 word
+        "conversation_history": [
+            {"role": "user", "content": "Câu hỏi."},
+            {"role": "assistant", "content": prior},
+        ],
+    }
+    result = _build_search_query(state)
+
+    # ratio = 1/10 = 0.1 → context_chars = int(500*0.9 + 50*0.1) = int(455) = 455
+    assert result.endswith("Còn?")
+    context_prefix = result[: result.index("Còn?")].rstrip()
+    assert len(context_prefix) == 455, f"Expected 455 chars, got {len(context_prefix)}"
+
+
+def test_augment_medium_query_gets_medium_context():
+    """5-word query receives 275 chars of prior context (ratio=0.5, result=275)."""
+    from app.agents.nodes.rag import _build_search_query
+
+    prior = "B" * 600
+    state = {
+        "user_message": "Lệ phí tại Hà Nội?",  # 5 words: Lệ/phí/tại/Hà/Nội?
+        "conversation_history": [
+            {"role": "assistant", "content": prior},
+        ],
+    }
+    result = _build_search_query(state)
+
+    # ratio = 5/10 = 0.5 → context_chars = int(500*0.5 + 50*0.5) = int(275) = 275
+    assert "Lệ phí tại Hà Nội?" in result
+    context_prefix = result[: result.index("Lệ phí tại Hà Nội?")].rstrip()
+    assert len(context_prefix) == 275, f"Expected 275 chars, got {len(context_prefix)}"
+
+
+def test_augment_long_query_no_augmentation():
+    """10-word query is returned unchanged — no context prepended."""
+    from app.agents.nodes.rag import _build_search_query
+
+    ten_word_msg = "Thủ tục đăng ký tạm trú cần những giấy tờ gì?"  # 9 words in Vietnamese but let's count exactly
+    # Build a message that is exactly 10 words
+    msg = "Một hai ba bốn năm sáu bảy tám chín mười"  # exactly 10 words
+    state = {
+        "user_message": msg,
+        "conversation_history": [
+            {"role": "assistant", "content": "Câu trả lời dài trước đó."},
+        ],
+    }
+    result = _build_search_query(state)
+
+    assert result == msg, f"10-word query must not be augmented, got: {result!r}"
+
+
+def test_augment_no_history_returns_user_msg():
+    """Short query with no conversation history returns user_message unchanged."""
+    from app.agents.nodes.rag import _build_search_query
+
+    state = {
+        "user_message": "Còn?",  # 1 word — would be augmented if history existed
+        "conversation_history": [],
+    }
+    result = _build_search_query(state)
+
+    assert result == "Còn?", f"No history must return raw query, got: {result!r}"
+
+
+# ---------------------------------------------------------------------------
+# Tests 18–20 — _extract_khoan_number() (ingestion chunker helper)
+# ---------------------------------------------------------------------------
+
+def test_extract_khoan_number_detects_numeric_khoan():
+    """Returns khoản number when the second line is a numeric khoản header."""
+    from ingestion.ingest_full_documents import _extract_khoan_number
+
+    content = (
+        "Điều 3. Điều khoản thi hành\n"
+        "6. Lệ phí hộ tịch\n"
+        "a. Đối tượng nộp phí là công dân Việt Nam."
+    )
+    assert _extract_khoan_number(content) == "6"
+
+
+def test_extract_khoan_number_returns_none_when_no_khoan():
+    """Returns None when the lines after the Điều header are plain prose (no khoản)."""
+    from ingestion.ingest_full_documents import _extract_khoan_number
+
+    content = (
+        "Điều 15. Trách nhiệm đăng ký khai sinh\n"
+        "Trong thời hạn 60 ngày kể từ ngày sinh con, cha hoặc mẹ có trách nhiệm đăng ký."
+    )
+    assert _extract_khoan_number(content) is None
+
+
+def test_extract_khoan_number_ignores_letter_subdivision():
+    """Returns None when the line after Điều header is a letter subdivision (a., b., c.)."""
+    from ingestion.ingest_full_documents import _extract_khoan_number
+
+    content = (
+        "Điều 14. Điều kiện đối với người nhận con nuôi\n"
+        "a) Có năng lực hành vi dân sự đầy đủ;\n"
+        "b) Hơn con nuôi từ 20 tuổi trở lên."
+    )
+    assert _extract_khoan_number(content) is None

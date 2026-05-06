@@ -2,6 +2,8 @@
 
 All tests build in-memory .docx documents using python-docx and redirect
 FORM_SOURCES_DIR via monkeypatch — no real form source files are required.
+_convert_docx_to_pdf is mocked in all fill_doc tests so LibreOffice is not
+required in the test environment.
 
 Tests:
   test_fill_doc_replaces_dot_sequence
@@ -11,7 +13,7 @@ Tests:
   test_fill_endpoint_invalid_form_file_returns_422
   test_configs_endpoint_tthc001_returns_empty_forms
   test_configs_endpoint_returns_fields_for_valid_procedure
-  test_fill_endpoint_returns_docx_bytes
+  test_fill_endpoint_returns_pdf_bytes
   test_fill_doc_missing_field_value_leaves_dots
   test_fill_doc_signing_section_in_table_not_modified
 """
@@ -27,6 +29,9 @@ from docx import Document
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
+
+# Fake PDF bytes returned by the _convert_docx_to_pdf mock in all tests.
+_FAKE_PDF = b"%PDF-1.4 fake"
 
 
 # ---------------------------------------------------------------------------
@@ -98,12 +103,26 @@ async def test_fill_doc_replaces_dot_sequence(form_dir, monkeypatch):
     path = form_dir / "1.MuCT01banhnhkmtheoThngts53.doc"
     _save_doc(doc, path)
 
-    result_bytes = await fill_doc(
-        "1.MuCT01banhnhkmtheoThngts53.doc",
-        {"ho_chu_dem_va_ten": "Nguyễn Văn A"},
-    )
+    # _convert_docx_to_pdf receives the filled .docx bytes; capture them for
+    # inspection by having the mock return them as-is (still a valid .docx).
+    captured: list[bytes] = []
 
-    result_doc = Document(io.BytesIO(result_bytes))
+    async def _capture(docx_bytes: bytes) -> bytes:
+        captured.append(docx_bytes)
+        return _FAKE_PDF
+
+    with patch(
+        "app.services.doc_filler._convert_docx_to_pdf",
+        side_effect=_capture,
+    ):
+        result_bytes = await fill_doc(
+            "1.MuCT01banhnhkmtheoThngts53.doc",
+            {"ho_chu_dem_va_ten": "Nguyễn Văn A"},
+        )
+
+    assert result_bytes[:4] == b"%PDF", "fill_doc must return PDF bytes"
+    # Verify the substitution happened in the intermediate .docx
+    result_doc = Document(io.BytesIO(captured[0]))
     full_text = " ".join(p.text for p in result_doc.paragraphs)
     assert "Nguyễn Văn A" in full_text, (
         f"Expected 'Nguyễn Văn A' in filled document, got: {full_text!r}"
@@ -125,12 +144,23 @@ async def test_fill_doc_skips_signing_section(form_dir, monkeypatch):
     path = form_dir / "1.MuCT01banhnhkmtheoThngts53.doc"
     _save_doc(doc, path)
 
-    result_bytes = await fill_doc(
-        "1.MuCT01banhnhkmtheoThngts53.doc",
-        {"ho_chu_dem_va_ten": "Nguyễn Văn A"},
-    )
+    captured: list[bytes] = []
 
-    result_doc = Document(io.BytesIO(result_bytes))
+    async def _capture(docx_bytes: bytes) -> bytes:
+        captured.append(docx_bytes)
+        return _FAKE_PDF
+
+    with patch(
+        "app.services.doc_filler._convert_docx_to_pdf",
+        side_effect=_capture,
+    ):
+        result_bytes = await fill_doc(
+            "1.MuCT01banhnhkmtheoThngts53.doc",
+            {"ho_chu_dem_va_ten": "Nguyễn Văn A"},
+        )
+
+    assert result_bytes[:4] == b"%PDF", "fill_doc must return PDF bytes"
+    result_doc = Document(io.BytesIO(captured[0]))
     paragraphs = [p.text for p in result_doc.paragraphs]
 
     # The signing paragraph must be present and unchanged (dots not replaced)
@@ -159,12 +189,23 @@ async def test_fill_doc_fills_cccd_grid(form_dir, monkeypatch):
     path = form_dir / "1.MuCT01banhnhkmtheoThngts53.doc"
     _save_doc(doc, path)
 
-    result_bytes = await fill_doc(
-        "1.MuCT01banhnhkmtheoThngts53.doc",
-        {"so_dinh_danh_ca_nhan": id_number},
-    )
+    captured: list[bytes] = []
 
-    result_doc = Document(io.BytesIO(result_bytes))
+    async def _capture(docx_bytes: bytes) -> bytes:
+        captured.append(docx_bytes)
+        return _FAKE_PDF
+
+    with patch(
+        "app.services.doc_filler._convert_docx_to_pdf",
+        side_effect=_capture,
+    ):
+        result_bytes = await fill_doc(
+            "1.MuCT01banhnhkmtheoThngts53.doc",
+            {"so_dinh_danh_ca_nhan": id_number},
+        )
+
+    assert result_bytes[:4] == b"%PDF", "fill_doc must return PDF bytes"
+    result_doc = Document(io.BytesIO(captured[0]))
     cells = result_doc.tables[0].rows[0].cells
     grid_text = "".join(c.text for c in cells)
     assert grid_text == id_number, (
@@ -187,8 +228,10 @@ async def test_fill_doc_prefills_family_table_row1(form_dir, monkeypatch):
     doc = Document()
     table = doc.add_table(rows=3, cols=3)
 
-    # Header row — bold labels
-    headers = ["Họ tên", "Ngày sinh", "Giới tính"]
+    # Header row — bold labels (specific enough to uniquely match each field
+    # via word-subset: "cha nuôi" / "con nuôi" disambiguate from other name
+    # and date fields in the same config)
+    headers = ["Họ tên cha nuôi", "Ngày sinh cha nuôi", "Giới tính con nuôi"]
     for c, label in enumerate(headers):
         para = table.rows[0].cells[c].paragraphs[0]
         run = para.add_run(label)
@@ -197,19 +240,30 @@ async def test_fill_doc_prefills_family_table_row1(form_dir, monkeypatch):
     path = form_dir / "7.Tkhaingklivicnuiconnui.doc"
     _save_doc(doc, path)
 
-    result_bytes = await fill_doc(
-        "7.Tkhaingklivicnuiconnui.doc",
-        {
-            "ho_ten_cha_nuoi": "Nguyễn Văn A",
-            "ngay_sinh_cha_nuoi": "01/01/1980",
-            "gioi_tinh_con_nuoi": "Nam",
-        },
-    )
+    captured: list[bytes] = []
 
-    result_doc = Document(io.BytesIO(result_bytes))
+    async def _capture(docx_bytes: bytes) -> bytes:
+        captured.append(docx_bytes)
+        return _FAKE_PDF
+
+    with patch(
+        "app.services.doc_filler._convert_docx_to_pdf",
+        side_effect=_capture,
+    ):
+        result_bytes = await fill_doc(
+            "7.Tkhaingklivicnuiconnui.doc",
+            {
+                "ho_ten_cha_nuoi": "Nguyễn Văn A",
+                "ngay_sinh_cha_nuoi": "01/01/1980",
+                "gioi_tinh_con_nuoi": "Nam",
+            },
+        )
+
+    assert result_bytes[:4] == b"%PDF", "fill_doc must return PDF bytes"
+    result_doc = Document(io.BytesIO(captured[0]))
     tbl = result_doc.tables[0]
 
-    # Row 1 should have been filled for "Họ tên" column (index 0)
+    # Row 1 should have been filled for "Họ tên cha nuôi" column (index 0)
     row1_texts = [tbl.rows[1].cells[c].text for c in range(3)]
     assert any("Nguyễn Văn A" in t for t in row1_texts), (
         f"Row 1 not pre-filled with name. Row 1 texts: {row1_texts}"
@@ -299,41 +353,48 @@ async def test_configs_endpoint_returns_fields_for_valid_procedure():
 # Test 8 — fill endpoint returns docx bytes on success
 # ---------------------------------------------------------------------------
 
-async def test_fill_endpoint_returns_docx_bytes(form_dir, monkeypatch):
-    """POST /api/v1/forms/fill returns a .docx file with correct Content-Type."""
+async def test_fill_endpoint_returns_pdf_bytes(form_dir, monkeypatch):
+    """POST /api/v1/forms/fill returns a PDF file with correct Content-Type."""
     # Create a real .docx at the expected path
     doc = Document()
     doc.add_paragraph("Họ, chữ đệm và tên: ...................")
     path = form_dir / "1.MuCT01banhnhkmtheoThngts53.doc"
     _save_doc(doc, path)
 
-    # Also monkeypatch FORM_SOURCES_DIR inside the running app module
+    # Monkeypatch FORM_SOURCES_DIR inside the running app module
     import app.services.doc_filler as df
     monkeypatch.setattr(df, "FORM_SOURCES_DIR", form_dir)
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        resp = await client.post(
-            "/api/v1/forms/fill",
-            json={
-                "procedure_id": "TTHC-002",
-                "form_file": "1.MuCT01banhnhkmtheoThngts53.doc",
-                "field_values": {"ho_chu_dem_va_ten": "Nguyễn Văn A"},
-            },
-        )
+    with patch(
+        "app.services.doc_filler._convert_docx_to_pdf",
+        new_callable=AsyncMock,
+        return_value=_FAKE_PDF,
+    ):
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post(
+                "/api/v1/forms/fill",
+                json={
+                    "procedure_id": "TTHC-002",
+                    "form_file": "1.MuCT01banhnhkmtheoThngts53.doc",
+                    "field_values": {"ho_chu_dem_va_ten": "Nguyễn Văn A"},
+                },
+            )
 
     assert resp.status_code == 200, (
         f"Expected 200, got {resp.status_code}: {resp.text}"
     )
-    assert "wordprocessingml" in resp.headers.get("content-type", ""), (
+    assert resp.headers.get("content-type") == "application/pdf", (
         f"Unexpected Content-Type: {resp.headers.get('content-type')}"
     )
     assert "attachment" in resp.headers.get("content-disposition", ""), (
         f"Missing Content-Disposition: {resp.headers.get('content-disposition')}"
     )
-    # Response body should be a valid .docx (ZIP magic bytes)
-    assert resp.content[:2] == b"PK", "Response is not a valid .docx (missing ZIP magic bytes)"
+    assert ".pdf" in resp.headers.get("content-disposition", ""), (
+        f"Expected .pdf in Content-Disposition: {resp.headers.get('content-disposition')}"
+    )
+    assert resp.content[:4] == b"%PDF", "Response is not a valid PDF (missing %PDF magic bytes)"
 
 
 # ---------------------------------------------------------------------------
@@ -350,13 +411,24 @@ async def test_fill_doc_missing_field_value_leaves_dots(form_dir, monkeypatch):
     path = form_dir / "1.MuCT01banhnhkmtheoThngts53.doc"
     _save_doc(doc, path)
 
-    # Pass field_values without the matching key
-    result_bytes = await fill_doc(
-        "1.MuCT01banhnhkmtheoThngts53.doc",
-        {"ngay_thang_nam_sinh": "01/01/1990"},  # unrelated field
-    )
+    captured: list[bytes] = []
 
-    result_doc = Document(io.BytesIO(result_bytes))
+    async def _capture(docx_bytes: bytes) -> bytes:
+        captured.append(docx_bytes)
+        return _FAKE_PDF
+
+    with patch(
+        "app.services.doc_filler._convert_docx_to_pdf",
+        side_effect=_capture,
+    ):
+        # Pass field_values without the matching key
+        result_bytes = await fill_doc(
+            "1.MuCT01banhnhkmtheoThngts53.doc",
+            {"ngay_thang_nam_sinh": "01/01/1990"},  # unrelated field
+        )
+
+    assert result_bytes[:4] == b"%PDF", "fill_doc must return PDF bytes"
+    result_doc = Document(io.BytesIO(captured[0]))
     full_text = " ".join(p.text for p in result_doc.paragraphs)
     # Dots must still be present
     import re
@@ -388,12 +460,23 @@ async def test_fill_doc_signing_section_in_table_not_modified(form_dir, monkeypa
     path = form_dir / "1.MuCT01banhnhkmtheoThngts53.doc"
     _save_doc(doc, path)
 
-    result_bytes = await fill_doc(
-        "1.MuCT01banhnhkmtheoThngts53.doc",
-        {"ho_chu_dem_va_ten": "Nguyễn Văn A"},
-    )
+    captured: list[bytes] = []
 
-    result_doc = Document(io.BytesIO(result_bytes))
+    async def _capture(docx_bytes: bytes) -> bytes:
+        captured.append(docx_bytes)
+        return _FAKE_PDF
+
+    with patch(
+        "app.services.doc_filler._convert_docx_to_pdf",
+        side_effect=_capture,
+    ):
+        result_bytes = await fill_doc(
+            "1.MuCT01banhnhkmtheoThngts53.doc",
+            {"ho_chu_dem_va_ten": "Nguyễn Văn A"},
+        )
+
+    assert result_bytes[:4] == b"%PDF", "fill_doc must return PDF bytes"
+    result_doc = Document(io.BytesIO(captured[0]))
     tbl = result_doc.tables[0]
     sign_cell_text = tbl.rows[1].cells[0].text
 

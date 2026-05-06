@@ -5,7 +5,7 @@ const documentsSection = (
   <>
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Người sinh sống, người làm nghề lưu động trên phương tiện được đăng ký thường trú tại phương tiện</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -30,7 +30,7 @@ const documentsSection = (
 
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Người được chăm sóc, nuôi dưỡng, trợ giúp được đăng ký thường trú tại cơ sở trợ giúp xã hội hoặc được đăng ký thường trú vào hộ gia đình nhận chăm sóc, nuôi dưỡng, trợ giúp</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -55,7 +55,7 @@ const documentsSection = (
 
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Đăng ký thường trú tại chỗ ở hợp pháp không thuộc quyền sở hữu của mình đối với những trường hợp quy định tại khoản 2 Điều 20 Luật Cư trú</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -75,7 +75,7 @@ const documentsSection = (
 
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Đăng ký thường trú tại cơ sở tín ngưỡng, cơ sở tôn giáo có công trình phụ trợ là nhà ở</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -115,7 +115,7 @@ const documentsSection = (
 
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Đăng ký thường trú tại nơi đơn vị đóng quân trong Công an nhân dân, Quân đội nhân nhân nhân (đơn vị đóng quân, nhà ở công vụ)</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -145,7 +145,7 @@ const documentsSection = (
 
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Đăng ký thường trú vào chỗ ở hợp pháp do thuê, mượn, ở nhờ</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -170,7 +170,7 @@ const documentsSection = (
 
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Đăng ký thường trú vào chỗ ở hợp pháp thuộc quyền sở hữu của mình</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -195,7 +195,7 @@ const documentsSection = (
 
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Bao gồm</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -224,7 +224,6 @@ export default function DangKyThuongTruPage() {
       processingDays="7 ngày làm việc"
       fee="Không"
       documentsSection={documentsSection}
-      showCccdUpload={false}
       chatContext="Người dùng đang xem thủ tục Đăng ký thường trú (TTHC-001) tại TP. Hồ Chí Minh. Hãy sẵn sàng trả lời các câu hỏi về hồ sơ, điều kiện, và quy trình đăng ký thường trú."
     />
   )

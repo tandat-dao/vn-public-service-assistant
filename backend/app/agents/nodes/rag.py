@@ -17,10 +17,11 @@ from __future__ import annotations
 
 import logging
 
-from app.agents.prompts.rag_prompt import RAG_SYSTEM_PROMPT
+from app.agents.prompts.rag_prompt import RAG_SYSTEM_PROMPT, build_rag_user_message
 from app.agents.state import AgentState
 from app.core.citation_formatter import verify_citations
 from app.core.jurisdiction import expand_scope_hierarchy
+from app.core.text_utils import strip_markdown
 from app.schemas.chat import Citation
 from app.schemas.rag import DocumentChunk
 
@@ -31,34 +32,45 @@ logger = logging.getLogger(__name__)
 # Query augmentation for short follow-up messages
 # ---------------------------------------------------------------------------
 
+_AUGMENT_WORD_THRESHOLD = 10   # queries at or above this word count get no augmentation
+_AUGMENT_MAX_CHARS = 500       # context chars prepended for a 0-word query
+_AUGMENT_MIN_CHARS = 50        # context chars prepended for a 9-word query (just below threshold)
+
+
 def _build_search_query(state: AgentState) -> str:
-    """Return an augmented Qdrant search query for short follow-up messages.
+    """Build the Qdrant search query, augmenting short queries with prior context.
 
-    Short messages (< 10 words) that follow a prior assistant turn are assumed
-    to be context-dependent follow-ups (e.g. "Thế còn phường Tân Hưng thì sao?").
-    In that case, the last assistant message is prepended (truncated to 200 chars)
-    to give the embedding enough signal for meaningful retrieval.
+    Short queries (< _AUGMENT_WORD_THRESHOLD words) are prepended with a
+    truncated excerpt of the last assistant response. The amount of context
+    scales linearly with query length: shorter queries get more context
+    (up to _AUGMENT_MAX_CHARS), longer queries get less (down to
+    _AUGMENT_MIN_CHARS), queries at or above the threshold get none.
 
-    Longer messages are assumed to be self-contained and sent as-is.
-    The LLM generation step always uses state["user_message"] directly — only
-    the Qdrant retrieval query is augmented by this function.
+    This augmentation targets the Qdrant search query only — the raw
+    user_message is always passed unchanged to the LLM generation call.
     """
     user_msg: str = state["user_message"]
+    word_count = len(user_msg.split())
+
+    if word_count >= _AUGMENT_WORD_THRESHOLD:
+        return user_msg
+
     history: list[dict] = state.get("conversation_history") or []
+    last_assistant: str | None = None
+    for turn in reversed(history):
+        if turn.get("role") == "assistant":
+            last_assistant = turn.get("content", "")
+            break
 
-    if len(user_msg.split()) < 10:
-        # Find the last assistant message in history (search in reverse order)
-        last_assistant: str | None = None
-        for turn in reversed(history):
-            if turn.get("role") == "assistant":
-                last_assistant = turn.get("content", "")
-                break
+    if not last_assistant:
+        return user_msg
 
-        if last_assistant:
-            context = last_assistant[:200]
-            return f"{context} {user_msg}"
-
-    return user_msg
+    ratio = word_count / _AUGMENT_WORD_THRESHOLD
+    context_chars = int(
+        _AUGMENT_MAX_CHARS * (1 - ratio) + _AUGMENT_MIN_CHARS * ratio
+    )
+    context = last_assistant[:context_chars]
+    return f"{context} {user_msg}"
 
 
 # ---------------------------------------------------------------------------
@@ -129,6 +141,13 @@ async def rag_fn(state: AgentState) -> dict:
     else:
         scope_list = ["VN"]
 
+    # Prepend city-level scope when the router LLM detected a city in the query.
+    # The router classifies city scope as part of its existing LLM call — zero
+    # extra tokens. Handles all Vietnamese name variants and diacritics naturally.
+    router_location_scope = state.get("location_scope")
+    if router_location_scope and router_location_scope not in scope_list:
+        scope_list = [router_location_scope] + scope_list
+
     # ---- Step 2: Jurisdiction cascade retrieval ----
     raw_chunks: list[DocumentChunk] = []
     scope_used: str | None = None
@@ -139,7 +158,6 @@ async def rag_fn(state: AgentState) -> dict:
                 query=search_query,
                 procedure_id=target_procedure_id,
                 scope=scope,
-                top_k=8,
             )
             if chunks:
                 raw_chunks = chunks
@@ -164,6 +182,7 @@ async def rag_fn(state: AgentState) -> dict:
             "retrieved_chunks": [],
             "citations": [],
             "scope_used": None,
+            "rag_returned_empty": True,
             "errors": list(state.get("errors") or []) + [error_msg],
         }
 
@@ -203,7 +222,9 @@ async def rag_fn(state: AgentState) -> dict:
 
     final_chunks = [c for c, _ in budget_chunks_with_text]
 
-    # If all chunks were below threshold, return without calling LLM
+    # If all chunks were below threshold, return without calling LLM.
+    # Must set rag_returned_empty=True so synthesizer uses the rag_empty mode
+    # (not fallback) — prevents the fallback LLM from hallucinating constraints.
     if not final_chunks:
         error_msg = (
             "Không tìm thấy văn bản pháp lý phù hợp cho thủ tục và địa bàn này."
@@ -212,6 +233,7 @@ async def rag_fn(state: AgentState) -> dict:
             "retrieved_chunks": [],
             "citations": [],
             "scope_used": None,
+            "rag_returned_empty": True,
             "errors": list(state.get("errors") or []) + [error_msg],
         }
 
@@ -222,10 +244,7 @@ async def rag_fn(state: AgentState) -> dict:
     ]
     context = "\n\n---\n\n".join(context_parts)
 
-    user_prompt = (
-        f"Câu hỏi: {user_message}\n\n"
-        f"Văn bản pháp lý được truy xuất:\n\n{context}"
-    )
+    user_prompt = build_rag_user_message(context, user_message)
 
     llm_response: str = await llm.async_invoke(
         system=RAG_SYSTEM_PROMPT,
@@ -233,14 +252,16 @@ async def rag_fn(state: AgentState) -> dict:
         max_tokens=1024,
     )
 
-    # ---- Step 5: verify_citations ----
-    verified_response = verify_citations(llm_response, final_chunks)
+    # ---- Step 5: verify_citations + strip markdown ----
+    verified_response = strip_markdown(verify_citations(llm_response, final_chunks))
 
     # ---- Step 6: Confidence scoring ----
+    # RRF scores top out at ~0.033 (1/(1+60) from each of dense + BM25).
+    # Thresholds are calibrated to that range, not to cosine similarity [0,1].
     top_score = final_chunks[0].rrf_score
-    if top_score > 0.85 and len(final_chunks) >= 3:
+    if top_score > 0.025 and len(final_chunks) >= 3:
         confidence = "high"
-    elif top_score > 0.65:
+    elif top_score > 0.016:
         confidence = "medium"
     else:
         confidence = "low"

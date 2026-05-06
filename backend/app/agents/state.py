@@ -36,6 +36,10 @@ class AgentState(TypedDict, total=False):
     domain: str | None           # "housing" | "civil_registration" | "business_registration" | None
                                  # Set by router on every invocation. None = ambiguous query.
 
+    location_scope: str | None   # "VN-HCM" | "VN-HN" | "VN-DN" | None
+                                 # Detected by the router LLM from query text.
+                                 # None when no specific city is mentioned.
+
     filing_jurisdiction: str | None  # e.g. "VN-HCM-26968"
                                      # Loaded from SessionData at graph entry.
                                      # Set by confirmed user input — never by raw OCR alone.
@@ -78,6 +82,12 @@ class AgentState(TypedDict, total=False):
     # Output
     final_response: str
     response_metadata: dict
+
+    # Out-of-scope guard — set by router_node when intent == "out_of_scope"
+    out_of_scope: bool
+
+    # RAG degradation — set by rag_fn when cascade exhausted all scope levels with zero chunks
+    rag_returned_empty: bool
 
     # Control
     errors: list[str]

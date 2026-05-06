@@ -2,7 +2,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { v4 as uuidv4 } from 'uuid'
-import type { ChatMessage, ProcedureStep, UploadedFile } from '@/lib/types'
+import type { ChatMessage, PersonalData, ProcedureStep, UploadedFile } from '@/lib/types'
 
 // Stable cross-session identifier stored in localStorage (distinct from sessionId
 // which lives in sessionStorage and is tab-scoped). Initialised once per browser
@@ -26,22 +26,26 @@ interface ChatStore {
   procedurePlan: ProcedureStep[] | null
   guidedProcedureId: string | null
   guidedStep: number | null
+  personalData: PersonalData | null
   open: () => void
   close: () => void
   toggle: () => void
   addMessage: (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => string
   updateMessage: (id: string, updates: Partial<ChatMessage>) => void
+  removeLastMessage: () => void
   setStreaming: (v: boolean) => void
   setUploadedFile: (f: UploadedFile | null) => void
   setProcedurePlan: (plan: ProcedureStep[] | null) => void
+  setPersonalData: (data: PersonalData | null) => void
   setGuidedProcedureId: (id: string | null) => void
   setGuidedStep: (step: number | null) => void
+  injectWelcomeMessage: () => void
   clearSession: () => void
 }
 
 export const useChatStore = create<ChatStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       isOpen: false,
       sessionId: uuidv4(),
       citizenId: getOrCreateCitizenId(),
@@ -51,6 +55,7 @@ export const useChatStore = create<ChatStore>()(
       procedurePlan: null,
       guidedProcedureId: null,
       guidedStep: null,
+      personalData: null,
 
       open:   () => set({ isOpen: true }),
       close:  () => set({ isOpen: false }),
@@ -67,11 +72,32 @@ export const useChatStore = create<ChatStore>()(
           messages: s.messages.map((m) => (m.id === id ? { ...m, ...updates } : m)),
         })),
 
+      removeLastMessage: () =>
+        set((s) => ({ messages: s.messages.slice(0, -1) })),
+
       setStreaming:          (v) => set({ isStreaming: v }),
       setUploadedFile:       (f) => set({ uploadedFile: f }),
       setProcedurePlan:      (p) => set({ procedurePlan: p }),
+      setPersonalData:       (data) => set({ personalData: data }),
       setGuidedProcedureId:  (id) => set({ guidedProcedureId: id }),
       setGuidedStep:         (step) => set({ guidedStep: step }),
+
+      injectWelcomeMessage: () => {
+        const { messages } = get()
+        if (messages.length > 0) return
+        const welcomeMessage: ChatMessage = {
+          id: 'welcome',
+          role: 'assistant',
+          content:
+            'Xin chào! Tôi là trợ lý AI hỗ trợ hướng dẫn ' +
+            'thủ tục hành chính tại TP. Hồ Chí Minh. Bạn có thể ' +
+            'hỏi tôi về các thủ tục đăng ký cư trú, hộ tịch, ' +
+            'hoặc nuôi con nuôi.',
+          timestamp: new Date(),
+          isStreaming: false,
+        }
+        set({ messages: [welcomeMessage] })
+      },
 
       clearSession: () =>
         set({
@@ -94,12 +120,14 @@ export const useChatStore = create<ChatStore>()(
               removeItem: () => {},
             }
       ),
-      // Persist only these four fields. isStreaming is transient — always false on mount.
+      // Persist only these fields. isStreaming is transient — always false on mount.
+      // citizenId uses localStorage separately and is excluded here.
       partialize: (state) => ({
         sessionId: state.sessionId,
         messages: state.messages,
         guidedProcedureId: state.guidedProcedureId,
         guidedStep: state.guidedStep,
+        personalData: state.personalData,
       }),
       // After rehydration, convert serialised timestamp strings back to Date objects
       // so that toLocaleTimeString() works correctly in the chat page.

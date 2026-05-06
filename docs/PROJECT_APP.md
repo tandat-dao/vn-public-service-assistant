@@ -16,7 +16,7 @@ readiness, documentation requirements, and user experience.
 |---|---|---|---|
 | TASK-APP-01 | Eager model loading | High | ✅ Complete |
 | TASK-APP-02 | Form fill end-to-end | Critical | ✅ Complete |
-| TASK-APP-03 | Authentication gate | High | 📋 Not Started |
+| TASK-APP-03 | Authentication gate | High | ✅ Complete |
 | TASK-APP-04 | Streaming speed | Medium | ✅ Complete |
 | TASK-APP-05 | UI error messages | High | ✅ Complete |
 | TASK-APP-06 | Loading indicators | Medium | 📋 Not Started |
@@ -28,7 +28,7 @@ readiness, documentation requirements, and user experience.
 | TASK-APP-12 | Installation + User guides | High | 📋 Not Started |
 | TASK-APP-13 | Fix image upload + OCR pipeline audit | Critical | ✅ Complete |
 | TASK-APP-14 | Procedures plan API endpoint | High | 📋 Not Started |
-| TASK-APP-15 | Conversation history compaction | Medium | 📋 Not Started |
+| TASK-APP-15 | Conversation history compaction | Medium | ✅ Complete |
 | TASK-APP-16 | Extend form fill to TTHC-002 and TTHC-003 | High | ✅ Complete |
 | TASK-APP-17 | Citation content on hover | Medium | ✅ Complete |
 | TASK-APP-18 | Guided procedure completion wizard | High | ✅ Complete |
@@ -1735,6 +1735,14 @@ Read these files before writing:
 ## TASK-APP-15: Conversation history compaction
 
 **Priority:** Medium
+**Status:** ✅ Complete
+**Completed:** 2026-05-03
+
+### Changes made
+
+- `backend/app/services/redis_service.py` — `_compact_history` async method added; `save_session()` updated to call `_compact_history` with try/except fallback to raw 6-turn slice on any failure.
+- `backend/app/agents/nodes/synthesizer.py` — comment added at both `conv_history` usage sites noting that the first history entry may be a compaction summary (role `"assistant"`, prefix `"Tóm tắt trước đó: "`).
+- `backend/tests/unit/test_redis_service.py` — `test_save_session_trims_history_to_6` updated to verify new compaction behavior; 5 new tests added in `TestCompactHistory` class. 351 total unit tests passing.
 
 ### Goal
 

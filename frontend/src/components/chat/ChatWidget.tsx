@@ -4,25 +4,49 @@ import { MessageCircle, X, Send, Paperclip, ChevronDown, Maximize2, RotateCcw } 
 import Link from 'next/link'
 import { useChatStore } from '@/lib/stores/chatStore'
 import { streamChat, api } from '@/lib/api/client'
-import type { Citation, RetrievedSource } from '@/lib/types'
+import type { Citation, FeedbackType, RetrievedSource } from '@/lib/types'
 
 /* ─── helpers ─────────────────────────────────────────────── */
 
+function stripMarkdownForHover(text: string): string {
+  return text
+    .replace(/#{1,6}\s+/gm, '')
+    .replace(/\*{3}(.+?)\*{3}/g, '$1')
+    .replace(/\*{2}(.+?)\*{2}/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/^[\-\*]\s+/gm, '')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 /**
  * Render chat message content with legal citations highlighted.
- * Verified citations → bold orange span with ⚖️ prefix.
- *   When a matching RetrievedSource is found, adds a `title` tooltip with the
- *   chunk content (600-char cap enforced backend-side) and `cursor-help`.
- *   When no match, renders exactly as before with `cursor-default`.
- * Unverified citations → grey italic span with ⚠️ prefix. Never has a tooltip.
+ * Verified citations with a matching source → orange chip with structured hover tooltip
+ *   showing article label, document number, and stripped chunk content (≤300 chars).
+ * Verified citations with no matching source → orange chip with amber warning tooltip.
+ * [unverified:...] markers → grey italic span with amber warning tooltip.
  * MUST only be called on completed messages (isStreaming=false).
  */
 function renderWithCitations(
   content: string,
   retrievedSources: RetrievedSource[] = []
 ): React.ReactNode {
-  const pattern = /(\[unverified:\s*[^\]]+\]|\[Điều\s+\d+[a-zA-Z]?(?:\s+Khoản\s+\d+[a-zA-Z]?)?,\s+[^\]]+\])/g
+  // Matches any citation bracket containing a Vietnamese legal document identifier
+  // (covers Điều/Khoản, Mục/số, and Phụ lục formats) plus the [unverified:...] marker.
+  const pattern = /(\[unverified:\s*[^\]]+\]|\[[^\]]*(?:\/NQ-|\/TT-|\/NĐ-|\/QH|\/VBHN)[^\]]*\])/g
   const parts = content.split(pattern)
+
+  const unverifiedTooltip = (
+    <>
+      <div className="absolute top-full left-0 w-full h-1" />
+      <span className="absolute top-full mt-1 left-0 z-50 hidden group-hover:block hover:block w-64 bg-gray-900 rounded-lg shadow-lg p-3 text-left font-normal not-italic">
+        <div className="text-amber-500 text-xs font-semibold">⚠️ Trích dẫn chưa xác minh</div>
+        <p className="text-gray-400 text-xs mt-1">Không tìm thấy đoạn văn bản khớp trong kết quả truy xuất.</p>
+      </span>
+    </>
+  )
+
   return (
     <span className="whitespace-pre-wrap">
       {parts.map((part, i) => {
@@ -30,27 +54,54 @@ function renderWithCitations(
           return (
             <span
               key={i}
-              className="inline-flex items-center gap-0.5 italic text-gray-400 text-[0.85em] cursor-default"
-              title="Trích dẫn chưa được xác minh trong tài liệu"
+              className="relative group inline-flex items-center gap-0.5 italic text-gray-400 text-[0.85em] cursor-default"
             >
               ⚠️ {part}
+              {unverifiedTooltip}
             </span>
           )
         }
-        if (/^\[Điều/.test(part)) {
+        // Render any legal citation (Điều, Mục, số, Phụ lục) as an orange chip.
+        // For Điều citations: match hover content by both article_number + document_number.
+        // For alternative formats (Mục/số/Phụ lục): permissive match by document_number only.
+        if (/\/(?:NQ-|TT-|NĐ-|QH|VBHN)/.test(part)) {
           const lowerPart = part.toLowerCase()
-          const matchingSource = retrievedSources.find(
-            (source) =>
-              lowerPart.includes(source.article_number.toLowerCase()) &&
-              lowerPart.includes(source.document_number.toLowerCase())
+          const isDieuCitation = /^\[điều/i.test(part)
+          const matchingSource = retrievedSources.find((source) =>
+            isDieuCitation
+              ? lowerPart.includes(source.article_number.toLowerCase()) &&
+                lowerPart.includes(source.document_number.toLowerCase())
+              : lowerPart.includes(source.document_number.toLowerCase())
           )
+          if (matchingSource) {
+            return (
+              <span
+                key={i}
+                className="relative group inline-flex items-center gap-0.5 font-semibold text-[var(--terracotta-dk)] bg-[var(--terracotta-faint)] rounded px-1 text-[0.85em] cursor-help"
+              >
+                ⚖️ {part}
+                <div className="absolute top-full left-0 w-full h-1" />
+                <span className="absolute top-full mt-1 left-0 z-50 hidden group-hover:block hover:block w-72 max-w-sm bg-gray-900 rounded-lg shadow-lg p-3 text-left font-normal not-italic">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="font-semibold text-[var(--terracotta)] text-xs leading-tight">{matchingSource.article_number}</span>
+                    <span className="text-gray-400 text-[0.7em] whitespace-nowrap">{matchingSource.document_number}</span>
+                  </div>
+                  <hr className="border-gray-700 mb-1.5" />
+                  <p className="citation-content text-xs text-gray-300 leading-relaxed max-h-48 overflow-y-auto">
+                    {stripMarkdownForHover(matchingSource.content ?? '')}
+                  </p>
+                </span>
+              </span>
+            )
+          }
+          // No matching source — amber warning tooltip
           return (
             <span
               key={i}
-              className={`inline-flex items-center gap-0.5 font-semibold text-[#B8694A] bg-[#FFF3EF] rounded px-1 text-[0.85em] ${matchingSource ? 'cursor-help' : 'cursor-default'}`}
-              title={matchingSource ? matchingSource.content : 'Trích dẫn pháp lý đã xác minh'}
+              className="relative group inline-flex items-center gap-0.5 font-semibold text-[var(--terracotta-dk)] bg-[var(--terracotta-faint)] rounded px-1 text-[0.85em] cursor-default"
             >
               ⚖️ {part}
+              {unverifiedTooltip}
             </span>
           )
         }
@@ -60,52 +111,22 @@ function renderWithCitations(
   )
 }
 
-/**
- * Render a completed administrative document draft in a styled monospace block.
- * Shows a header, the full document text in a scrollable pre, and a copy button.
- * renderWithCitations() is intentionally NOT applied here — the content is a
- * structured document, not prose with citation chips.
- */
-function DocumentDraftBlock({ content }: { content: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(content)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // clipboard API not available (e.g. HTTP context) — silently ignore
-    }
-  }
-
+function AnimatedDots() {
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden mt-1">
-      <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
-        <span className="text-sm font-semibold" style={{ color: '#CE7A58' }}>
-          📄 Văn bản hành chính
-        </span>
-        <button
-          onClick={handleCopy}
-          className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          {copied ? '✅ Đã sao chép' : '📋 Sao chép'}
-        </button>
-      </div>
-      <pre className="p-4 text-xs leading-relaxed whitespace-pre-wrap font-mono text-gray-800 bg-white max-h-96 overflow-y-auto">
-        {content}
-      </pre>
-    </div>
-  )
-}
-
-function LoadingDots() {
-  return (
-    <div className="flex items-center gap-1 py-1">
-      <span className="chat-dot w-2 h-2 rounded-full bg-[#CE7A58] inline-block" />
-      <span className="chat-dot w-2 h-2 rounded-full bg-[#CE7A58] inline-block" />
-      <span className="chat-dot w-2 h-2 rounded-full bg-[#CE7A58] inline-block" />
-    </div>
+    <span className="inline-flex items-end gap-[3px] h-4">
+      <span
+        className="w-1.5 h-1.5 rounded-full bg-[var(--gray-300)] animate-bounce"
+        style={{ animationDelay: '0ms', animationDuration: '0.8s' }}
+      />
+      <span
+        className="w-1.5 h-1.5 rounded-full bg-[var(--gray-300)] animate-bounce"
+        style={{ animationDelay: '150ms', animationDuration: '0.8s' }}
+      />
+      <span
+        className="w-1.5 h-1.5 rounded-full bg-[var(--gray-300)] animate-bounce"
+        style={{ animationDelay: '300ms', animationDuration: '0.8s' }}
+      />
+    </span>
   )
 }
 
@@ -114,7 +135,13 @@ function CitationChips({ citations }: { citations: Citation[] }) {
   return (
     <div className="mt-1.5 flex flex-wrap gap-1">
       {citations.map((c) => (
-        <span key={c.doc_id} className="citation-chip" title={c.excerpt}>
+        <span
+          key={c.doc_id}
+          className="inline-block bg-[var(--navy-faint)] text-[var(--navy)]
+                     border border-[var(--navy-light)] hover:bg-[var(--navy-light)]
+                     text-[11px] px-1.5 py-0.5 rounded cursor-default transition-colors"
+          title={c.excerpt}
+        >
           {c.article}, {c.document_number}
         </span>
       ))}
@@ -149,14 +176,14 @@ function GuidedProgressBar({
   const totalSteps = GUIDED_STEP_LABELS.length
 
   return (
-    <div className="px-4 py-2 bg-[#FFF8F5] border-b border-[#DDDDDD]">
+    <div className="px-4 py-2 bg-[var(--terracotta-faint)] border-b border-[var(--border-card)]">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[0.7rem] font-semibold text-[#CE7A58] truncate">
+        <span className="text-[0.7rem] font-semibold text-[var(--terracotta)] truncate">
           Hướng dẫn: {procedureName}
         </span>
         <button
           onClick={onExit}
-          className="text-[0.65rem] text-[#999] hover:text-[#555] transition-colors whitespace-nowrap ml-2"
+          className="text-[0.65rem] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors whitespace-nowrap ml-2"
           title="Thoát chế độ hướng dẫn"
         >
           Thoát hướng dẫn
@@ -171,19 +198,19 @@ function GuidedProgressBar({
             <div key={i} className="flex items-center" style={{ flex: i < totalSteps - 1 ? '1' : 'none' }}>
               <div
                 className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center text-[0.55rem] font-bold
-                  ${isCompleted ? 'bg-green-500 text-white' : isCurrent ? 'bg-[#CE7A58] text-white' : 'bg-[#DDD] text-[#999]'}`}
+                  ${isCompleted ? 'bg-green-500 text-white' : isCurrent ? 'bg-[var(--terracotta)] text-white' : 'bg-[var(--gray-200)] text-[var(--gray-500)]'}`}
                 title={label}
               >
                 {isCompleted ? '✓' : i + 1}
               </div>
               {i < totalSteps - 1 && (
-                <div className={`flex-1 h-px mx-0.5 ${i < currentStep ? 'bg-green-500' : 'bg-[#DDD]'}`} />
+                <div className={`flex-1 h-px mx-0.5 ${i < currentStep ? 'bg-green-500' : 'bg-[var(--gray-200)]'}`} />
               )}
             </div>
           )
         })}
       </div>
-      <p className="text-[0.65rem] text-[#777] mt-0.5">
+      <p className="text-[0.65rem] text-[var(--text-muted)] mt-0.5">
         Bước {currentStep + 1}/{totalSteps}: {GUIDED_STEP_LABELS[currentStep] ?? 'Hoàn thành'}
       </p>
     </div>
@@ -204,24 +231,21 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
     isOpen, toggle, close,
     sessionId, citizenId, messages,
     isStreaming, setStreaming,
-    addMessage, updateMessage,
+    addMessage, updateMessage, removeLastMessage,
     uploadedFile, setUploadedFile,
     clearSession,
     guidedProcedureId, setGuidedProcedureId,
     guidedStep, setGuidedStep,
+    injectWelcomeMessage,
   } = useChatStore()
 
   const [input, setInput] = useState('')
+  const [isGenerating, setIsGenerating] = useState(false)
   const [lastUploadedPath, setLastUploadedPath] = useState<string | null>(null)
-  const bottomRef     = useRef<HTMLDivElement>(null)
-  const fileRef       = useRef<HTMLInputElement>(null)
-  const textareaRef   = useRef<HTMLTextAreaElement>(null)
-  const warmupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  /* auto-scroll to bottom on new messages */
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isOpen])
+  const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null)
+  const fileRef            = useRef<HTMLInputElement>(null)
+  const textareaRef        = useRef<HTMLTextAreaElement>(null)
+  const warmupTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /* auto-resize textarea */
   useEffect(() => {
@@ -269,12 +293,19 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
     doSilentPrime()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSend = useCallback(async () => {
-    const text = input.trim()
+  /* inject static welcome message on homepage inline chat — fires once on
+     mount, guard inside injectWelcomeMessage prevents double-injection */
+  useEffect(() => {
+    if (variant !== 'inline') return
+    injectWelcomeMessage()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSend = useCallback(async (overrideText?: string) => {
+    const text = overrideText ?? input.trim()
     if (!text || isStreaming) return
 
-    setInput('')
-    addMessage({ role: 'user', content: text, citations: [] })
+    if (!overrideText) setInput('')
+    if (!overrideText) addMessage({ role: 'user', content: text, citations: [] })
 
     const assistantId = addMessage({
       role: 'assistant',
@@ -283,6 +314,7 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
       isStreaming: true,
     })
 
+    setIsGenerating(true)
     setStreaming(true)
 
     // Start warmup timer — if no SSE content arrives within 5 seconds,
@@ -327,6 +359,11 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
     // without relying solely on the Redis session fallback.
     try {
       let accumulated = ''
+      // Tracks whether the backend sent a final metadata event (synthesizer mode).
+      // If the stream closes before this is set and we have partial content,
+      // the connection dropped mid-stream.
+      let receivedFinalMetadata = false
+
       for await (const chunk of streamChat(sessionId, text, imagePath ?? undefined, citizenId || undefined)) {
         try {
           const parsed = JSON.parse(chunk)
@@ -337,6 +374,8 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
               clearTimeout(warmupTimerRef.current)
               warmupTimerRef.current = null
             }
+            // Hide typing indicator on first content chunk.
+            setIsGenerating(false)
             // Chunks are 1–3 Unicode code points. Vietnamese diacritics are single
             // code points — no broken characters possible at this chunk size.
             accumulated += parsed.content
@@ -355,10 +394,10 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
             ) {
               updateMessage(assistantId, { filledFormPath: parsed.metadata.filled_form_path as string })
             }
-            // Store response mode so the render loop can select the correct
-            // presentation (e.g. document_draft uses DocumentDraftBlock).
+            // Store response mode for render path selection.
             if (parsed.metadata?.mode) {
               updateMessage(assistantId, { messageMode: parsed.metadata.mode as string })
+              receivedFinalMetadata = true
             }
             // When RAG returns no results, append a guidance tip so the user
             // knows how to rephrase their question.
@@ -393,9 +432,27 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
             clearTimeout(warmupTimerRef.current)
             warmupTimerRef.current = null
           }
+          setIsGenerating(false)
           accumulated += chunk
           updateMessage(assistantId, { content: accumulated })
         }
+      }
+
+      // Mid-stream connection drop: stream closed normally but no final metadata
+      // event arrived, and content was already streaming — treat as error.
+      if (!receivedFinalMetadata && accumulated.length > 0) {
+        if (warmupTimerRef.current) {
+          clearTimeout(warmupTimerRef.current)
+          warmupTimerRef.current = null
+        }
+        updateMessage(assistantId, {
+          content: 'Đã xảy ra lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.',
+          isStreaming: false,
+          isError: true,
+        })
+        setLastFailedMessage(text)
+        setStreaming(false)
+        return
       }
     } catch (err: any) {
       if (warmupTimerRef.current) {
@@ -403,7 +460,7 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
         warmupTimerRef.current = null
       }
       const status = err?.status
-      let errorMessage = 'Xin lỗi, đã có lỗi khi kết nối đến máy chủ. Vui lòng thử lại.'
+      let errorMessage = 'Đã xảy ra lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.'
       if (status === 429) {
         errorMessage = 'Hệ thống đang bận, vui lòng thử lại sau 30 giây.'
       } else if (status === 500) {
@@ -414,16 +471,33 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
       updateMessage(assistantId, {
         content: errorMessage,
         isStreaming: false,
+        isError: true,
       })
+      setLastFailedMessage(text)
     } finally {
       if (warmupTimerRef.current) {
         clearTimeout(warmupTimerRef.current)
         warmupTimerRef.current = null
       }
+      setIsGenerating(false)
       updateMessage(assistantId, { isStreaming: false })
       setStreaming(false)
     }
-  }, [input, isStreaming, sessionId, uploadedFile, addMessage, updateMessage, setStreaming, setUploadedFile])
+  }, [input, isStreaming, sessionId, uploadedFile, addMessage, updateMessage, setStreaming, setUploadedFile, setLastFailedMessage])
+
+  const handleRetry = useCallback(async () => {
+    if (!lastFailedMessage) return
+    removeLastMessage()
+    setLastFailedMessage(null)
+    await handleSend(lastFailedMessage)
+  }, [lastFailedMessage, handleSend, removeLastMessage])
+
+  const handleGeneralRetry = useCallback(() => {
+    const lastUser = [...messages].reverse().find(m => m.role === 'user')
+    if (!lastUser || isStreaming) return
+    removeLastMessage()
+    handleSend(lastUser.content)
+  }, [messages, isStreaming, removeLastMessage, handleSend])
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -438,6 +512,24 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
     // Trigger send on next tick so input state is flushed
     setTimeout(() => handleSend(), 0)
   }, [handleSend])
+
+  const handleFeedback = useCallback(async (messageId: string, feedback: FeedbackType) => {
+    updateMessage(messageId, { feedback })
+    try {
+      await fetch('/api/v1/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          message_id: messageId,
+          feedback,
+          timestamp: new Date().toISOString(),
+        }),
+      })
+    } catch {
+      // Silently ignore — feedback is best-effort
+    }
+  }, [sessionId, updateMessage])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -461,9 +553,9 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
         )}
 
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-[var(--warm-white)]">
           {messages.length === 0 && (
-            <div className="py-6 text-center text-[#999] text-xs leading-relaxed">
+            <div className="py-6 text-center text-[var(--text-muted)] text-xs leading-relaxed">
               <p className="text-2xl mb-2">🤖</p>
               <p>Xin chào! Tôi có thể giúp bạn tra cứu thủ tục hành chính,
                 điền tờ khai, hoặc giải đáp các câu hỏi về dịch vụ công.</p>
@@ -478,19 +570,66 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
               <div
                 className={`max-w-[80%] px-3 py-2 rounded-[6px] text-sm leading-relaxed
                   ${msg.role === 'user'
-                    ? 'bg-[#CE7A58] text-white'
-                    : 'bg-[#F5F5F5] text-[#1E2F41]'
+                    ? 'bg-[var(--navy)] text-white'
+                    : msg.isError
+                      ? 'bg-red-50 border border-red-200 text-[var(--text-primary)]'
+                      : 'bg-white border border-[var(--border-card)] text-[var(--text-primary)]'
                   }`}
               >
-                {msg.isStreaming && !msg.content
-                  ? <LoadingDots />
+                {msg.isStreaming && (!msg.content || msg.content === '...')
+                  ? (
+                    <>
+                      <p className="text-sm text-[var(--text-muted)] italic mb-1.5">Đang sinh câu trả lời</p>
+                      <AnimatedDots />
+                    </>
+                  )
                   : msg.isStreaming
                     ? <span className="whitespace-pre-wrap">{msg.content}</span>
-                    : msg.messageMode === 'document_draft'
-                      ? <DocumentDraftBlock content={msg.content} />
+                    : msg.isError
+                      ? <span className="whitespace-pre-wrap">⚠️ {msg.content}</span>
                       : renderWithCitations(msg.content, msg.retrievedSources ?? [])
                 }
+                {msg.isError && lastFailedMessage && (
+                  <button
+                    onClick={() => handleRetry()}
+                    className="mt-2 text-xs text-[var(--terracotta)] hover:underline flex items-center gap-1"
+                  >
+                    Thử lại
+                  </button>
+                )}
               </div>
+
+              {!msg.isStreaming && !msg.isError && msg.role === 'assistant' && (
+                <div className="flex items-center gap-2 mt-1 ml-1">
+                  <button
+                    onClick={() => handleFeedback(msg.id, 'helpful')}
+                    disabled={msg.feedback !== undefined}
+                    className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                      msg.feedback === 'helpful'
+                        ? 'bg-green-50 border-green-200 text-green-600'
+                        : 'border-[var(--border-card)] text-[var(--text-muted)] hover:border-green-300 hover:text-green-500'
+                    }`}
+                  >
+                    👍
+                  </button>
+                  <button
+                    onClick={() => handleFeedback(msg.id, 'unhelpful')}
+                    disabled={msg.feedback !== undefined}
+                    className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                      msg.feedback === 'unhelpful'
+                        ? 'bg-red-50 border-red-200 text-red-500'
+                        : 'border-[var(--border-card)] text-[var(--text-muted)] hover:border-red-300 hover:text-red-400'
+                    }`}
+                  >
+                    👎
+                  </button>
+                  {msg.feedback && (
+                    <span className="text-xs text-[var(--text-muted)]">
+                      {msg.feedback === 'helpful' ? 'Cảm ơn phản hồi của bạn' : 'Chúng tôi sẽ cải thiện'}
+                    </span>
+                  )}
+                </div>
+              )}
 
               {msg.role === 'assistant' && msg.citations && msg.citations.length > 0 && (
                 <CitationChips citations={msg.citations} />
@@ -499,11 +638,11 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
               {msg.role === 'assistant' && !msg.isStreaming && msg.filledFormPath && (
                 <div className="mt-2">
                   <a
-                    href={`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/v1/documents/download?path=${encodeURIComponent(msg.filledFormPath)}&session_id=${encodeURIComponent(sessionId)}`}
+                    href={`${process.env.NEXT_PUBLIC_API_URL_PUBLIC || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/documents/download?path=${encodeURIComponent(msg.filledFormPath)}&session_id=${encodeURIComponent(sessionId)}`}
                     download
                     className="inline-flex items-center gap-2 px-3 py-2 rounded
-                               bg-[#CE7A58] text-white text-sm font-medium
-                               hover:bg-[#B8694A] transition-colors"
+                               bg-[var(--terracotta)] text-white text-sm font-medium
+                               hover:bg-[var(--terracotta-dk)] transition-colors"
                   >
                     📄 Tải xuống tờ khai đã điền
                   </a>
@@ -511,17 +650,33 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
               )}
             </div>
           ))}
-          <div ref={bottomRef} />
+
+          {/* Thử lại — visible only after a completed (non-error) assistant message */}
+          {messages.length > 0 &&
+            messages[messages.length - 1]?.role === 'assistant' &&
+            !messages[messages.length - 1]?.isStreaming &&
+            !isStreaming &&
+            !messages[messages.length - 1]?.isError && (
+              <div className="flex justify-start">
+                <button
+                  onClick={handleGeneralRetry}
+                  className="flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--terracotta)] transition-colors py-1"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Thử lại
+                </button>
+              </div>
+            )}
         </div>
 
         {/* Uploaded file preview */}
         {uploadedFile && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-[#FFF8F5] border-t border-[#DDDDDD]">
-            <Paperclip className="w-3.5 h-3.5 text-[#CE7A58] flex-shrink-0" />
-            <span className="text-xs text-[#555] truncate flex-1">{uploadedFile.file.name}</span>
+          <div className="flex items-center gap-2 px-4 py-2 bg-[var(--terracotta-faint)] border-t border-[var(--border-card)]">
+            <Paperclip className="w-3.5 h-3.5 text-[var(--terracotta)] flex-shrink-0" />
+            <span className="text-xs text-[var(--text-secondary)] truncate flex-1">{uploadedFile.file.name}</span>
             <button
               onClick={() => setUploadedFile(null)}
-              className="text-[#999] hover:text-[#555] transition-colors"
+              className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -529,7 +684,7 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
         )}
 
         {/* Input area */}
-        <div className="border-t border-[#DDDDDD] px-3 py-2 flex items-end gap-2">
+        <div className="border-t border-[var(--border-card)] bg-white px-3 py-3 flex items-end gap-2">
           {/* Hidden file input */}
           <input
             ref={fileRef}
@@ -542,7 +697,7 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
           <button
             onClick={() => fileRef.current?.click()}
             title="Đính kèm tệp"
-            className="text-[#999] hover:text-[#CE7A58] transition-colors p-1 flex-shrink-0 self-end mb-0.5"
+            className="text-[var(--text-muted)] hover:text-[var(--terracotta)] transition-colors p-1 flex-shrink-0 self-end mb-0.5"
           >
             <Paperclip className="w-4 h-4" />
           </button>
@@ -555,17 +710,19 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
             placeholder="Nhập câu hỏi… (Enter để gửi)"
             rows={1}
             disabled={isStreaming}
-            className="flex-1 resize-none border border-[#DDDDDD] rounded px-2.5 py-2 text-sm
-                       focus:outline-none focus:border-[#CE7A58] disabled:opacity-50
+            className="flex-1 resize-none bg-[var(--warm-white)] border border-[var(--border-card)]
+                       rounded-xl px-4 py-2.5 text-sm focus:outline-none
+                       focus:border-[var(--terracotta)] transition-colors disabled:opacity-50
                        max-h-[120px] overflow-y-auto leading-snug"
           />
 
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={!input.trim() || isStreaming}
-            className="bg-[#CE7A58] text-white rounded p-2 flex-shrink-0 self-end
-                       hover:bg-[#B8694A] disabled:opacity-40 disabled:cursor-not-allowed
-                       transition-colors"
+            className="bg-[var(--terracotta)] hover:bg-[var(--terracotta-dk)] text-white
+                       rounded-xl px-4 py-2.5 text-sm font-medium transition-colors
+                       flex-shrink-0 self-end
+                       disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Send className="w-4 h-4" />
           </button>
@@ -578,7 +735,32 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
 
   if (variant === 'inline') {
     return (
-      <div className="w-full h-[520px] border border-gray-200 rounded-xl bg-white flex flex-col overflow-hidden">
+      <div className="w-full h-[520px] border border-[var(--border-card)] rounded-2xl bg-[var(--warm-white)] flex flex-col overflow-hidden">
+        {/* Header with new-conversation + expand buttons */}
+        <div className="flex items-center justify-between px-4 py-3 bg-[var(--terracotta)] flex-shrink-0">
+          <div>
+            <p className="text-white font-medium text-sm">Trợ lý AI</p>
+            <p className="text-white/70 text-xs">Dịch vụ công TP. Hồ Chí Minh</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={clearSession}
+              title="Cuộc trò chuyện mới"
+              aria-label="Cuộc trò chuyện mới"
+              className="text-white/80 hover:text-white transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+            <Link
+              href="/chat"
+              title="Mở rộng"
+              aria-label="Mở rộng"
+              className="text-white/80 hover:text-white transition-colors"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
         {renderBody()}
       </div>
     )
@@ -592,9 +774,9 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
       <button
         onClick={toggle}
         aria-label="Mở hộp trợ lý ảo"
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-[#CE7A58]
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-[var(--navy)]
                    flex items-center justify-center text-white
-                   hover:bg-[#B8694A] transition-colors"
+                   hover:bg-[var(--navy-mid)] transition-colors shadow-lg"
       >
         {isOpen
           ? <ChevronDown className="w-6 h-6" />
@@ -611,10 +793,10 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
           style={{ height: '520px' }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-[#CE7A58]">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5 text-white" />
-              <span className="text-white font-semibold text-sm">Trợ lý hành chính</span>
+          <div className="flex items-center justify-between px-4 py-3 bg-[var(--terracotta)]">
+            <div>
+              <p className="text-white font-medium text-sm">Trợ lý AI</p>
+              <p className="text-white/70 text-xs">Dịch vụ công TP. Hồ Chí Minh</p>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -635,7 +817,7 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
               </Link>
               <button
                 onClick={close}
-                className="text-white/80 hover:text-white transition-colors"
+                className="text-white/80 hover:text-white hover:bg-[var(--terracotta-dk)] transition-colors"
                 aria-label="Đóng"
               >
                 <X className="w-4 h-4" />

@@ -5,7 +5,7 @@ const documentsSection = (
   <>
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Giấy tờ phải nộp:</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -30,7 +30,7 @@ const documentsSection = (
 
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Giấy tờ phải xuất trình:</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -75,7 +75,7 @@ const documentsSection = (
 
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Lưu ý:</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -160,7 +160,7 @@ const documentsSection = (
 
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Bao gồm</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -176,7 +176,7 @@ const documentsSection = (
                 href="/forms/18.TKyeucaubansaotrichluchotich.doc"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-[#CE7A58] hover:underline"
+                className="text-xs text-[var(--terracotta)] hover:underline"
               >
                 18.TKyeucaubansaotrichluchotich.doc
               </a>
@@ -190,7 +190,7 @@ const documentsSection = (
                 href="/forms/18.DTTT-CpBSkhaisinhTrchlcHT.doc"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-[#CE7A58] hover:underline"
+                className="text-xs text-[var(--terracotta)] hover:underline"
               >
                 18.DTTT-CpBSkhaisinhTrchlcHT.doc
               </a>
@@ -217,7 +217,6 @@ export default function CapBanSaoTrichLucPage() {
       processingDays="3 ngày làm việc"
       fee="5.000 đồng/bản"
       documentsSection={documentsSection}
-      showCccdUpload={true}
       chatContext="Người dùng đang xem thủ tục Cấp bản sao Trích lục hộ tịch (TTHC-CR-002) tại TP. Hồ Chí Minh. Thủ tục này yêu cầu đã hoàn thành Đăng ký khai sinh (TTHC-CR-001). Hãy sẵn sàng trả lời câu hỏi về hồ sơ, lệ phí, và quy trình."
     />
   )

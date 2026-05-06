@@ -230,11 +230,10 @@ class QdrantService:
                 score += 1.0 / (bm25_ranks[pid] + 60)
             rrf_scores[pid] = score
 
-        sorted_ids = sorted(all_ids, key=lambda pid: rrf_scores[pid], reverse=True)[
-            :top_k
-        ]
+        sorted_ids = sorted(all_ids, key=lambda pid: rrf_scores[pid], reverse=True)
 
         # ---- Token budget enforcement ----
+        # Iterate sorted_ids without a top_k cap here — dedup+slice below.
         result: list[DocumentChunk] = []
         used_tokens = 0
 
@@ -270,13 +269,15 @@ class QdrantService:
                 )
             )
 
+        deduplicated = self._deduplicate_by_article(result)
         logger.debug(
-            "RAG token budget: %d/%d tokens, %d chunks returned",
+            "RAG token budget: %d/%d tokens, %d chunks after dedup (from %d)",
             used_tokens,
             settings.RAG_TOKEN_BUDGET,
+            len(deduplicated),
             len(result),
         )
-        return result
+        return deduplicated[:top_k]
 
     # ------------------------------------------------------------------
     # Status management
@@ -384,6 +385,34 @@ class QdrantService:
         return Filter(
             must=[FieldCondition(key="status", match=MatchValue(value="active"))]
         )
+
+    def _deduplicate_by_article(
+        self, chunks: list[DocumentChunk]
+    ) -> list[DocumentChunk]:
+        """Keep only the highest-scoring chunk per (article_number, document_number).
+
+        Prevents paragraph-fallback chunks from the same article flooding the
+        top-K results.  Chunks are assumed to be pre-sorted descending by
+        rrf_score — the first chunk seen for each (article, doc) pair is the
+        winner.
+
+        Khoản-split chunks ("Điều 20 Khoản 1", "Điều 20 Khoản 2") have
+        distinct article_number strings and are NOT collapsed — only plain
+        numeric/string duplicates ("13", "13", "13") are collapsed.
+        """
+        seen: set[tuple[str, str]] = set()
+        deduplicated: list[DocumentChunk] = []
+
+        for chunk in chunks:
+            key = (
+                chunk.article_number or "",
+                chunk.document_number or "",
+            )
+            if key not in seen:
+                seen.add(key)
+                deduplicated.append(chunk)
+
+        return deduplicated
 
     def _build_filter(
         self,

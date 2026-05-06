@@ -1,0 +1,644 @@
+================================================================================
+FORM FIELD AUDIT REPORT — DichVuCong
+Generated: 2026-05-06
+Method: LibreOffice headless .doc → .txt conversion + manual analysis
+================================================================================
+
+SOURCE OF TRUTH
+  Real .doc forms:   backend/data/form_sources/
+  Extracted text:    backend/data/form_sources/extracted_text/
+  UI config (FE):    frontend/src/data/formFieldConfigs.ts
+  UI config (BE):    backend/app/core/form_field_configs.py
+
+NOTE: Frontend and backend form_field_configs are IDENTICAL in content.
+All gaps below apply to both simultaneously.
+
+PROCEDURE → FORM FILE MAPPING
+  TTHC-001  Đăng ký thường trú       → (no form — correct)
+  TTHC-002  Đăng ký tạm trú          → CT01  (1.MuCT01banhnhkmtheoThngts53.doc)
+  TTHC-003  Xác nhận thông tin cư trú → CT01 (same file)
+  TTHC-CR-001 Đăng ký khai sinh      → 1.TKngkkhaisinh.doc
+                                         1.TTT-ngkkhaisinh.doc
+  TTHC-CR-002 Cấp bản sao trích lục  → 18.TKyeucaubansaotrichluchotich.doc
+                                         18.DTTT-CpBSkhaisinhTrchlcHT.doc
+  TTHC-AD-001 Đăng ký nuôi con nuôi  → 1.nxinnhnconnui.doc
+                                         2.Vnbnxcnhnhoncnhgianhchiukinkinht.doc
+  TTHC-AD-002 Đăng ký lại nuôi con nuôi → 7.Tkhaingklivicnuiconnui.doc
+
+================================================================================
+
+──────────────────────────────────────────────────────────────────────────────
+TTHC-002 / TTHC-003 — Form: 1.MuCT01banhnhkmtheoThngts53.doc (CT01)
+──────────────────────────────────────────────────────────────────────────────
+Note: This is Mẫu CT01 per Thông tư 53/2025/TT-BCA, effective 01/07/2025.
+      The form has 11 numbered fields and a family-member table.
+
+REAL FORM FIELDS (from extracted text):
+  [0]  Kính gửi (cơ quan đăng ký cư trú)
+  [1]  Họ, chữ đệm và tên khai sinh
+  [2]  Ngày, tháng, năm sinh
+  [3]  Giới tính                             ← same line as field 2
+  [4]  Số định danh cá nhân (CCCD character grid, 12 cells)
+  [5]  Số điện thoại liên hệ
+  [6]  Email
+  [7]  Họ, chữ đệm và tên chủ hộ
+  [8]  Mối quan hệ với chủ hộ                ← same line as field 7
+  [9]  Số định danh cá nhân của chủ hộ
+  [10] Nội dung đề nghị (textarea)
+  [11] Những thành viên trong hộ gia đình cùng thay đổi (table):
+         columns: Họ chữ đệm và tên | Ngày tháng năm sinh |
+                  Giới tính | Số định danh cá nhân | Mối quan hệ với chủ hộ
+
+UI FIELDS CURRENTLY CONFIGURED (14 fields):
+  ho_chu_dem_va_ten        "Họ, chữ đệm và tên"                [1] ✓
+  ngay_thang_nam_sinh      "Ngày, tháng, năm sinh"             [2] ✓
+  gioi_tinh                "Giới tính"                         [3] ✓
+  dan_toc                  "Dân tộc"                           [EXTRA — not in CT01]
+  so_dinh_danh_ca_nhan     "Số định danh cá nhân"              [4] ✓
+  que_quan                 "Quê quán"                          [EXTRA — not in CT01]
+  noi_thuong_tru           "Nơi thường trú"                    [EXTRA — not in CT01]
+  noi_o_hien_tai           "Nơi ở hiện tại"                    [EXTRA — not in CT01]
+  nghe_nghiep              "Nghề nghiệp"                       [EXTRA — not in CT01]
+  noi_lam_viec             "Nơi làm việc"                      [EXTRA — not in CT01]
+  ho_ten_chu_ho            "Họ tên chủ hộ"                     [7] ✓
+  quan_he_voi_chu_ho       "Quan hệ với chủ hộ"                [8] ✓
+  so_dinh_danh_chu_ho      "Số định danh cá nhân chủ hộ"       [9] ✓
+  noi_dung_de_nghi         "Nội dung đề nghị"                  [10] ✓
+
+MISSING FROM UI (fields in real form not in config):
+  ✗ Số điện thoại liên hệ                    [5]
+  ✗ Email                                     [6]
+  ✗ Family-member table (field 11)            [11] — complex table, understandable omission
+
+EXTRA IN UI (fields in config not in real CT01 form):
+  + Dân tộc
+  + Quê quán
+  + Nơi thường trú
+  + Nơi ở hiện tại
+  + Nghề nghiệp
+  + Nơi làm việc
+
+Match status: ⚠️ PARTIAL — 8/11 real fields covered; 6 extra phantom fields; 2 real fields missing
+
+ROOT CAUSE: The CT01 config was written against an older Thông tư (pre-2025) or
+an imagined older form. TT 53/2025/TT-BCA (effective 01/07/2025) strips out
+demographic detail fields (dân tộc, nghề nghiệp, quê quán, nơi thường trú)
+in favour of a simpler 11-field structure. The current UI shows fields that
+the real form no longer contains.
+
+──────────────────────────────────────────────────────────────────────────────
+TTHC-CR-001 — Form 1: 1.TKngkkhaisinh.doc (Tờ khai đăng ký khai sinh)
+──────────────────────────────────────────────────────────────────────────────
+Note: Physical fill-in form (numbered, dot-fill style).
+
+REAL FORM FIELDS (from extracted text):
+  REQUESTER section:
+    [A1] Họ, chữ đệm, tên người yêu cầu
+    [A2] Ngày, tháng, năm sinh (of requester)
+    [A3] Nơi cư trú
+    [A4] Giấy tờ tùy thân (CCCD/Hộ chiếu number)
+    [A5] Quan hệ với người được khai sinh
+
+  CHILD section (person being registered):
+    [B1] Họ, chữ đệm, tên
+    [B2] Ngày, tháng, năm sinh (with "ghi bằng chữ")
+    [B3] Giới tính
+    [B4] Dân tộc
+    [B5] Quốc tịch
+    [B6] Nơi sinh
+    [B7] Quê quán
+
+  MOTHER section:
+    [C1] Họ, chữ đệm, tên người mẹ
+    [C2] Năm sinh (NOT full date — only year)
+    [C3] Dân tộc
+    [C4] Quốc tịch
+    [C5] Nơi cư trú
+    [C6] Giấy tờ tùy thân
+
+  FATHER section:
+    [D1] Họ, chữ đệm, tên người cha
+    [D2] Năm sinh (NOT full date — only year)
+    [D3] Dân tộc
+    [D4] Quốc tịch
+    [D5] Nơi cư trú
+    [D6] Giấy tờ tùy thân
+
+  [E1] Thông tin Giấy chứng nhận kết hôn của cha, mẹ
+  [E2] Đề nghị cấp bản sao (Có/Không + số lượng)
+
+UI FIELDS CURRENTLY CONFIGURED (23 fields):
+  ho_ten_tre               "Họ, chữ đệm và tên của trẻ"                      [B1] ✓
+  ngay_sinh_tre            "Ngày, tháng, năm sinh của trẻ"                   [B2] ✓
+  gioi_tinh_tre            "Giới tính của trẻ"                               [B3] ✓
+  noi_sinh                 "Nơi sinh"                                         [B6] ✓
+  que_quan_tre             "Quê quán của trẻ"                                [B7] ✓
+  dan_toc_tre              "Dân tộc của trẻ"                                 [B4] ✓
+  quoc_tich_tre            "Quốc tịch của trẻ"                               [B5] ✓
+  ho_ten_cha               "Họ, chữ đệm và tên cha"                         [D1] ✓
+  ngay_sinh_cha            "Ngày, tháng, năm sinh của cha"   [D2] ~ (real form: năm sinh only)
+  dan_toc_cha              "Dân tộc của cha"                                 [D3] ✓
+  quoc_tich_cha            "Quốc tịch của cha"                               [D4] ✓
+  so_dinh_danh_cha         "Số định danh cá nhân của cha"    [D6] ~ (real form: "Giấy tờ tùy thân")
+  que_quan_cha             "Quê quán của cha"                                [EXTRA — not in form]
+  noi_cu_tru_cha           "Nơi cư trú của cha"                              [D5] ✓
+  ho_ten_me                "Họ, chữ đệm và tên mẹ"                          [C1] ✓
+  ngay_sinh_me             "Ngày, tháng, năm sinh của mẹ"   [C2] ~ (real form: năm sinh only)
+  dan_toc_me               "Dân tộc của mẹ"                                  [C3] ✓
+  quoc_tich_me             "Quốc tịch của mẹ"                                [C4] ✓
+  so_dinh_danh_me          "Số định danh cá nhân của mẹ"    [C6] ~ (real form: "Giấy tờ tùy thân")
+  que_quan_me              "Quê quán của mẹ"                                 [EXTRA — not in form]
+  noi_cu_tru_me            "Nơi cư trú của mẹ"                               [C5] ✓
+  ho_ten_nguoi_dang_ky     "Họ tên người đăng ký khai sinh"                  [A1] ✓
+  so_dinh_danh_nguoi_dang_ky "Số định danh cá nhân của người đăng ký"       [A4] ~
+  noi_cu_tru_nguoi_dang_ky "Nơi cư trú của người đăng ký"                   [A3] ✓
+
+MISSING FROM UI:
+  ✗ Quan hệ với người được khai sinh                                         [A5]
+  ✗ Thông tin Giấy chứng nhận kết hôn của cha, mẹ trẻ                       [E1]
+  ✗ Đề nghị cấp bản sao (Có/Không + số lượng)                              [E2]
+
+EXTRA IN UI (not in real form):
+  + Quê quán của cha
+  + Quê quán của mẹ
+
+LABEL/TYPE DISCREPANCIES (minor):
+  ~ ngay_sinh_cha/me use 'date' type but real form only asks for 'năm sinh' (year)
+  ~ so_dinh_danh_cha/me labeled as "Số định danh" but form field is "Giấy tờ tùy thân"
+    (these map correctly enough for the dot-fill algorithm)
+
+Match status: ⚠️ PARTIAL — 20/24 real fields covered; 2 extra fields; 3 missing
+
+──────────────────────────────────────────────────────────────────────────────
+TTHC-CR-001 — Form 2: 1.TTT-ngkkhaisinh.doc
+             (Nội dung mẫu hồ sơ điện tử tương tác đăng ký khai sinh)
+──────────────────────────────────────────────────────────────────────────────
+IMPORTANT: This is NOT a physical fill-in form. It is an electronic
+interactive form template listing 28 data items across 4 sections.
+It defines the backend data model for the online registration system
+(VNeID / national digital infrastructure).
+
+REAL FORM SECTIONS AND FIELDS (28 items):
+  Section I — Người yêu cầu:
+    (1) Họ, chữ đệm, tên
+    (2) Số định danh cá nhân
+    (3) Giấy tờ tùy thân (type, number, date, issuer, copy attached)
+    (4) Nơi cư trú (thường trú/tạm trú/đang sinh sống)
+    (5) Quan hệ với người được khai sinh
+
+  Section II — Người được đăng ký khai sinh:
+    (6) Họ, chữ đệm, tên
+    (7) Ngày, tháng, năm sinh (three separate fields)
+    (8) Giới tính
+    (9) Dân tộc
+    (10) Quốc tịch
+    (11) Nơi sinh (structured: số nhà / đường / thôn / xã / tỉnh)
+    (12) Quê quán
+
+  Section III — Người mẹ:
+    (13) Họ, chữ đệm, tên
+    (14) Ngày, tháng, năm sinh
+    (15) Số định danh cá nhân
+    (16) Giấy tờ tùy thân
+    (17) Dân tộc
+    (18) Quốc tịch
+    (19) Nơi cư trú
+
+  Section IV — Người cha:
+    (20) Họ, chữ đệm, tên
+    (21) Ngày, tháng, năm sinh
+    (22) Số định danh cá nhân
+    (23) Giấy tờ tùy thân
+    (24) Dân tộc
+    (25) Quốc tịch
+    (26) Nơi cư trú
+
+  (27) Đề nghị cấp bản sao (Có/Không + số lượng)
+  (28) Hồ sơ đính kèm
+
+UI FIELDS CURRENTLY CONFIGURED (7 fields):
+  ho_ten_tre             "Họ tên của trẻ"                        [6] ✓
+  ngay_sinh_tre          "Ngày tháng năm sinh"                   [7] ✓
+  gioi_tinh_tre          "Giới tính"                             [8] ✓
+  noi_sinh               "Nơi sinh"                              [11] ✓
+  ho_ten_nguoi_khai      "Họ tên người khai"                     [1] ✓
+  so_dinh_danh_nguoi_khai "Số định danh cá nhân của người khai"  [2] ✓
+  dia_chi_nguoi_khai     "Địa chỉ người khai"                    [4] ✓
+
+MISSING FROM UI (21 of 28 fields):
+  ✗ Giấy tờ tùy thân người yêu cầu             [3]
+  ✗ Quan hệ với người được khai sinh             [5]
+  ✗ Dân tộc của trẻ                             [9]
+  ✗ Quốc tịch của trẻ                           [10]
+  ✗ Quê quán                                    [12]
+  ✗ Section III (Mẹ): tất cả 7 trường           [13–19]
+  ✗ Section IV (Cha): tất cả 7 trường           [20–26]
+  ✗ Đề nghị cấp bản sao                         [27]
+  ✗ Hồ sơ đính kèm                              [28]
+
+EXTRA IN UI: None
+
+Match status: ⚠️ PARTIAL (intentional simplification) — 7/28 fields
+The 7-field UI version is a minimal subset. Since this is an electronic
+template, the backend POST should ideally contain the full 28-field payload.
+The .doc fill algorithm (dot-replacement) will also fail to fill cha/mẹ
+sections in this file since those fields are not mapped.
+
+──────────────────────────────────────────────────────────────────────────────
+TTHC-CR-002 — Form 1: 18.TKyeucaubansaotrichluchotich.doc
+              (Tờ khai cấp bản sao Trích lục hộ tịch)
+──────────────────────────────────────────────────────────────────────────────
+Note: Physical fill-in form (numbered, dot-fill style).
+
+REAL FORM FIELDS (from extracted text):
+  REQUESTER section:
+    [A1] Họ, chữ đệm, tên người yêu cầu
+    [A2] Ngày, tháng, năm sinh
+    [A3] Nơi cư trú
+    [A4] Giấy tờ tùy thân (CCCD number)
+    [A5] Quan hệ với người được cấp bản sao Trích lục hộ tịch
+
+  REQUEST CONTENT section (person whose record is needed):
+    [B1] Loại giấy tờ hộ tịch yêu cầu
+    [B2] Họ, chữ đệm, tên (of person to be copied)
+    [B3] Ngày, tháng, năm sinh (of person to be copied)
+    [B4] Giới tính (of person to be copied)
+    [B5] Dân tộc (of person to be copied)
+    [B6] Quốc tịch (of person to be copied)
+    [B7] Nơi cư trú (of person to be copied)
+    [B8] Giấy tờ tùy thân (of person to be copied)
+    [B9] Đã đăng ký tại (cơ quan đăng ký hộ tịch)
+    [B10] Ngày tháng năm đăng ký + Số + Quyển số
+    [B11] Thông tin khác
+    [B12] Số lượng bản sao yêu cầu
+
+UI FIELDS CURRENTLY CONFIGURED (12 fields):
+  ho_ten_nguoi_yeu_cau         "Họ, chữ đệm và tên người yêu cầu"          [A1] ✓
+  ngay_sinh_nguoi_yeu_cau      "Ngày, tháng, năm sinh của người yêu cầu"   [A2] ✓
+  gioi_tinh_nguoi_yeu_cau      "Giới tính người yêu cầu"   [MISPLACED — belongs to B4]
+  so_dinh_danh_nguoi_yeu_cau   "Số định danh cá nhân/Số CCCD người yêu cầu" [A4] ~
+  dia_chi_thuong_tru_nguoi_yeu_cau "Địa chỉ thường trú của người yêu cầu"  [A3] ✓
+  so_dien_thoai                "Số điện thoại"                [EXTRA — not in real form]
+  loai_giay_to_yeu_cau         "Loại giấy tờ hộ tịch yêu cầu cấp bản sao" [B1] ✓
+  so_ban_yeu_cau               "Số bản yêu cầu cấp"                        [B12] ✓
+  ho_ten_nguoi_can_trich_luc   "Họ tên người được đăng ký trong giấy tờ"   [B2] ✓
+  nam_dang_ky                  "Năm đăng ký"                               [B10] ~
+  noi_dang_ky                  "Nơi đăng ký"                               [B9] ✓
+  so_dang_ky                   "Số đăng ký"                                [B10] ~
+
+MISSING FROM UI:
+  ✗ Quan hệ với người được cấp bản sao Trích lục                  [A5]
+  ✗ Ngày, tháng, năm sinh (of person to be copied)                [B3]
+  ✗ Giới tính (of person to be copied)                            [B4]  ← UI has this for REQUESTER
+  ✗ Dân tộc (of person to be copied)                              [B5]
+  ✗ Quốc tịch (of person to be copied)                            [B6]
+  ✗ Nơi cư trú (of person to be copied)                           [B7]
+  ✗ Giấy tờ tùy thân (of person to be copied)                     [B8]
+  ✗ Quyển số                                                       [B10]
+  ✗ Thông tin khác                                                 [B11]
+
+EXTRA IN UI (not in real form):
+  + gioi_tinh_nguoi_yeu_cau — "Giới tính người yêu cầu" is WRONG LABEL;
+    the real form's Giới tính field belongs to the PERSON BEING COPIED (B4),
+    not the requester
+  + so_dien_thoai — Số điện thoại not in this form
+
+Match status: ⚠️ PARTIAL — 8/17 fields covered; 9 missing; 2 extra/mislabeled
+
+──────────────────────────────────────────────────────────────────────────────
+TTHC-CR-002 — Form 2: 18.DTTT-CpBSkhaisinhTrchlcHT.doc
+              (Mẫu điện tử tương tác: Yêu cầu cấp bản sao Giấy khai sinh /
+               Bản sao Trích lục hộ tịch)
+──────────────────────────────────────────────────────────────────────────────
+Note: Electronic interactive form template (15 numbered items).
+
+REAL FORM FIELDS (15 items):
+  Section I — Người yêu cầu:
+    (1) Họ, chữ đệm, tên
+    (2) Số định danh cá nhân
+    (3) Giấy tờ tùy thân
+    (4) Nơi cư trú
+    (5) Quan hệ với người được cấp
+
+  Section II — Giấy tờ hộ tịch đã đăng ký:
+    (6)  Họ, chữ đệm, tên người được đăng ký
+    (7)  Số định danh cá nhân (của người được đăng ký)
+    (8)  Giấy tờ tùy thân (của người được đăng ký)
+    (9)  Nơi cư trú (của người được đăng ký)
+    (10) Loại việc yêu cầu cấp bản sao
+    (11) Cơ quan đã đăng ký sự kiện hộ tịch trước đây
+    (12) Tên giấy tờ hộ tịch, số, quyển số, ngày tháng năm đăng ký
+    (13) Số lượng bản sao
+    (14) Phương thức nhận kết quả
+    (15) Hồ sơ đính kèm
+
+UI FIELDS CURRENTLY CONFIGURED (10 fields):
+  ho_ten_nguoi_yeu_cau    "Họ và tên người yêu cầu"                     [1]  ✓
+  ngay_thang_nam_sinh     "Ngày, tháng, năm sinh"          [EXTRA — not in form]
+  so_dinh_danh_ca_nhan    "Số định danh cá nhân"                        [2]  ✓
+  noi_thuong_tru          "Nơi thường trú"                               [4]  ✓
+  loai_van_ban_yeu_cau    "Loại văn bản yêu cầu"                        [10] ✓
+  muc_dich_su_dung        "Mục đích sử dụng"               [EXTRA — not in form]
+  so_ban_yeu_cau          "Số bản yêu cầu"                              [13] ✓
+  nguoi_duoc_cap_ban_sao  "Người được cấp bản sao"          [6]  ~ (name, not just label)
+  noi_dang_ky_ho_tich     "Nơi đăng ký hộ tịch"                        [11] ✓
+  thong_tin_ho_tich       "Thông tin hộ tịch"               [12] ~ (partial match)
+
+MISSING FROM UI:
+  ✗ Quan hệ với người được cấp                                       [5]
+  ✗ Số định danh cá nhân (người được đăng ký)                        [7]
+  ✗ Giấy tờ tùy thân (người được đăng ký)                            [8]
+  ✗ Nơi cư trú (người được đăng ký)                                  [9]
+  ✗ Phương thức nhận kết quả                                         [14]
+  ✗ Hồ sơ đính kèm                                                   [15]
+
+EXTRA IN UI:
+  + ngay_thang_nam_sinh — not a field in this electronic form
+  + muc_dich_su_dung — not in real form
+
+Match status: ⚠️ PARTIAL — 7/15 fields covered; 6 missing; 2 extra
+
+──────────────────────────────────────────────────────────────────────────────
+TTHC-AD-001 — Form 1: 1.nxinnhnconnui.doc (Đơn xin nhận nuôi con nuôi)
+──────────────────────────────────────────────────────────────────────────────
+Note: Physical fill-in form. TWO-COLUMN structure (Ông / Bà) for adopters.
+
+REAL FORM FIELDS (from extracted text):
+  HEADER: Kính gửi
+
+  Section 1 — Phần khai về người nhận con nuôi (table: Ông | Bà):
+    [A1]  Họ, chữ đệm, tên (ông)
+    [A2]  Họ, chữ đệm, tên (bà)
+    [A3]  Ngày, tháng, năm sinh (ông)
+    [A4]  Ngày, tháng, năm sinh (bà)
+    [A5]  Quốc tịch (ông)
+    [A6]  Quốc tịch (bà)
+    [A7]  Số định danh cá nhân / Hộ chiếu (ông)
+    [A8]  Số định danh cá nhân / Hộ chiếu (bà)
+    [A9]  Nơi cư trú (ông)
+    [A10] Nơi cư trú (bà)
+    [A11] Điện thoại / Thư điện tử (ông)
+    [A12] Điện thoại / Thư điện tử (bà)
+
+  Section 2 — Phần khai về người được nhận làm con nuôi:
+    [B1] Họ, chữ đệm, tên
+    [B2] Giới tính
+    [B3] Ngày, tháng, năm sinh
+    [B4] Quốc tịch
+    [B5] Số định danh cá nhân / Số Hộ chiếu
+    [B6] Nơi sinh
+    [B7] Nơi cư trú
+    [B8] Thuộc đối tượng (checkbox)
+    [B9] Hiện đang sống tại gia đình của Ông/Bà (Họ tên; Nơi cư trú; ĐT)
+    [B10] Hiện đang sống tại Cơ sở nuôi dưỡng (Tên/Địa chỉ)
+
+UI FIELDS CURRENTLY CONFIGURED (16 fields):
+  ho_ten_nguoi_nhan_nuoi    "Họ tên người nhận nuôi"           [A1] ~ (ông only)
+  ngay_sinh_nguoi_nhan_nuoi "Ngày, tháng, năm sinh người nhận nuôi" [A3] ~ (ông only)
+  so_dinh_danh_nguoi_nhan_nuoi "Số định danh cá nhân người nhận nuôi" [A7] ~ (ông only)
+  dan_toc_nguoi_nhan_nuoi   "Dân tộc người nhận nuôi"          [EXTRA — form has Quốc tịch]
+  nghe_nghiep_nguoi_nhan_nuoi "Nghề nghiệp người nhận nuôi"   [EXTRA — not in form]
+  noi_lam_viec              "Nơi làm việc"                     [EXTRA — not in form]
+  noi_thuong_tru_nguoi_nhan_nuoi "Nơi thường trú người nhận nuôi" [A9] ~ (ông only)
+  tinh_trang_hon_nhan       "Tình trạng hôn nhân"             [EXTRA — not in form]
+  ho_ten_vo_chong           "Họ tên vợ/chồng"                 [EXTRA — not in form]
+  so_dinh_danh_vo_chong     "Số định danh cá nhân vợ/chồng"  [EXTRA — not in form]
+  ho_ten_con_duoc_nhan_nuoi "Họ tên người được nhận làm con nuôi" [B1] ✓
+  ngay_sinh_con_duoc_nhan_nuoi "Ngày, tháng, năm sinh con được nhận" [B3] ✓
+  gioi_tinh_con_duoc_nhan_nuoi "Giới tính con được nhận"       [B2] ✓
+  dan_toc_con_duoc_nhan_nuoi "Dân tộc con được nhận"          [EXTRA — form has Quốc tịch]
+  noi_sinh_con_duoc_nhan_nuoi "Nơi sinh con được nhận"        [B6] ✓
+  ly_do_xin_nhan_nuoi       "Lý do xin nhận nuôi con nuôi"   [EXTRA — no such field in form]
+
+MISSING FROM UI:
+  ✗ Quốc tịch người nhận nuôi (ông AND bà)                   [A5, A6]
+  ✗ Info for "Bà" (wife as co-adopter)                        [A2,A4,A6,A8,A10,A12]
+  ✗ Điện thoại / Thư điện tử                                 [A11, A12]
+  ✗ Số định danh / Hộ chiếu con nuôi                         [B5]
+  ✗ Quốc tịch con nuôi                                       [B4]
+  ✗ Nơi cư trú con nuôi                                      [B7]
+  ✗ Thuộc đối tượng (checkbox)                               [B8]
+  ✗ Hiện đang sống tại (gia đình / cơ sở nuôi dưỡng)        [B9, B10]
+
+EXTRA IN UI (not in real form):
+  + Dân tộc người nhận nuôi   (form has Quốc tịch, not Dân tộc)
+  + Nghề nghiệp người nhận nuôi
+  + Nơi làm việc
+  + Tình trạng hôn nhân
+  + Họ tên vợ/chồng
+  + Số định danh cá nhân vợ/chồng
+  + Lý do xin nhận nuôi con nuôi
+  + Dân tộc con nuôi           (form has Quốc tịch)
+
+Match status: ❌ MAJOR GAPS — 5/22 real fields covered; 7 extra phantom fields;
+The Bà (wife) co-adopter section is entirely absent from UI.
+
+──────────────────────────────────────────────────────────────────────────────
+TTHC-AD-001 — Form 2: 2.Vnbnxcnhnhoncnhgianhchiukinkinht.doc
+              (Văn bản xác nhận hoàn cảnh gia đình)
+──────────────────────────────────────────────────────────────────────────────
+Note: Physical fill-in form with checkboxes and table for government official.
+
+REAL FORM FIELDS (from extracted text):
+  Section I — Thông tin về người nhận con nuôi (table: Ông | Bà):
+    [A1] Họ, chữ đệm, tên (ông)
+    [A2] Họ, chữ đệm, tên (bà)
+    [A3] Ngày, tháng, năm sinh (ông)
+    [A4] Ngày, tháng, năm sinh (bà)
+    [A5] Số định danh cá nhân (ông)
+    [A6] Số định danh cá nhân (bà)
+    [A7] Nơi thường trú (ông)
+    [A8] Nơi thường trú (bà)
+    [A9] Nơi tạm trú (ông)
+    [A10] Nơi tạm trú (bà)
+
+  Section II — Hoàn cảnh gia đình:
+    [B1] Tình trạng hôn nhân (checkbox: Chưa kết hôn / Kết hôn / Ly hôn)
+    [B2] Con đẻ / con nuôi (checkbox + số lượng)
+    [B3] Số thành viên sống cùng
+    [B4] Mối quan hệ gia đình của thành viên sống cùng
+    [B5] Ý kiến, thái độ của thành viên với việc nhận con nuôi
+
+  Section III — Tình trạng chỗ ở, điều kiện kinh tế:
+    [C1] Diện tích nhà ở
+    [C2] Loại nhà ở (checkbox: sở hữu / thuê / khác)
+    [C3] Không gian dành cho con nuôi (Có/Không)
+    [C4] Nghề nghiệp
+    [C5] Thu nhập (tiền lương / SXKD / phụ cấp / khác + amounts)
+    [C6] Các tài sản khác
+    [C7] Điều kiện kinh tế đảm bảo cho việc nuôi dưỡng (Có/Không)
+
+  Section IV — Ý kiến, đánh giá (government official section — user doesn't fill)
+
+UI FIELDS CURRENTLY CONFIGURED (8 fields):
+  ho_ten_nguoi_nuoi       "Họ tên người nhận nuôi"              [A1] ~ (ông only)
+  ngay_sinh               "Ngày, tháng, năm sinh"               [A3] ~ (ông only)
+  so_dinh_danh            "Số định danh cá nhân"                [A5] ~ (ông only)
+  dia_chi_thuong_tru      "Địa chỉ thường trú"                  [A7] ~ (ông only)
+  so_thanh_vien_gia_dinh  "Số thành viên gia đình"              [B3] ✓
+  dieu_kien_nha_o         "Điều kiện nhà ở"                     [C2] ~ (textarea, loses checkboxes)
+  thu_nhap_hang_thang     "Thu nhập hàng tháng"                 [C5] ~ (simplified)
+  hoan_canh_gia_dinh      "Hoàn cảnh gia đình"                  [B4] ~ (broad)
+
+MISSING FROM UI:
+  ✗ Info for "Bà" (co-adopter)                                  [A2,A4,A6,A8,A10]
+  ✗ Nơi tạm trú                                                 [A9, A10]
+  ✗ Tình trạng hôn nhân (checkboxes)                           [B1]
+  ✗ Con đẻ / con nuôi (checkbox + số lượng)                    [B2]
+  ✗ Mối quan hệ thành viên sống cùng                           [B4]
+  ✗ Ý kiến, thái độ thành viên                                 [B5]
+  ✗ Diện tích nhà ở                                             [C1]
+  ✗ Loại nhà ở (checkbox)                                       [C2]
+  ✗ Không gian dành cho con nuôi (Có/Không)                    [C3]
+  ✗ Nghề nghiệp                                                 [C4]
+  ✗ Điều kiện kinh tế đảm bảo (Có/Không)                       [C7]
+
+EXTRA IN UI: None strictly extra (all 8 UI fields map to real form fields)
+
+Match status: ⚠️ PARTIAL — 8/17 user-fillable fields; 11 missing (mostly checkboxes
+and "Bà" section). The checkbox fields cannot be filled via dot-replacement
+algorithm — they would need word-content detection or form control support.
+
+──────────────────────────────────────────────────────────────────────────────
+TTHC-AD-002 — Form: 7.Tkhaingklivicnuiconnui.doc
+              (Tờ khai đăng ký lại việc nuôi con nuôi)
+──────────────────────────────────────────────────────────────────────────────
+Note: Physical fill-in form.
+
+REAL FORM FIELDS (from extracted text):
+  REQUESTER (person filing — may or may not be a parent):
+    [A1] Họ, chữ đệm, tên người yêu cầu
+    [A2] Ngày, tháng, năm sinh
+    [A3] Số định danh cá nhân / Hộ chiếu
+    [A4] Nơi cư trú
+
+  Section I — Thông tin của con nuôi:
+    [B1] Họ, chữ đệm, tên
+    [B2] Giới tính
+    [B3] Ngày, tháng, năm sinh
+    [B4] Số định danh cá nhân / Hộ chiếu
+    [B5] Nơi sinh
+    [B6] Nơi cư trú
+
+  Section II — Thông tin cha, mẹ nuôi:
+    [C1] Họ, chữ đệm, tên cha nuôi
+    [C2] Họ, chữ đệm, tên mẹ nuôi
+    [C3] Ngày, tháng, năm sinh cha nuôi
+    [C4] Ngày, tháng, năm sinh mẹ nuôi
+    [C5] Quốc tịch cha nuôi
+    [C6] Quốc tịch mẹ nuôi
+    [C7] Số định danh / Hộ chiếu cha nuôi
+    [C8] Số định danh / Hộ chiếu mẹ nuôi
+    [C9] Nơi cư trú cha nuôi
+    [C10] Nơi cư trú mẹ nuôi
+
+  [D1] Đã đăng ký nuôi con nuôi tại (location)
+  [D2] Giấy chứng nhận / Quyết định nuôi con nuôi: số, ngày, tháng, năm, do cấp
+
+UI FIELDS CURRENTLY CONFIGURED (18 fields):
+  ho_ten_cha_nuoi         "Họ tên cha nuôi"                       [C1] ✓
+  ngay_sinh_cha_nuoi      "Ngày, tháng, năm sinh cha nuôi"        [C3] ✓
+  dan_toc_cha_nuoi        "Dân tộc cha nuôi"          [EXTRA — form has Quốc tịch, not Dân tộc]
+  quoc_tich_cha_nuoi      "Quốc tịch cha nuôi"                    [C5] ✓
+  so_dinh_danh_cha_nuoi   "Số định danh cá nhân cha nuôi"         [C7] ✓
+  que_quan_cha_nuoi       "Quê quán cha nuôi"         [EXTRA — not in real form]
+  noi_thuong_tru          "Nơi thường trú"                         [C9] ~ (cha nuôi)
+  ho_ten_me_nuoi          "Họ tên mẹ nuôi"                        [C2] ✓
+  ngay_sinh_me_nuoi       "Ngày, tháng, năm sinh mẹ nuôi"         [C4] ✓
+  so_dinh_danh_me_nuoi    "Số định danh cá nhân mẹ nuôi"          [C8] ✓
+  ho_ten_con_nuoi         "Họ tên con nuôi"                        [B1] ✓
+  ngay_sinh_con_nuoi      "Ngày, tháng, năm sinh con nuôi"        [B3] ✓
+  gioi_tinh_con_nuoi      "Giới tính con nuôi"                    [B2] ✓
+  dan_toc_con_nuoi        "Dân tộc con nuôi"          [EXTRA — not in real form]
+  so_dang_ky_lan_dau      "Số đăng ký lần đầu"                    [D2] ~
+  noi_dang_ky_lan_dau     "Nơi đăng ký lần đầu"                   [D1] ✓
+  nam_dang_ky_lan_dau     "Năm đăng ký lần đầu"                   [D2] ~
+  ly_do_dang_ky_lai       "Lý do đăng ký lại"        [EXTRA — no such field in real form]
+
+MISSING FROM UI:
+  ✗ Requester section (A1–A4): Họ tên, ngày sinh, số định danh, nơi cư trú
+    of the person filing — may be different from cha/mẹ nuôi
+  ✗ Quốc tịch mẹ nuôi                                              [C6]
+  ✗ Nơi cư trú mẹ nuôi (only cha has noi_thuong_tru mapped)        [C10]
+  ✗ Số định danh / Hộ chiếu con nuôi                               [B4]
+  ✗ Nơi sinh con nuôi                                               [B5]
+  ✗ Nơi cư trú con nuôi                                             [B6]
+  ✗ Ngày tháng năm cấp Giấy chứng nhận (only năm is mapped)        [D2]
+  ✗ Cơ quan cấp Giấy chứng nhận                                     [D2]
+
+EXTRA IN UI (not in real form):
+  + Dân tộc cha nuôi    (form has no Dân tộc column for cha nuôi)
+  + Quê quán cha nuôi   (not in real form)
+  + Dân tộc con nuôi    (not in real form)
+  + Lý do đăng ký lại   (no such field in real form)
+
+Match status: ⚠️ PARTIAL — 12/22 fields covered; 4 extra; 8 missing
+
+================================================================================
+SUMMARY TABLE
+================================================================================
+
+Procedure    Form file                              Real    UI   Covered  Extra  Missing
+─────────────────────────────────────────────────────────────────────────────────
+TTHC-002/003 CT01 (MuCT01...53.doc)                11+tbl   14    8/11     6       3
+TTHC-CR-001  TKngkkhaisinh.doc                     24       23    20/24    2       4
+TTHC-CR-001  TTT-ngkkhaisinh.doc                   28        7     7/28    0      21
+TTHC-CR-002  TKyeucaubansaotrichluchotich.doc      17       12     8/17    2       9
+TTHC-CR-002  DTTT-CpBSkhaisinhTrchlcHT.doc        15       10     7/15    2       8
+TTHC-AD-001  nxinnhnconnui.doc                     22       16     5/22    8      17
+TTHC-AD-001  Vnbnxcnh...gia dinh.doc               17        8     8/17    0      11
+TTHC-AD-002  Tkhaingklivicnuiconnui.doc            22       18    12/22    4      10
+─────────────────────────────────────────────────────────────────────────────────
+
+================================================================================
+PRIORITY ISSUES
+================================================================================
+
+CRITICAL (wrong field attributed to wrong person):
+  P1. TTHC-CR-002 / TKyeucaubansaotrichluchotich:
+      gioi_tinh_nguoi_yeu_cau is labeled "Giới tính người yêu cầu" but
+      the real form's Giới tính belongs to the PERSON BEING COPIED (B4),
+      not the requester. The requester has no Giới tính field.
+      → Rename field id + label, or reassign to the correct subject.
+
+HIGH (structural mismatch — whole sections missing):
+  P2. CT01 (TTHC-002/003): 6 phantom fields in UI not in real form.
+      Real CT01 (TT 53/2025) strips out Dân tộc, Quê quán, Nơi thường trú,
+      Nơi ở hiện tại, Nghề nghiệp, Nơi làm việc. These 6 fields currently
+      appear in the UI form but have no corresponding dot sequences in the
+      real .doc file, so doc_filler.py will never fill them.
+
+  P3. 1.nxinnhnconnui (TTHC-AD-001): The entire "Bà" (wife co-adopter)
+      column is absent from UI. Real form is a two-column Ông/Bà table.
+      6 phantom extra fields are present instead.
+
+  P4. 7.Tkhaingklivicnuiconnui (TTHC-AD-002): Requester section (A1–A4)
+      entirely missing — the person filing may not be cha/mẹ nuôi.
+      Quốc tịch mẹ nuôi and nơi cư trú mẹ nuôi absent.
+
+MEDIUM (missing important fields but form structurally complete):
+  P5. All forms: "Số điện thoại / Email" missing from CT01.
+  P6. TKngkkhaisinh: missing Quan hệ with child, GCN kết hôn info.
+  P7. TKyeucaubansaotrichluchotich: missing 6 fields about person being copied.
+  P8. Vnbnxcnh (TTHC-AD-001): 11 checkbox-type fields absent from UI
+      (cannot be filled by dot-replacement anyway).
+
+LOW (acceptable simplification for demo scope):
+  P9. TTT-ngkkhaisinh: electronic template — 21/28 fields absent;
+      acceptable since this is a complex government digital backend format.
+  P10. DTTT-CpBSkhaisinhTrchlcHT: 8 missing; acceptable for demo.
+
+================================================================================
+DEFINITION OF DONE CHECKLIST
+================================================================================
+[X] All 8 .doc files converted to text (LibreOffice headless — all succeeded)
+[X] Field labels extracted from each real form
+[X] UI form components located for each procedure (formFieldConfigs.ts)
+[X] Field labels extracted from each UI component
+[X] Gap analysis completed per procedure per form
+[X] Report saved to backend/data/form_field_audit.txt
+[X] No code changes made — read only
+
+================================================================================
+END OF AUDIT REPORT
+================================================================================

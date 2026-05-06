@@ -20,7 +20,6 @@ import re
 from pydantic import ValidationError
 
 from app.agents.node_registry import VALID_PLAN_STEPS
-from app.agents.prompts.document_draft_prompt import DOCUMENT_TYPE_CONFIGS
 from app.agents.prompts.router_prompt import (
     ROUTER_SYSTEM_PROMPT,
     RouterOutput,
@@ -32,6 +31,10 @@ from app.services.llm import LLMService
 logger = logging.getLogger(__name__)
 
 _FALLBACK: dict = {"execution_plan": ["rag_fn"], "entities": {}, "plan_cursor": 0}
+
+# Only these three city scope codes are accepted from the LLM.  Any other value
+# (misspelling, hallucination, etc.) is silently coerced to None.
+VALID_CITY_SCOPES: frozenset[str] = frozenset({"VN-HCM", "VN-HN", "VN-DN"})
 
 
 def _enforce_ordering(plan: list[str]) -> list[str]:
@@ -147,7 +150,7 @@ async def router_node(state: AgentState) -> dict:
         raw = await LLMService().async_invoke(
             system=ROUTER_SYSTEM_PROMPT,
             messages=messages,
-            max_tokens=1024,
+            max_tokens=512,
         )
     except Exception:
         # Network / API errors propagate — do not swallow infrastructure failures.
@@ -169,38 +172,6 @@ async def router_node(state: AgentState) -> dict:
             exc,
         )
         return _FALLBACK.copy()
-
-    # ------------------------------------------------------------------ #
-    # HANDLER: draft_document intent                                       #
-    # ------------------------------------------------------------------ #
-    if output.intent == "draft_document":
-        document_type = output.document_type
-        if not document_type or document_type not in DOCUMENT_TYPE_CONFIGS:
-            # Unsupported or missing document type — return helpful message listing
-            # all supported types without routing to any worker functions.
-            return {
-                "execution_plan": [],
-                "plan_cursor": 0,
-                "entities": output.entities,
-                "document_type": None,
-                "domain": state.get("domain"),
-                "final_response": (
-                    "Xin lỗi, loại văn bản này chưa được hỗ trợ. "
-                    "Các loại văn bản hiện hỗ trợ:\n"
-                    "• Đơn xin xác nhận thông tin cư trú\n"
-                    "• Đơn đề nghị đăng ký thường trú\n"
-                    "• Đơn đề nghị đăng ký tạm trú\n"
-                    "• Đơn khiếu nại\n"
-                    "• Giấy cam kết cư trú"
-                ),
-            }
-        return {
-            "execution_plan": [],
-            "plan_cursor": 0,
-            "entities": output.entities,
-            "document_type": document_type,
-            "domain": output.entities.get("domain") or "housing",
-        }
 
     # ------------------------------------------------------------------ #
     # HANDLER: start_guided intent                                         #
@@ -236,6 +207,17 @@ async def router_node(state: AgentState) -> dict:
             "domain": domain,
         }
 
+    # ------------------------------------------------------------------ #
+    # HANDLER: out_of_scope intent                                         #
+    # ------------------------------------------------------------------ #
+    if output.intent == "out_of_scope":
+        return {
+            "execution_plan": [],
+            "plan_cursor": 0,
+            "entities": output.entities,
+            "out_of_scope": True,
+        }
+
     # --- Validate step names (prompt drift detection) ---
     invalid = set(output.execution_plan) - VALID_PLAN_STEPS
     if invalid:
@@ -253,6 +235,22 @@ async def router_node(state: AgentState) -> dict:
         "entities": output.entities,
         "plan_cursor": 0,
     }
+    # Pass through rag_query intent + procedure_id for scoped RAG retrieval.
+    # Only added when non-None so the 3-key contract holds for generic turns.
+    if output.intent is not None:
+        result["intent"] = output.intent
+    if output.procedure_id is not None:
+        result["procedure_id"] = output.procedure_id
+        result["target_procedure_id"] = output.procedure_id
+
+    # Extract city scope detected by the router LLM.  Validated against the
+    # allow-list — any value outside VALID_CITY_SCOPES is silently set to None.
+    location_scope = output.location_scope
+    if location_scope not in VALID_CITY_SCOPES:
+        location_scope = None
+    if location_scope is not None:
+        result["location_scope"] = location_scope
+
     # Preserve guided mode context across normal turns (e.g. State 1 user asks a question)
     if state.get("guided_procedure_id") is not None:
         result["guided_procedure_id"] = state["guided_procedure_id"]

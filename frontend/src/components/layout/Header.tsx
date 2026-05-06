@@ -71,58 +71,64 @@ export function Header() {
   return (
     <header className="w-full">
       {/* ── Row 1: Logo + Auth ──────────────────────────────────── */}
-      <div className="bg-white border-b border-[#DDDDDD]">
-        <div className="max-w-container mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="bg-[var(--terracotta)] border-b border-black/10">
+        <div className="max-w-container mx-auto px-6 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 no-underline">
             <div className="w-[55px] h-[55px] flex-shrink-0 flex items-center justify-center">
-              {/* Red star circle — placeholder for Quoc Hy */}
-              <div className="w-[55px] h-[55px] rounded-full bg-[#CC0000] flex items-center
+              <div className="w-[55px] h-[55px] rounded-full bg-white/20 flex items-center
                               justify-center text-white text-2xl font-bold select-none">
                 ★
               </div>
             </div>
             <div>
-              <div className="text-[#903938] text-2xl font-bold leading-tight tracking-wide"
-                   style={{ fontFamily: 'Arial, sans-serif' }}>
+              <div className="text-white text-2xl font-semibold leading-tight tracking-wide"
+                   style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}>
                 Cổng Dịch vụ Công Quốc Gia
               </div>
-              <div className="text-[#CE7A58] text-[13px] italic">
+              <div className="text-white/60 text-[13px]">
                 Kết nối, cung cấp thông tin và dịch vụ công mọi lúc, mọi nơi
               </div>
             </div>
           </Link>
 
           {/* Auth buttons */}
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-3">
             <Link href="/dang-ky"
-                  className="px-3 py-1.5 text-sm border border-[#1E2F41] text-[#1E2F41]
-                             rounded-sm hover:bg-[#F5F5F5] transition-colors">
+                  className="bg-white text-[var(--terracotta)] hover:bg-white/90 text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
               Đăng ký
             </Link>
             <Link href="/dang-nhap"
-                  className="px-3 py-1.5 text-sm border border-[#1E2F41] text-[#1E2F41]
-                             rounded-sm hover:bg-[#F5F5F5] transition-colors">
+                  className="text-white/80 hover:text-white text-sm transition-colors">
               Đăng nhập
             </Link>
+            <button
+              onClick={() => {
+                sessionStorage.removeItem('dvc_pin_auth')
+                window.location.reload()
+              }}
+              className="text-white/60 hover:text-white/90 text-sm transition-colors cursor-pointer"
+            >
+              Đăng xuất
+            </button>
           </div>
 
           {/* Mobile hamburger */}
-          <button className="sm:hidden text-[#1E2F41]" onClick={() => setMobileOpen(!mobileOpen)}>
+          <button className="sm:hidden text-white" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
       </div>
 
       {/* ── Row 2: Primary Navigation ───────────────────────────── */}
-      <nav className="bg-[#F5F5F5] border-b border-[#DDDDDD] hidden sm:block">
+      <nav className="bg-[var(--terracotta-dk)] border-b border-black/10 hidden sm:block">
         <div className="max-w-container mx-auto px-4">
           <ul className="flex items-stretch h-12">
             <li>
               <Link href="/"
                     className={`flex items-center justify-center px-4 h-full transition-colors
                       ${pathname === '/'
-                        ? 'bg-[#CE7A58] text-white'
-                        : 'text-[#1E2F41] hover:bg-[#CE7A58] hover:text-white'}`}>
+                        ? 'text-white font-medium bg-white/15'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
                 <Home className="w-4 h-4" />
               </Link>
             </li>
@@ -142,15 +148,15 @@ export function Header() {
                     <Link href={item.href}
                           className={`flex items-center gap-1 px-4 h-full text-sm transition-colors
                             ${isActive
-                              ? 'bg-[#CE7A58] text-white'
-                              : 'text-[#1E2F41] hover:bg-[#CE7A58] hover:text-white'}`}>
+                              ? 'text-white font-medium bg-white/15'
+                              : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
                       {item.label}
                     </Link>
                   ) : (
                     <button className={`flex items-center gap-1 px-4 h-full text-sm transition-colors
                               ${isActive || openDropdown === item.id
-                                ? 'bg-[#CE7A58] text-white'
-                                : 'text-[#1E2F41] hover:bg-[#CE7A58] hover:text-white'}`}>
+                                ? 'text-white font-medium bg-white/15'
+                                : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
                       {item.label}
                       <ChevronDown className="w-3 h-3 ml-0.5" />
                     </button>
@@ -158,23 +164,23 @@ export function Header() {
 
                   {/* Level-1 dropdown */}
                   {item.children && openDropdown === item.id && (
-                    <div className="absolute top-full left-0 z-50 bg-white border border-[#DDDDDD]
-                                    shadow-md min-w-[220px]">
+                    <div className="absolute top-full left-0 z-50 bg-white border border-[var(--border-card)]
+                                    shadow-lg min-w-[220px]">
                       {item.children.map((child, ci) =>
                         'children' in child && child.children ? (
                           <div key={ci} className="relative group">
                             <div className="flex items-center justify-between px-4 py-2 text-sm
-                                            text-[#1E2F41] hover:bg-[#F5F5F5] cursor-default">
+                                            text-[var(--text-secondary)] hover:bg-[var(--terracotta-faint)] cursor-default">
                               {child.label}
                               <ChevronDown className="w-3 h-3 -rotate-90" />
                             </div>
                             {/* Level-2 flyout */}
                             <div className="hidden group-hover:block absolute left-full top-0
-                                            bg-white border border-[#DDDDDD] shadow-md min-w-[240px]">
+                                            bg-white border border-[var(--border-card)] shadow-lg min-w-[240px]">
                               {child.children.map((sub, si) => (
                                 <Link key={si} href={sub.href}
-                                      className="block px-4 py-2 text-sm text-[#1E2F41]
-                                                 hover:bg-[#F5F5F5] hover:text-[#CE7A58]">
+                                      className="block px-4 py-2 text-sm text-[var(--text-secondary)]
+                                                 hover:bg-[var(--terracotta-faint)] hover:text-[var(--terracotta)]">
                                   {sub.label}
                                 </Link>
                               ))}
@@ -182,8 +188,8 @@ export function Header() {
                           </div>
                         ) : (
                           <Link key={ci} href={(child as any).href}
-                                className="block px-4 py-2 text-sm text-[#1E2F41]
-                                           hover:bg-[#F5F5F5] hover:text-[#CE7A58]">
+                                className="block px-4 py-2 text-sm text-[var(--text-secondary)]
+                                           hover:bg-[var(--terracotta-faint)] hover:text-[var(--terracotta)]">
                             {child.label}
                           </Link>
                         )
@@ -199,7 +205,7 @@ export function Header() {
 
       {/* ── Row 3: Sub-navigation (absent on homepage) ──────────── */}
       {!isHomepage && (
-        <div className="bg-[#CE7A58] hidden sm:block">
+        <div className="bg-[var(--terracotta-dk)] border-b border-black/10 hidden sm:block">
           <div className="max-w-container mx-auto px-4">
             <ul className="flex items-stretch h-10">
               {SUB_NAV.map((item, i) => {
@@ -209,8 +215,8 @@ export function Header() {
                     <Link href={item.href}
                           className={`flex items-center gap-0.5 px-4 h-full text-[13px] transition-colors
                             ${isActive
-                              ? 'bg-[#B8694A] text-[#1E2F41] font-semibold'
-                              : 'text-[#1E2F41] hover:bg-[#B8694A]'}`}>
+                              ? 'text-white font-semibold'
+                              : 'text-white/60 hover:text-white'}`}>
                       {item.label}
                       {item.hasDropdown && <ChevronDown className="w-3 h-3 ml-0.5" />}
                     </Link>
@@ -224,27 +230,27 @@ export function Header() {
 
       {/* ── Mobile menu ──────────────────────────────────────────── */}
       {mobileOpen && (
-        <div className="sm:hidden bg-white border-t border-[#DDDDDD] shadow-lg">
+        <div className="sm:hidden bg-[var(--terracotta)] border-t border-black/10 shadow-lg">
           <div className="py-2">
             {MAIN_NAV.map((item) => (
               <div key={item.id}>
                 {item.href ? (
                   <Link href={item.href} onClick={() => setMobileOpen(false)}
-                        className="block px-4 py-3 text-sm text-[#1E2F41] border-b border-[#F5F5F5]
-                                   hover:bg-[#F5F5F5]">
+                        className="block px-4 py-3 text-sm text-white/70 border-b border-white/10
+                                   hover:text-white hover:bg-white/10">
                     {item.label}
                   </Link>
                 ) : (
-                  <div className="px-4 py-3 text-sm font-semibold text-[#1E2F41]
-                                  border-b border-[#F5F5F5] bg-[#FAFAFA]">
+                  <div className="px-4 py-3 text-sm font-semibold text-white/50
+                                  border-b border-white/10">
                     {item.label}
                   </div>
                 )}
                 {item.children?.map((child, ci) =>
                   'href' in child && child.href ? (
                     <Link key={ci} href={child.href} onClick={() => setMobileOpen(false)}
-                          className="block px-8 py-2.5 text-sm text-[#555] border-b border-[#F5F5F5]
-                                     hover:bg-[#F5F5F5]">
+                          className="block px-8 py-2.5 text-sm text-white/60 border-b border-white/10
+                                     hover:text-white hover:bg-white/10">
                       {child.label}
                     </Link>
                   ) : null

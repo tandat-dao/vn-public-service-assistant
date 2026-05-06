@@ -5,7 +5,7 @@ const documentsSection = (
   <>
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Bao gồm</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -21,7 +21,7 @@ const documentsSection = (
                 href="/forms/7.Tkhaingklivicnuiconnui.doc"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-[#CE7A58] hover:underline"
+                className="text-xs text-[var(--terracotta)] hover:underline"
               >
                 7.Tkhaingklivicnuiconnui.doc
               </a>
@@ -48,7 +48,6 @@ export default function DangKyLaiNuoiConNuoiPage() {
       processingDays="5 ngày làm việc"
       fee="Không"
       documentsSection={documentsSection}
-      showCccdUpload={true}
       chatContext="Người dùng đang xem thủ tục Đăng ký lại việc nuôi con nuôi trong nước (TTHC-AD-002) tại TP. Hồ Chí Minh. Thủ tục này yêu cầu đã hoàn thành Đăng ký việc nuôi con nuôi (TTHC-AD-001). Hãy sẵn sàng trả lời câu hỏi về điều kiện, hồ sơ, và quy trình đăng ký lại."
     />
   )

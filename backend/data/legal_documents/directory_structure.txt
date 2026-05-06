@@ -1,0 +1,32 @@
+Folder PATH listing for volume Acer
+Volume serial number is 36E1-BCDD
+C:.
+|   .gitkeep
+|   directory_structure.txt
+|   
++---adoption
+|       1069.VBHN.BTP.pdf
+|       114.2016.ND.CP.doc
+|       275.VBHN.BTP.pdf
+|       3845.VBHN.BTP.pdf
+|       52.2010.QH12.doc
+|       951.VBHN.BTP.pdf
+|       VBHN.3884.pdf
+|       
++---civil_registration
+|       01.2022.TT.BTP.docx
+|       05.2025.NQ.HDND.doc
+|       06.2020.NQ.HDND.doc
+|       1069.VBHN.BTP.pdf
+|       124.2016.NQ.HDND.doc
+|       3884.VBHN.BTP.pdf
+|       60.2014.QH13.doc
+|       
+\---housing
+        1069.VBHN.BTP.pdf
+        154.2024.NÐ.CP.doc
+        53.2025.TT.BCA.pdf
+        66.2023.TT.BCA.doc
+        68.2020.QH14.doc
+        75.2022.TT.BTC.pdf
+        

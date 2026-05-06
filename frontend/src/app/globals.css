@@ -1,78 +1,79 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;1,400&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --color-primary:       #CE7A58;
-  --color-primary-dark:  #903938;
-  --color-primary-hover: #B8694A;
-  --color-primary-light: #F5E8DF;
-  --color-cta:           #FFC251;
-  --color-nav-bg:        #F5F5F5;
-  --color-text:          #1E2F41;
-  --color-text-sub:      #555555;
-  --color-border:        #DDDDDD;
-  --color-link:          #2A6EBB;
-  --color-footer:        #903938;
+  /* Navy — authority and foundation */
+  --navy:             #1B2B4B;
+  --navy-mid:         #2D4A7A;
+  --navy-light:       #E8EDF5;
+  --navy-faint:       #F0F3F8;
+
+  /* Terracotta — accent and humanity */
+  --terracotta:       #CE7A58;
+  --terracotta-dk:    #B8694A;
+  --terracotta-lt:    #F0EBE6;
+  --terracotta-faint: #FAF5F2;
+
+  /* Neutrals */
+  --white:            #FFFFFF;
+  --warm-white:       #F8F6F3;
+  --gray-50:          #F9F9F8;
+  --gray-100:         #F0EFED;
+  --gray-200:         #E2E0DC;
+  --gray-300:         #C8C5BF;
+  --gray-500:         #8A8680;
+  --gray-700:         #4A4844;
+  --gray-900:         #1C1B19;
+
+  /* Semantic */
+  --bg-page:          var(--warm-white);
+  --bg-card:          var(--white);
+  --bg-section:       var(--terracotta-faint);
+  --border-card:      var(--gray-200);
+  --border-accent:    var(--terracotta);
+  --text-primary:     var(--gray-900);
+  --text-secondary:   var(--gray-700);
+  --text-muted:       var(--gray-500);
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
-  font-family: 'Nunito', Arial, sans-serif;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
   font-size: 14px;
-  color: #1E2F41;
-  background: #FFFFFF;
   zoom: 1.25;
 }
 
-/* Section title: CÔNG DÂN / DOANH NGHIỆP */
-.section-title {
-  color: #CE7A58;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  text-align: center;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #CE7A58;
-  display: inline-block;
-  margin-bottom: 8px;
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--gray-100);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--terracotta);
 }
 
-/* Service item card — flat, no shadow */
-.service-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  background: #F5F5F5;
-  border-radius: 6px;
-  margin-bottom: 8px;
-  cursor: pointer;
-  transition: background 0.15s ease;
-  text-decoration: none;
-  color: #1E2F41;
-}
-.service-item:hover { background: #EBEBEB; }
-
-/* Tab active state */
-.tab-active {
-  color: #CE7A58 !important;
-  border-bottom: 2px solid #CE7A58 !important;
-  font-weight: 700;
+/* Selection */
+::selection {
+  background: var(--terracotta-lt);
+  color: var(--navy);
 }
 
-/* Score badge */
-.score-badge {
-  background: #28A745;
-  color: #FFFFFF;
-  border-radius: 4px;
-  padding: 3px 8px;
-  font-weight: 700;
-  font-size: 13px;
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--terracotta);
+  outline-offset: 2px;
 }
 
 /* Chat loading dots */
@@ -84,14 +85,70 @@ body {
 .chat-dot:nth-child(2) { animation-delay: 0.2s; }
 .chat-dot:nth-child(3) { animation-delay: 0.4s; }
 
-/* Citation chip */
-.citation-chip {
-  display: inline-block;
-  border: 1px solid #CE7A58;
-  color: #CE7A58;
-  font-size: 11px;
-  padding: 1px 6px;
-  border-radius: 3px;
-  margin: 2px;
-  cursor: default;
+/* Navigation progress bar */
+.nprogress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0%;
+  height: 3px;
+  background: var(--terracotta);
+  z-index: 9999;
+  transition: width 0.3s ease;
+}
+
+.nprogress-bar.loading {
+  width: 70%;
+  transition: width 2s ease;
+}
+
+.nprogress-bar.complete {
+  width: 100%;
+  opacity: 0;
+  transition: width 0.2s ease, opacity 0.3s ease 0.2s;
+}
+
+/* Document tables in procedure pages */
+.procedure-doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.procedure-doc-table th {
+  background: var(--navy-faint);
+  color: var(--navy);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.625rem 1rem;
+  text-align: left;
+  border-bottom: 2px solid var(--border-card);
+}
+
+.procedure-doc-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--gray-100);
+  vertical-align: top;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.procedure-doc-table tr:last-child td {
+  border-bottom: none;
+}
+
+.procedure-doc-table tr:hover td {
+  background: var(--terracotta-faint);
+}
+
+.procedure-doc-table a {
+  color: var(--terracotta);
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+
+.procedure-doc-table a:hover {
+  text-decoration: underline;
 }

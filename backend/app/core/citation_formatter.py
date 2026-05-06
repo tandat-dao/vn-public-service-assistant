@@ -52,6 +52,21 @@ _CITATION_RE = re.compile(
     re.UNICODE,
 )
 
+# ---------------------------------------------------------------------------
+# Alternative citation regex — matches Mục/số/Phụ lục patterns used in
+# NQ-HĐND fee-schedule documents (e.g. 124/2016/NQ-HĐND, 05/2025/NQ-HĐND)
+# that use section/item structure instead of Điều/Khoản.
+#
+# Matches:
+#   [Mục A, số 1, 124/2016/NQ-HĐND]
+#   [số 3, Phụ lục, 124/2016/NQ-HĐND]
+#   [Phụ lục, 05/2025/NQ-HĐND]
+# ---------------------------------------------------------------------------
+_ALT_CITATION_RE = re.compile(
+    r"\[(?:Mục|số|Phụ lục)[^\]]*(?:/NQ-|/TT-|/NĐ-|/QH|/VBHN)[^\]]*\]",
+    re.UNICODE,
+)
+
 
 def _parse_article_ref(article_str: str) -> tuple[str, str | None]:
     """Parse an article reference string into (base_article, khoản_ref).
@@ -76,19 +91,80 @@ def _parse_article_ref(article_str: str) -> tuple[str, str | None]:
 
 
 _MONEY_PATTERN = re.compile(r"\d[\d.].000\sđồng|đồng/")
+_KHOAN_NUM_RE = re.compile(r"Khoản\s+(\d+)", re.UNICODE)
 
 
-def _khoản_verified(khoản_ref: str, chunk_content: str) -> bool:
-    """Check whether a khoản reference is supported by a chunk's content.
+def _khoản_in_content(khoản_ref: str, content: str) -> bool:
+    """Check whether a khoản reference is supported by a single chunk's content.
 
-    Direct substring match is tried first. If the chunk contains a fees table
-    written without explicit 'Khoản' markers (monetary amount pattern instead),
-    the citation is accepted as verified at article level.
+    Three acceptance paths (in order):
+      1. Direct substring: "Khoản 1" appears verbatim in content.
+      2. Numbered-list: "1." at the start of a paragraph (after newline or start
+         of string), optionally preceded by a Markdown "- " list marker. This
+         handles YAML-ingested chunks where paragraphs are written as "1. Text"
+         or "- 1. Text" rather than "Khoản 1. Text".
+      3. Fees-table fallback: monetary amount pattern present — accept at article
+         level (fees table format suppresses explicit Khoản markers).
     """
-    if khoản_ref in chunk_content:
+    if khoản_ref in content:
         return True
-    if _MONEY_PATTERN.search(chunk_content):
+    m = _KHOAN_NUM_RE.search(khoản_ref)
+    if m:
+        num = re.escape(m.group(1))
+        if re.search(r"(?:^|\n)-?\s*" + num + r"\.", content):
+            return True
+    if _MONEY_PATTERN.search(content):
         return True
+    return False
+
+
+def _khoản_verified(
+    khoản_ref: str,
+    all_chunks: list,
+    article_num: str,
+    document_num: str,
+) -> bool:
+    """Check khoản reference against ALL retrieved chunks for the matching article.
+
+    With full-document chunking an article may be split across multiple khoản-level
+    chunks. Searching only the first retrieved chunk for the article misses khoản
+    references whose content lives in a sibling chunk. This function finds ALL
+    chunks that match (article_num, document_num) and checks each one, returning
+    True as soon as any chunk satisfies the khoản reference.
+
+    Args:
+        khoản_ref:   e.g. "Khoản 1" or "Khoản 2a"
+        all_chunks:  full list of retrieved DocumentChunk objects (or dicts)
+        article_num: numeric article string with no "Điều " prefix (e.g. "14")
+        document_num: document number to match (e.g. "52/2010/QH12")
+    """
+    for chunk in all_chunks:
+        raw_art = (
+            chunk.article_number if hasattr(chunk, "article_number")
+            else chunk.get("article_number", "")
+        ) or ""
+        # Strip "Điều " prefix then "Khoản N" suffix so "Điều 3 Khoản 6"
+        # compares equal to base article_num "3".
+        chunk_art_stripped = re.sub(r"^Điều\s+", "", raw_art).strip()
+        chunk_art_num = re.sub(r"\s+Khoản\s+\d+.*$", "", chunk_art_stripped).strip()
+
+        chunk_doc_num = (
+            chunk.document_number if hasattr(chunk, "document_number")
+            else chunk.get("document_number", "")
+        ) or ""
+
+        if chunk_art_num != article_num:
+            continue
+        if document_num.lower() not in chunk_doc_num.lower():
+            continue
+
+        content = (
+            chunk.content if hasattr(chunk, "content")
+            else chunk.get("content", "")
+        ) or ""
+        if _khoản_in_content(khoản_ref, content):
+            return True
+
     return False
 
 
@@ -128,13 +204,17 @@ def verify_citations(response_text: str, retrieved_chunks: list) -> str:
     """
 
     def _get_article_num(chunk) -> str:
-        """Return the numeric part of article_number (strip 'Điều ' prefix)."""
+        """Return the base article number, stripping 'Điều ' prefix and
+        any ' Khoản N' suffix so that a Điều-only citation matches chunks
+        stored as 'Điều X Khoản Y'.
+        """
         raw = (
             chunk.article_number
             if hasattr(chunk, "article_number")
             else chunk.get("article_number", "")
-        )
-        return re.sub(r"^Điều\s+", "", raw).strip()
+        ) or ""
+        without_dieu = re.sub(r"^Điều\s+", "", raw).strip()
+        return re.sub(r"\s+Khoản\s+\d+.*$", "", without_dieu).strip()
 
     def _get_doc_number(chunk) -> str:
         return (
@@ -181,18 +261,45 @@ def verify_citations(response_text: str, retrieved_chunks: list) -> str:
         if khoản_ref is None:
             return full_citation
 
-        # Step 3 — Khoản-level verification
-        chunk_content = _get_content(matching_chunk)
-        if _khoản_verified(khoản_ref, chunk_content):
+        # Step 3 — Khoản-level verification against ALL chunks for this article.
+        # An article may be split across multiple khoản-level chunks after
+        # full-document chunking; searching only matching_chunk misses siblings.
+        chunk_doc_num = _get_doc_number(matching_chunk)
+        if _khoản_verified(khoản_ref, retrieved_chunks, base_article_num, chunk_doc_num):
             return full_citation
 
-        # Khoản reference not found in chunk content
+        # Khoản reference not found in any matching chunk's content
         log.warning(
-            "khoản_not_found_in_chunk_content: article=%s khoản_ref=%s document_number=%s",
+            "khoản_not_found_in_any_chunk: article=%s khoản_ref=%s document_number=%s",
             base_article,
             khoản_ref,
-            _get_doc_number(matching_chunk),
+            chunk_doc_num,
         )
         return f"[unverified: {inner}]"
 
-    return _CITATION_RE.sub(_replace, response_text)
+    # --- Second pass: Mục/số/Phụ lục alternative citation format ---
+    # Verification is permissive: if the document number (last comma-separated
+    # component) matches any retrieved chunk's document_number, the citation
+    # is verified.  The exact sub-item reference (Mục, số N) does not need to
+    # match a separate chunk field — fee-schedule Phụ lục chunks are stored
+    # at document level.
+    def _replace_alt(match: re.Match) -> str:
+        full_citation = match.group(0)
+        inner = full_citation[1:-1]
+        parts = [p.strip() for p in inner.split(",")]
+        doc_num = parts[-1] if parts else ""
+        for chunk in retrieved_chunks:
+            chunk_doc = _get_doc_number(chunk)
+            if doc_num and (
+                doc_num.lower() in chunk_doc.lower()
+                or chunk_doc.lower() in doc_num.lower()
+            ):
+                return full_citation
+        log.warning(
+            "alt_citation_doc_not_in_chunks: doc_number=%s",
+            doc_num,
+        )
+        return f"[unverified: {inner}]"
+
+    intermediate = _CITATION_RE.sub(_replace, response_text)
+    return _ALT_CITATION_RE.sub(_replace_alt, intermediate)

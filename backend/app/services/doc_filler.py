@@ -16,8 +16,12 @@ unchanged for that position. Never raises on missing field values.
 
 from __future__ import annotations
 
+import asyncio
 import io
+import os
 import re
+import subprocess
+import tempfile
 from pathlib import Path
 
 from docx import Document
@@ -75,19 +79,45 @@ def _is_signing_section(text: str) -> bool:
 def _normalize(text: str) -> str:
     """Lowercase, strip dots/colons/parens for label comparison."""
     text = _DOT_RE.sub("", text)
-    text = re.sub(r"[:()\[\]/\\]+", " ", text)
+    text = re.sub(r"[,:()\[\]/\\]+", " ", text)
     return text.strip().lower()
 
 
 def _find_field_id(label: str, fields: list[FormField]) -> str | None:
-    """Return the field ID whose label best matches *label*, or None."""
+    """Return the field ID whose label best matches *label*, or None.
+
+    Matching priority:
+      1. Substring: either label is a substring of the other (exact).
+      2. Word-subset: all words in the shorter token set appear in the longer
+         (handles labels like "Họ tên" matching "Họ, chữ đệm và tên cha nuôi").
+    """
     norm = _normalize(label)
     if not norm:
         return None
+
+    # Pass 1 — substring match
     for field in fields:
         norm_field = _normalize(field["label"])
         if norm_field and (norm_field in norm or norm in norm_field):
             return field["id"]
+
+    # Pass 2 — word-subset match (all words of the shorter must appear in the longer)
+    query_words = set(norm.split())
+    if not query_words:
+        return None
+    for field in fields:
+        norm_field = _normalize(field["label"])
+        if not norm_field:
+            continue
+        field_words = set(norm_field.split())
+        shorter, longer = (
+            (query_words, field_words)
+            if len(query_words) <= len(field_words)
+            else (field_words, query_words)
+        )
+        if shorter and shorter.issubset(longer):
+            return field["id"]
+
     return None
 
 
@@ -289,6 +319,61 @@ def _apply_dot_rule_to_table(
 
 
 # ---------------------------------------------------------------------------
+# LibreOffice PDF conversion
+# ---------------------------------------------------------------------------
+
+# Matches the path used in ingest_full_documents.py
+_LIBREOFFICE_EXE = Path(r"C:\Program Files\LibreOffice\program\soffice.exe")
+
+
+async def _convert_docx_to_pdf(docx_bytes: bytes) -> bytes:
+    """Convert .docx bytes to .pdf bytes via LibreOffice headless.
+
+    Writes docx_bytes to a temp file, invokes LibreOffice to convert
+    in a temp directory, reads the resulting .pdf, then cleans up.
+
+    Raises RuntimeError if LibreOffice is not found or conversion fails.
+    """
+    if not _LIBREOFFICE_EXE.exists():
+        raise RuntimeError(
+            f"LibreOffice not found at {_LIBREOFFICE_EXE}. "
+            "Install LibreOffice or update _LIBREOFFICE_EXE path."
+        )
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_dir_path = Path(tmp_dir)
+        docx_path = tmp_dir_path / "input.docx"
+        docx_path.write_bytes(docx_bytes)
+
+        result = subprocess.run(
+            [
+                str(_LIBREOFFICE_EXE),
+                "--headless",
+                "--convert-to", "pdf",
+                "--outdir", str(tmp_dir_path),
+                str(docx_path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"LibreOffice conversion failed (exit {result.returncode}): "
+                f"{result.stderr[:500]}"
+            )
+
+        pdf_path = tmp_dir_path / "input.pdf"
+        if not pdf_path.exists():
+            raise RuntimeError(
+                f"LibreOffice ran but produced no PDF. stdout: {result.stdout[:300]}"
+            )
+
+        return pdf_path.read_bytes()
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -342,7 +427,8 @@ async def fill_doc(
         # Default: dot replacement only (Rule 1)
         _apply_dot_rule_to_table(table, fields, field_values)
 
-    # Save the modified document to bytes and return.
+    # Save the modified document to bytes, convert to PDF, and return.
     buf = io.BytesIO()
     doc.save(buf)
-    return buf.getvalue()
+    docx_bytes = buf.getvalue()
+    return await _convert_docx_to_pdf(docx_bytes)

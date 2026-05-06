@@ -187,3 +187,69 @@ def base_agent_state() -> dict:
         # Control
         "errors": [],
     }
+
+
+# ---------------------------------------------------------------------------
+# Fixtures for test_api_endpoints.py and test_session_persistence.py
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def session_id() -> str:
+    """Fresh unique session_id for each test."""
+    import uuid
+    return f"test-{uuid.uuid4().hex[:8]}"
+
+
+@pytest.fixture
+async def http_client():
+    """AsyncClient connected to the real FastAPI app via ASGI transport.
+
+    The get_db dependency is overridden with a no-op mock so tests do not
+    require a running PostgreSQL instance. MinIO lifespan is not triggered
+    (ASGITransport does not run lifespan events).
+    """
+    from unittest.mock import AsyncMock
+    from httpx import AsyncClient, ASGITransport
+    from app.main import app
+    from app.dependencies import get_db
+
+    async def _mock_db():
+        yield AsyncMock()
+
+    app.dependency_overrides[get_db] = _mock_db
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            yield client
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+
+@pytest.fixture(scope="session")
+def require_redis():
+    """Skip if Redis is not reachable at localhost:6379."""
+    import socket
+    try:
+        s = socket.create_connection(("localhost", 6379), timeout=1)
+        s.close()
+    except OSError:
+        pytest.skip(
+            "Redis not reachable at localhost:6379 — skipping test. "
+            "Start Docker services with: docker compose up -d"
+        )
+
+
+@pytest.fixture
+async def redis_service(require_redis):
+    """Real RedisService connected to running Redis.
+
+    Skips if REDIS_ENCRYPTION_KEY is not configured.
+    """
+    from app.services.redis_service import RedisService
+    try:
+        svc = RedisService()
+        yield svc
+    except RuntimeError as exc:
+        pytest.skip(f"RedisService unavailable: {exc}")
+

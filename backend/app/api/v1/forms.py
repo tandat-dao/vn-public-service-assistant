@@ -149,14 +149,14 @@ async def fill_form(request: FillFormRequest) -> Response:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
+    from pathlib import Path as _Path
+    pdf_filename = _Path(request.form_file).stem + ".pdf"
+
     return Response(
         content=doc_bytes,
-        media_type=(
-            "application/vnd.openxmlformats-officedocument"
-            ".wordprocessingml.document"
-        ),
+        media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="{request.form_file}"',
+            "Content-Disposition": f'attachment; filename="{pdf_filename}"',
         },
     )
 

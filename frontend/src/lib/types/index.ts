@@ -15,6 +15,8 @@ export interface RetrievedSource {
   content: string
 }
 
+export type FeedbackType = 'helpful' | 'unhelpful'
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -22,10 +24,12 @@ export interface ChatMessage {
   citations?: Citation[]
   timestamp: Date
   isStreaming?: boolean
+  isError?: boolean
   filledFormPath?: string
   retrievedSources?: RetrievedSource[]
-  /** Response mode from synthesizer — used to select the render path (e.g. "document_draft") */
+  /** Response mode from synthesizer — used to select the render path */
   messageMode?: string
+  feedback?: FeedbackType
 }
 
 /** Metadata carried in the SSE metadata event from the backend. */
@@ -41,8 +45,6 @@ export interface ChatMetadata {
   guided_step?: number | null
   /** Retrieved chunk content for citation hover tooltips — TASK-APP-17 */
   retrieved_sources?: RetrievedSource[]
-  /** Administrative document drafting — TASK-APP-22 */
-  document_type?: string | null
 }
 
 export interface Citation {

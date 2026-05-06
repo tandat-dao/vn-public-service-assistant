@@ -4,10 +4,11 @@ This is a TRUE LangGraph graph node, always the last node before END.
 It is NOT a worker function and NOT in NODE_REGISTRY.
 
 Eight response modes (evaluated in priority order):
-  1. error              — state["errors"] is non-empty
-  2. circuit_breaker    — plan stalled (plan_cursor >= MAX_PLAN_STEPS), no errors
-  3. guided_step        — state["guided_step"] is not None (TASK-APP-18)
-  4. document_draft     — state["document_type"] is a draft document type (TASK-APP-22)
+  0. out_of_scope       — state["out_of_scope"] is True (highest priority)
+  1. rag_empty          — rag_returned_empty True + intent not form/guided
+  2. error              — state["errors"] is non-empty
+  3. circuit_breaker    — plan stalled (plan_cursor >= MAX_PLAN_STEPS), no errors
+  4. guided_step        — state["guided_step"] is not None (TASK-APP-18)
   5. form_fill_complete — state["form_fill_complete"] is True
   6. form_fill_partial  — state["unfilled_required_fields"] is non-empty
   7. rag_only           — state["retrieved_chunks"] is non-empty
@@ -33,6 +34,7 @@ from app.agents.prompts.synthesis_prompt import (
     build_synthesis_prompt,
 )
 from app.agents.state import AgentState
+from app.core.text_utils import strip_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -46,27 +48,27 @@ _NEW_GUIDED_PROCEDURE_IDS = {"TTHC-CR-001", "TTHC-CR-002", "TTHC-AD-001", "TTHC-
 
 _GUIDED_INTRO_MESSAGES: dict[str, str] = {
     "TTHC-CR-001": (
-        "Tôi sẽ hỗ trợ bạn thực hiện thủ tục **Đăng ký khai sinh** "
+        "Tôi sẽ hỗ trợ bạn thực hiện thủ tục Đăng ký khai sinh "
         "tại UBND cấp xã. Để bắt đầu, vui lòng tải lên ảnh CCCD của "
         "bạn — hệ thống sẽ tự động đọc thông tin cá nhân để điền vào "
         "mẫu tờ khai. Bạn có thể tải lên CCCD ngay bây giờ không?"
     ),
     "TTHC-CR-002": (
-        "Tôi sẽ hỗ trợ bạn thực hiện thủ tục **Cấp bản sao Trích lục "
-        "hộ tịch**. Lưu ý rằng thủ tục này yêu cầu bạn đã hoàn thành "
+        "Tôi sẽ hỗ trợ bạn thực hiện thủ tục Cấp bản sao Trích lục "
+        "hộ tịch. Lưu ý rằng thủ tục này yêu cầu bạn đã hoàn thành "
         "Đăng ký khai sinh trước đó. Vui lòng tải lên ảnh CCCD để hệ "
         "thống tự động điền thông tin vào tờ khai yêu cầu."
     ),
     "TTHC-AD-001": (
-        "Tôi sẽ hỗ trợ bạn thực hiện thủ tục **Đăng ký việc nuôi con "
-        "nuôi trong nước** tại UBND cấp xã. Đây là thủ tục có thời hạn "
+        "Tôi sẽ hỗ trợ bạn thực hiện thủ tục Đăng ký việc nuôi con "
+        "nuôi trong nước tại UBND cấp xã. Đây là thủ tục có thời hạn "
         "giải quyết 30 ngày làm việc và yêu cầu nhiều giấy tờ — hãy chuẩn "
         "bị đầy đủ hồ sơ theo danh sách trên trang này. Vui lòng tải lên "
         "ảnh CCCD của bạn để bắt đầu."
     ),
     "TTHC-AD-002": (
-        "Tôi sẽ hỗ trợ bạn thực hiện thủ tục **Đăng ký lại việc nuôi "
-        "con nuôi trong nước**. Lưu ý rằng thủ tục này yêu cầu bạn đã "
+        "Tôi sẽ hỗ trợ bạn thực hiện thủ tục Đăng ký lại việc nuôi "
+        "con nuôi trong nước. Lưu ý rằng thủ tục này yêu cầu bạn đã "
         "hoàn thành Đăng ký việc nuôi con nuôi trước đó. Vui lòng tải lên "
         "ảnh CCCD để hệ thống tự động điền thông tin vào tờ khai."
     ),
@@ -114,8 +116,17 @@ def _build_retrieved_sources(state: AgentState) -> list[dict]:
             document_number = getattr(chunk, "document_number", "") or ""
             content = getattr(chunk, "content", "") or ""
         if article_number and document_number:
+            # Prefix numeric article numbers with "Điều " so the frontend
+            # substring matcher does not false-positive against digits in
+            # years or document numbers. "0" (preamble marker) is excluded.
+            if article_number.isdigit() and article_number != "0":
+                normalized_article = f"Điều {article_number}"
+            elif article_number.startswith("Điều "):
+                normalized_article = article_number
+            else:
+                normalized_article = article_number
             sources.append({
-                "article_number": article_number,
+                "article_number": normalized_article,
                 "document_number": document_number,
                 "content": content[:1200],
             })
@@ -133,16 +144,20 @@ def _determine_mode(state: AgentState) -> str:
       1. "error"              — errors list is non-empty
       2. "circuit_breaker"   — plan_cursor >= MAX_PLAN_STEPS AND errors empty
       3. "guided_step"       — guided_step is not None (TASK-APP-18 wizard)
-      4. "document_draft"    — document_type is a draft document type (TASK-APP-22)
-      5. "form_fill_complete" — form_fill_complete is True
-      6. "form_fill_partial"  — unfilled_required_fields is non-empty
-      7. "rag_only"           — retrieved_chunks is non-empty
-      8. "fallback"           — none of the above
-
-    NOTE: document_draft uses document_type values like "don_xac_nhan_cu_tru"
-    which are distinct from OCR document types ("cccd", "birth_certificate", etc.).
-    The DOCUMENT_TYPE_CONFIGS lookup is the authoritative discriminator.
+      4. "form_fill_complete" — form_fill_complete is True
+      5. "form_fill_partial"  — unfilled_required_fields is non-empty
+      6. "rag_only"           — retrieved_chunks is non-empty
+      7. "fallback"           — none of the above
     """
+    if state.get("out_of_scope"):
+        return "out_of_scope"
+
+    if state.get("rag_returned_empty") and \
+       state.get("intent") not in (
+           "form_fill", "start_guided", "continue_guided"
+       ):
+        return "rag_empty"
+
     errors = state.get("errors") or []
     if errors:
         return "error"
@@ -156,15 +171,6 @@ def _determine_mode(state: AgentState) -> str:
     # content prefixed with "Tóm tắt trước đó: ") — this is intentional.
     if state.get("guided_step") is not None:
         return "guided_step"
-
-    # document_draft mode: only fires when document_type is one of the 5
-    # supported draft types. OCR-set types ("cccd" etc.) are NOT in
-    # DOCUMENT_TYPE_CONFIGS and will not match.
-    _doc_type = state.get("document_type")
-    if _doc_type:
-        from app.agents.prompts.document_draft_prompt import DOCUMENT_TYPE_CONFIGS as _DTC
-        if _doc_type in _DTC:
-            return "document_draft"
 
     if state.get("form_fill_complete", False):
         return "form_fill_complete"
@@ -293,6 +299,49 @@ async def synthesizer_node(state: AgentState) -> dict:
     """
     mode = _determine_mode(state)
 
+    # ---- Out-of-scope guard: fixed response, zero LLM calls ----
+    if mode == "out_of_scope":
+        return {
+            "final_response": "Xin lỗi, tôi chỉ có thể hỗ trợ các câu hỏi liên quan đến thủ tục hành chính. Bạn có câu hỏi nào về đăng ký cư trú, hộ tịch, hoặc nuôi con nuôi không?",
+            "response_metadata": {
+                "mode": "out_of_scope",
+                "guided_procedure_id": None,
+                "guided_step": None,
+                "scope_used": None,
+                "scope_notice_included": False,
+                "rag_confidence": None,
+                "filled_form_path": None,
+                "retrieved_sources": [],
+                "document_type": None,
+            },
+        }
+
+    # ---- RAG empty guard: fixed response, zero LLM calls ----
+    if mode == "rag_empty":
+        return {
+            "final_response": (
+                "Xin lỗi, tôi chưa tìm thấy thông tin pháp "
+                "lý liên quan đến câu hỏi của bạn trong cơ sở "
+                "dữ liệu hiện tại. Điều này có thể do câu hỏi "
+                "nằm ngoài phạm vi các thủ tục hành chính đang "
+                "được hỗ trợ, hoặc dữ liệu pháp lý cho lĩnh "
+                "vực này chưa được cập nhật. Bạn có thể thử "
+                "hỏi về đăng ký cư trú, hộ tịch, hoặc nuôi "
+                "con nuôi."
+            ),
+            "response_metadata": {
+                "mode": "rag_empty",
+                "guided_procedure_id": None,
+                "guided_step": None,
+                "scope_used": state.get("scope_used"),
+                "scope_notice_included": False,
+                "rag_confidence": 0.0,
+                "filled_form_path": None,
+                "retrieved_sources": [],
+                "document_type": None,
+            },
+        }
+
     include_scope_notice, scope_used_level, filing_jurisdiction_level = (
         _check_scope_fallback(state)
     )
@@ -355,12 +404,10 @@ async def synthesizer_node(state: AgentState) -> dict:
         # form_filler_fn is NOT called for these procedures (router excluded it).
         if current_step_early == 2 and guided_procedure_id_early in _NEW_GUIDED_PROCEDURE_IDS:
             page_form_response = (
-                "Hồ sơ của bạn đã sẵn sàng. Bạn có thể điền trực tiếp "
-                "vào mẫu đơn ở phần **Điền thông tin vào mẫu đơn** "
-                "phía trên trang này. Thông tin từ CCCD đã được tự động "
-                "điền vào các trường tương ứng — bạn chỉ cần kiểm tra "
-                "và bổ sung các thông tin còn lại, sau đó nhấn "
-                "\"Tải xuống mẫu đã điền\" để tải về."
+                "Thông tin cá nhân từ giấy tờ của bạn đã được trích xuất thành công. "
+                "Vui lòng chuyển sang trang thủ tục tương ứng, chọn tab mẫu đơn cần điền, "
+                "kiểm tra lại thông tin đã được tự động điền, sau đó nhấn "
+                "\"Tải xuống tờ khai đã điền\" để tải PDF về máy."
             )
             return {
                 "final_response": page_form_response,
@@ -383,15 +430,16 @@ async def synthesizer_node(state: AgentState) -> dict:
         try:
             llm = _get_llm()
             prompt = build_guided_prompt(state)
+            # First entry may be a compaction summary — see synthesizer_node comment below.
             conv_history: list[dict] = list(state.get("conversation_history") or [])
             user_msg = state.get("user_message") or ""
             messages = conv_history + [{"role": "user", "content": user_msg}]
 
-            guided_response: str = await llm.async_invoke(
+            guided_response: str = strip_markdown(await llm.async_invoke(
                 system=prompt,
                 messages=messages,
-                max_tokens=600,
-            )
+                max_tokens=1024,
+            ))
         except Exception as exc:
             logger.error(
                 "synthesizer_node: guided_step LLM call failed — returning fallback: %s",
@@ -436,85 +484,6 @@ async def synthesizer_node(state: AgentState) -> dict:
             "guided_step": next_step,
         }
 
-    # ---- Document draft mode (TASK-APP-22) ----
-    if mode == "document_draft":
-        from app.agents.prompts.document_draft_prompt import (
-            DOCUMENT_TYPE_CONFIGS as _DTC,
-            assemble_document,
-            build_document_draft_prompt,
-        )
-
-        document_type = state.get("document_type", "")
-
-        # Unsupported type guard — router should catch this, but defend here too.
-        if document_type not in _DTC:
-            return {
-                "final_response": "Xin lỗi, loại văn bản này chưa được hỗ trợ.",
-                "response_metadata": {
-                    "mode": "document_draft",
-                    "document_type": document_type,
-                    "scope_used": state.get("scope_used"),
-                    "scope_notice_included": False,
-                    "rag_confidence": None,
-                    "filled_form_path": None,
-                    "retrieved_sources": [],
-                    "guided_procedure_id": state.get("guided_procedure_id"),
-                    "guided_step": state.get("guided_step"),
-                },
-            }
-
-        # Resolve personal data — prefer personal_data, fall back to extracted_personal_data.
-        personal_data_obj = (
-            state.get("personal_data") or state.get("extracted_personal_data")
-        )
-        if personal_data_obj is not None and hasattr(personal_data_obj, "model_dump"):
-            personal_data: dict = personal_data_obj.model_dump()
-        elif personal_data_obj is not None and hasattr(personal_data_obj, "dict"):
-            personal_data = personal_data_obj.dict()
-        else:
-            personal_data = personal_data_obj or {}
-
-        system_prompt = build_document_draft_prompt(document_type, personal_data)
-
-        try:
-            llm = _get_llm()
-            body_text: str = await llm.async_invoke(
-                system=system_prompt,
-                messages=[{"role": "user", "content": "Viết phần nội dung văn bản."}],
-                max_tokens=400,
-            )
-        except Exception as exc:
-            logger.warning(
-                "synthesizer_node: document_draft LLM call failed — using placeholder: %s",
-                exc,
-            )
-            body_text = (
-                "[Không thể tạo nội dung tự động. "
-                "Vui lòng điền phần nội dung thủ công.]"
-            )
-
-        full_document = assemble_document(
-            document_type=document_type,
-            personal_data=personal_data,
-            body_text=body_text,
-            filing_jurisdiction=state.get("filing_jurisdiction"),
-        )
-
-        return {
-            "final_response": full_document,
-            "response_metadata": {
-                "mode": "document_draft",
-                "document_type": document_type,
-                "scope_used": state.get("scope_used"),
-                "scope_notice_included": False,
-                "rag_confidence": None,
-                "filled_form_path": None,
-                "retrieved_sources": [],
-                "guided_procedure_id": state.get("guided_procedure_id"),
-                "guided_step": state.get("guided_step"),
-            },
-        }
-
     # ---- Build context and call LLM ----
     ctx = _build_context(
         mode, state, include_scope_notice, scope_used_level, filing_jurisdiction_level
@@ -524,16 +493,20 @@ async def synthesizer_node(state: AgentState) -> dict:
         llm = _get_llm()
         system_prompt = build_synthesis_prompt(mode, ctx)
 
-        # Messages: windowed conversation history + current user turn
+        # Messages: windowed conversation history + current user turn.
+        # The first entry may be a compaction summary (role="assistant",
+        # content prefixed "Tóm tắt trước đó: ") written by RedisService._compact_history
+        # when the session exceeded 6 turns. This is intentional — "assistant" role is
+        # universally supported in the messages array by both Anthropic and Gemini.
         conv_history: list[dict] = list(state.get("conversation_history") or [])
         user_msg = state.get("user_message") or ""
         messages = conv_history + [{"role": "user", "content": user_msg}]
 
-        llm_response: str = await llm.async_invoke(
+        llm_response: str = strip_markdown(await llm.async_invoke(
             system=system_prompt,
             messages=messages,
             max_tokens=1024,
-        )
+        ))
     except Exception as exc:
         logger.error(
             "synthesizer_node: LLM call failed — returning hardcoded fallback: %s",

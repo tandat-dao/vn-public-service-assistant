@@ -12,15 +12,15 @@ If both fail, RuntimeError is raised at __init__ time.
 from __future__ import annotations
 
 import asyncio
-import logging
 import os
 from typing import Any
 
 import openai
+import structlog
 
 from app.config import settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Attempt top-level import of SentenceTransformer so that it can be patched
@@ -64,10 +64,12 @@ class EmbedderService:
             # patch it via patch("app.services.embedder.SentenceTransformer").
             if SentenceTransformer is None:
                 raise ImportError("sentence_transformers is not installed")
-            logger.info("Loading BAAI/bge-m3 embedding model…")
-            self._st_model = SentenceTransformer("BAAI/bge-m3")
+            import torch
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            self._st_model = SentenceTransformer("BAAI/bge-m3", device=device)
             self._backend = "bge-m3"
-            logger.info("EmbedderService: bge-m3 loaded successfully.")
+            print(f"[DIAGNOSTIC] bge-m3 model.device = {self._st_model.device}")
+            logger.info("bge-m3 loaded", device=device, cuda_available=torch.cuda.is_available())
         except (ImportError, Exception) as exc:
             logger.warning(
                 "EmbedderService: bge-m3 failed to load (%s: %s). "

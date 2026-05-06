@@ -5,7 +5,7 @@ const documentsSection = (
   <>
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">* Hồ sơ đăng ký tạm trú gồm:</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -21,7 +21,7 @@ const documentsSection = (
                 href="/forms/1.MuCT01banhnhkmtheoThngts53.doc"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-[#CE7A58] hover:underline"
+                className="text-xs text-[var(--terracotta)] hover:underline"
               >
                 1.MuCT01banhnhkmtheoThngts53.doc
               </a>
@@ -44,7 +44,7 @@ const documentsSection = (
 
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">* Đăng ký tạm trú theo danh sách, hồ sơ gồm:</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -60,7 +60,7 @@ const documentsSection = (
                 href="/forms/1.MuCT01banhnhkmtheoThngts53.doc"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-[#CE7A58] hover:underline"
+                className="text-xs text-[var(--terracotta)] hover:underline"
               >
                 1.MuCT01banhnhkmtheoThngts53.doc
               </a>
@@ -78,7 +78,7 @@ const documentsSection = (
 
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Đăng ký tạm trú tại nơi đơn vị đóng quân trong Công an nhân dân, Quân đội nhân nhân (đơn vị đóng quân, nhà ở công vụ) hồ sơ gồm:</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -94,7 +94,7 @@ const documentsSection = (
                 href="/forms/1.MuCT01banhnhkmtheoThngts53.doc"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-[#CE7A58] hover:underline"
+                className="text-xs text-[var(--terracotta)] hover:underline"
               >
                 1.MuCT01banhnhkmtheoThngts53.doc
               </a>
@@ -117,7 +117,7 @@ const documentsSection = (
 
     <p className="text-sm font-semibold text-gray-700 mt-4 mb-2">Bao gồm</p>
     <div className="overflow-x-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="procedure-doc-table">
         <thead>
           <tr className="border-b border-gray-200">
             <th className="text-left py-2 pr-4 text-xs font-semibold text-gray-500 w-1/2">Tên giấy tờ</th>
@@ -146,7 +146,6 @@ export default function DangKyTamTruPage() {
       processingDays="3 ngày làm việc"
       fee="Không"
       documentsSection={documentsSection}
-      showCccdUpload={true}
       chatContext="Người dùng đang xem thủ tục Đăng ký tạm trú (TTHC-002) tại TP. Hồ Chí Minh. Hãy sẵn sàng trả lời các câu hỏi về hồ sơ, điều kiện, thời hạn tạm trú, và quy trình đăng ký."
     />
   )

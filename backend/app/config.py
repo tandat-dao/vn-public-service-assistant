@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     # LLM
     ANTHROPIC_API_KEY: str = ""
-    LLM_MODEL: str = "claude-sonnet-4-20250514"
+    LLM_MODEL: str = "claude-haiku-4-5-20251001"
     LLM_BACKEND: str = "anthropic"  # "anthropic" | "gemini"
     GOOGLE_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash-lite"
@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     # Qdrant / RAG
     QDRANT_COLLECTION: str = "legal_documents"
     QDRANT_VECTOR_SIZE: int = 1024
-    RAG_TOP_K: int = 8
+    RAG_TOP_K: int = 24
     RAG_TOKEN_BUDGET: int = 6000
     RAG_MIN_SCORE_THRESHOLD: float = 0.01  # RRF scores with k=60 top out at ~0.033; 0.3 was unreachable
 
@@ -48,6 +48,7 @@ class Settings(BaseSettings):
 
     # Security
     CORS_ALLOW_ORIGINS: str = "http://localhost:3000"
+    CORS_EXTRA_ORIGINS: str = ""  # comma-separated; append Ngrok URLs here without code changes
     REDIS_PASSWORD: str = ""
     CHAT_RATE_LIMIT: str = "10/minute"
     UPLOAD_RATE_LIMIT: str = "5/minute"

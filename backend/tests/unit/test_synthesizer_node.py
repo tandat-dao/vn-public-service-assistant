@@ -360,8 +360,9 @@ async def test_synthesizer_includes_retrieved_sources_in_metadata(mock_llm):
         assert len(source["content"]) <= 1200
     article_numbers = {s["article_number"] for s in sources}
     doc_numbers = {s["document_number"] for s in sources}
-    assert "19" in article_numbers
-    assert "5" in article_numbers
+    # After FIX A: numeric article_numbers are normalized with "Điều " prefix
+    assert "Điều 19" in article_numbers
+    assert "Điều 5" in article_numbers
     assert "62/2021/NĐ-CP" in doc_numbers
     assert "104/2022/NĐ-CP" in doc_numbers
     # LLM must NOT be called in the no-scope-notice optimisation path
@@ -389,96 +390,6 @@ async def test_synthesizer_guided_step3_clears_guided_mode(mock_llm):
     assert "final_response" in result
 
 
-# ---------------------------------------------------------------------------
-# Administrative document drafting — TASK-APP-22
-# ---------------------------------------------------------------------------
-
-async def test_synthesizer_document_draft_mode_detected(mock_llm):
-    """document_draft mode fires when document_type is a draft type (no guided_step)."""
-    from app.agents.nodes.synthesizer import _determine_mode, synthesizer_node
-
-    state = _base_state(
-        document_type="don_dang_ky_tam_tru",
-        guided_step=None,
-        guided_procedure_id=None,
-        errors=[],
-        form_fill_complete=False,
-        unfilled_required_fields=[],
-        retrieved_chunks=[],
-    )
-
-    # _determine_mode must return "document_draft"
-    assert _determine_mode(state) == "document_draft"
-
-    result = await synthesizer_node(state)
-
-    assert isinstance(result, dict)
-    assert result["response_metadata"]["mode"] == "document_draft"
-    assert result["response_metadata"]["document_type"] == "don_dang_ky_tam_tru"
-    assert "final_response" in result
-    # LLM must have been called for the body
-    mock_llm.async_invoke.assert_called_once()
-
-
-async def test_synthesizer_document_draft_uses_personal_data(mock_llm):
-    """document_draft mode injects personal data into the assembled document."""
-    from app.schemas.personal_data import PersonalData
-    from datetime import date, datetime
-    from app.agents.nodes.synthesizer import synthesizer_node
-
-    pd = PersonalData(
-        full_name="Nguyễn Văn A",
-        id_number="012345678901",
-        date_of_birth=date(1990, 1, 15),
-        source_document_type="cccd",
-        source_image_path="tmp/test.jpg",
-        extraction_confidence=0.95,
-        extracted_at=datetime(2026, 1, 1),
-    )
-
-    state = _base_state(
-        document_type="don_xac_nhan_cu_tru",
-        extracted_personal_data=pd,
-        personal_data=None,
-        guided_step=None,
-        errors=[],
-        form_fill_complete=False,
-        unfilled_required_fields=[],
-        retrieved_chunks=[],
-    )
-
-    # LLM returns a fixed body so we can verify the full document contains personal data
-    mock_llm.async_invoke.return_value = "Nội dung đơn xin xác nhận."
-
-    result = await synthesizer_node(state)
-
-    assert result["response_metadata"]["mode"] == "document_draft"
-    final = result["final_response"]
-    # Personal data fields must be injected into the assembled document
-    assert "Nguyễn Văn A" in final
-    assert "012345678901" in final
-    # Standard structural elements must be present
-    assert "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM" in final
-    assert "Trân trọng kính trình" in final
-
-
-def test_synthesizer_ocr_document_type_does_not_trigger_draft_mode():
-    """OCR-set document types ('cccd') must NOT trigger document_draft mode."""
-    from app.agents.nodes.synthesizer import _determine_mode
-
-    # OCR sets document_type to 'cccd' — should fall through to fallback
-    state = _base_state(
-        document_type="cccd",
-        errors=[],
-        form_fill_complete=False,
-        unfilled_required_fields=[],
-        retrieved_chunks=[],
-        guided_step=None,
-    )
-    mode = _determine_mode(state)
-    assert mode == "fallback", (
-        f"OCR document type 'cccd' must NOT trigger document_draft mode; got {mode!r}"
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -507,7 +418,7 @@ async def test_synthesizer_guided_step2_tthc_cr_001_directs_to_page_form():
     assert result["response_metadata"]["mode"] == "guided_step"
     assert result["response_metadata"]["guided_step"] == 2
     assert result["response_metadata"]["filled_form_path"] is None
-    assert "Điền thông tin vào mẫu đơn" in result["final_response"]
+    assert "Tải xuống tờ khai đã điền" in result["final_response"]
     svc.async_invoke.assert_not_called()
 
 
@@ -533,7 +444,7 @@ async def test_synthesizer_guided_step2_tthc_cr_002_directs_to_page_form():
     assert result["response_metadata"]["mode"] == "guided_step"
     assert result["response_metadata"]["guided_step"] == 2
     assert result["response_metadata"]["filled_form_path"] is None
-    assert "Điền thông tin vào mẫu đơn" in result["final_response"]
+    assert "Tải xuống tờ khai đã điền" in result["final_response"]
     svc.async_invoke.assert_not_called()
 
 
@@ -559,7 +470,7 @@ async def test_synthesizer_guided_step2_tthc_ad_001_directs_to_page_form():
     assert result["response_metadata"]["mode"] == "guided_step"
     assert result["response_metadata"]["guided_step"] == 2
     assert result["response_metadata"]["filled_form_path"] is None
-    assert "Điền thông tin vào mẫu đơn" in result["final_response"]
+    assert "Tải xuống tờ khai đã điền" in result["final_response"]
     svc.async_invoke.assert_not_called()
 
 
@@ -585,5 +496,166 @@ async def test_synthesizer_guided_step2_tthc_ad_002_directs_to_page_form():
     assert result["response_metadata"]["mode"] == "guided_step"
     assert result["response_metadata"]["guided_step"] == 2
     assert result["response_metadata"]["filled_form_path"] is None
-    assert "Điền thông tin vào mẫu đơn" in result["final_response"]
+    assert "Tải xuống tờ khai đã điền" in result["final_response"]
     svc.async_invoke.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Out-of-scope query guard — Change 3
+# ---------------------------------------------------------------------------
+
+async def test_synthesizer_out_of_scope_returns_fixed_response():
+    """out_of_scope mode returns fixed Vietnamese refusal with zero LLM calls."""
+    from app.agents.nodes.synthesizer import synthesizer_node
+
+    svc = MagicMock()
+    svc.async_invoke = AsyncMock(return_value="LLM response that must NOT be used")
+
+    state = _base_state(out_of_scope=True)
+
+    with patch("app.agents.nodes.synthesizer._get_llm", return_value=svc):
+        result = await synthesizer_node(state)
+
+    assert result["response_metadata"]["mode"] == "out_of_scope"
+    assert "thủ tục hành chính" in result["final_response"]
+    svc.async_invoke.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# RAG empty degradation — Fix B
+# ---------------------------------------------------------------------------
+
+async def test_synthesizer_rag_empty_mode_detected():
+    """rag_empty mode fires when rag_returned_empty=True and intent is Q&A."""
+    from app.agents.nodes.synthesizer import _determine_mode, synthesizer_node
+
+    svc = MagicMock()
+    svc.async_invoke = AsyncMock(return_value="LLM response that must NOT be used")
+
+    state = _base_state(
+        rag_returned_empty=True,
+        intent="rag_only",
+        errors=[],
+        retrieved_chunks=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+    )
+
+    assert _determine_mode(state) == "rag_empty"
+
+    with patch("app.agents.nodes.synthesizer._get_llm", return_value=svc):
+        result = await synthesizer_node(state)
+
+    assert result["response_metadata"]["mode"] == "rag_empty"
+    assert "chưa tìm thấy" in result["final_response"]
+    assert result["response_metadata"]["rag_confidence"] == 0.0
+    svc.async_invoke.assert_not_called()
+
+
+async def test_synthesizer_rag_empty_not_triggered_for_form_fill():
+    """rag_empty must NOT fire when intent is 'form_fill'."""
+    from app.agents.nodes.synthesizer import _determine_mode
+
+    state = _base_state(
+        rag_returned_empty=True,
+        intent="form_fill",
+        errors=[],
+        retrieved_chunks=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+    )
+
+    mode = _determine_mode(state)
+    assert mode != "rag_empty"
+
+
+async def test_synthesizer_rag_empty_not_triggered_for_guided():
+    """rag_empty must NOT fire when intent is 'start_guided'."""
+    from app.agents.nodes.synthesizer import _determine_mode
+
+    state = _base_state(
+        rag_returned_empty=True,
+        intent="start_guided",
+        errors=[],
+        retrieved_chunks=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+    )
+
+    mode = _determine_mode(state)
+    assert mode != "rag_empty"
+
+
+async def test_synthesizer_out_of_scope_is_highest_priority():
+    """out_of_scope mode fires even when rag results and form_fill_complete are set."""
+    from app.agents.nodes.synthesizer import _determine_mode, synthesizer_node
+
+    svc = MagicMock()
+    svc.async_invoke = AsyncMock(return_value="LLM response that must NOT be used")
+
+    state = _base_state(
+        out_of_scope=True,
+        retrieved_chunks=[_make_chunk()],
+        form_fill_complete=True,
+        errors=["some error"],
+    )
+
+    # _determine_mode must return "out_of_scope" before checking errors or anything else
+    assert _determine_mode(state) == "out_of_scope"
+
+    with patch("app.agents.nodes.synthesizer._get_llm", return_value=svc):
+        result = await synthesizer_node(state)
+
+    assert result["response_metadata"]["mode"] == "out_of_scope"
+    svc.async_invoke.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# FIX A — article_number prefix in retrieved_sources
+# ---------------------------------------------------------------------------
+
+async def test_retrieved_sources_article_number_has_dieu_prefix():
+    """Numeric article_number in retrieved_sources is prefixed with 'Điều '.
+
+    DoD checks:
+    - article_number="14" → sources entry has article_number="Điều 14"
+    - Prevents frontend substring match false-positives (e.g. "1" matching "14")
+    """
+    from app.agents.nodes.synthesizer import synthesizer_node
+    from app.schemas.rag import DocumentChunk
+
+    chunk = DocumentChunk(
+        point_id="pt-14",
+        legal_document_id="doc-003",
+        document_number="52/2010/QH12",
+        article_number="14",
+        content="Nội dung điều 14 về điều kiện nhận con nuôi.",
+        procedure_tags=["TTHC-AD-001"],
+        status="active",
+        rrf_score=0.9,
+    )
+
+    rag_answer = "Theo [Điều 14, 52/2010/QH12], điều kiện nhận con nuôi gồm..."
+    state = _base_state(
+        retrieved_chunks=[chunk],
+        final_response=rag_answer,
+        response_metadata={"rag_confidence": "high"},
+        scope_used="VN",
+        filing_jurisdiction="VN",
+        errors=[],
+        form_fill_complete=False,
+        unfilled_required_fields=[],
+    )
+
+    svc = MagicMock()
+    svc.async_invoke = AsyncMock(return_value="unused")
+
+    with patch("app.agents.nodes.synthesizer._get_llm", return_value=svc):
+        result = await synthesizer_node(state)
+
+    sources = result["response_metadata"]["retrieved_sources"]
+    assert len(sources) == 1
+    assert sources[0]["article_number"] == "Điều 14", (
+        f"Expected 'Điều 14', got {sources[0]['article_number']!r}"
+    )
+    assert sources[0]["article_number"].startswith("Điều ")
