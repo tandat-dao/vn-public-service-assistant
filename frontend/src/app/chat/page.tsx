@@ -6,7 +6,8 @@ import {
 } from 'lucide-react'
 import { useChatStore } from '@/lib/stores/chatStore'
 import { streamChat, api } from '@/lib/api/client'
-import type { Citation, ProcedureStep } from '@/lib/types'
+import { renderWithCitations } from '@/lib/renderCitations'
+import type { Citation, ProcedureStep, RetrievedSource } from '@/lib/types'
 
 /* ─── Citation chips ────────────────────────────────────────── */
 function CitationChips({ citations }: { citations: Citation[] }) {
@@ -205,6 +206,14 @@ export default function ChatPage() {
             ) {
               updateMessage(assistantId, { filledFormPath: parsed.metadata.filled_form_path as string })
             }
+            if (
+              Array.isArray(parsed.metadata?.retrieved_sources) &&
+              parsed.metadata.retrieved_sources.length > 0
+            ) {
+              updateMessage(assistantId, {
+                retrievedSources: parsed.metadata.retrieved_sources as RetrievedSource[],
+              })
+            }
           }
         } catch {
           accumulated += chunk
@@ -309,7 +318,11 @@ export default function ChatPage() {
                 >
                   {msg.isStreaming && !msg.content
                     ? <LoadingDots />
-                    : <span className="whitespace-pre-wrap">{msg.content}</span>
+                    : msg.isStreaming
+                      ? <span className="whitespace-pre-wrap">{msg.content}</span>
+                      : msg.role === 'assistant'
+                        ? renderWithCitations(msg.content, msg.retrievedSources ?? [])
+                        : <span className="whitespace-pre-wrap">{msg.content}</span>
                   }
                 </div>
 

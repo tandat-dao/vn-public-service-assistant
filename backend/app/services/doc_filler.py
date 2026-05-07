@@ -77,19 +77,26 @@ def _is_signing_section(text: str) -> bool:
 # ---------------------------------------------------------------------------
 
 def _normalize(text: str) -> str:
-    """Lowercase, strip dots/colons/parens for label comparison."""
+    """Lowercase, strip dots/colons/parens/footnote markers for label comparison."""
+    text = re.sub(r"\(\d+\)", "", text)   # strip footnote refs like (1), (2), (5)
     text = _DOT_RE.sub("", text)
     text = re.sub(r"[,:()\[\]/\\]+", " ", text)
     return text.strip().lower()
 
 
-def _find_field_id(label: str, fields: list[FormField]) -> str | None:
-    """Return the field ID whose label best matches *label*, or None.
+def _find_field_id(
+    label: str,
+    fields: list[FormField],
+    consumed: set[str] | None = None,
+) -> str | None:
+    """Return the field ID whose label best matches *label*, skipping consumed IDs.
 
     Matching priority:
       1. Substring: either label is a substring of the other (exact).
-      2. Word-subset: all words in the shorter token set appear in the longer
-         (handles labels like "Họ tên" matching "Họ, chữ đệm và tên cha nuôi").
+      2. Word-subset: all words in the shorter token set appear in the longer.
+
+    *consumed* tracks field IDs already filled so repeated labels (e.g. "Năm sinh"
+    for mother then father) map to distinct fields in document order.
     """
     norm = _normalize(label)
     if not norm:
@@ -97,15 +104,19 @@ def _find_field_id(label: str, fields: list[FormField]) -> str | None:
 
     # Pass 1 — substring match
     for field in fields:
+        if consumed and field["id"] in consumed:
+            continue
         norm_field = _normalize(field["label"])
         if norm_field and (norm_field in norm or norm in norm_field):
             return field["id"]
 
-    # Pass 2 — word-subset match (all words of the shorter must appear in the longer)
+    # Pass 2 — word-subset match
     query_words = set(norm.split())
     if not query_words:
         return None
     for field in fields:
+        if consumed and field["id"] in consumed:
+            continue
         norm_field = _normalize(field["label"])
         if not norm_field:
             continue
@@ -152,43 +163,144 @@ def _set_cell_value(cell, value: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Rule 1 — Dot sequence replacement in a paragraph
+# Rule 1 — Paragraph field filling (tab-based and dot-based)
 # ---------------------------------------------------------------------------
 
-def _apply_dot_rule_to_paragraph(
+def _merge_dot_runs(para) -> None:
+    """Merge consecutive runs that are entirely dots into the first one.
+
+    Word sometimes splits a single dot sequence across multiple runs. Merging
+    them lets _apply_paragraph_fields see the full sequence in one run and
+    fill it with a single value rather than leaving subsequent dot runs unfilled.
+    """
+    runs = para.runs
+    i = 0
+    while i < len(runs) - 1:
+        curr_text = runs[i].text or ""
+        next_text = runs[i + 1].text or ""
+        if curr_text and next_text and _DOT_RE.fullmatch(curr_text) and _DOT_RE.fullmatch(next_text):
+            runs[i].text = curr_text + next_text
+            runs[i + 1].text = ""
+        else:
+            i += 1
+
+
+def _apply_paragraph_fields(
     para,
     label_hint: str,
     fields: list[FormField],
     field_values: dict[str, str],
-) -> None:
-    """Replace dot sequences in *para*'s runs with the matching field value.
+    consumed: set[str],
+) -> str:
+    """Fill one paragraph and return the label text to carry into the next.
 
-    *label_hint* is the text to use when no non-dot text exists in the
-    paragraph itself (e.g., the preceding paragraph's text).
+    Handles three patterns found in Vietnamese government forms:
+
+    1. Tab-based  — "Label:\t"  → value inserted after the tab.
+    2. Dot-based  — "Label:....." → dots replaced by value.
+    3. Multi-field — "F1:..... F2:..... F3:\t" → left-to-right label tracking.
+
+    *consumed* is updated in-place whenever a field is successfully filled so
+    that repeated labels (e.g. "Năm sinh" for mother then father) resolve to
+    distinct field IDs in document order.
     """
-    para_text = para.text
-    if _is_signing_section(para_text):
-        return
+    if _is_signing_section(para.text):
+        return para.text
 
-    has_dots = any(_DOT_RE.search(run.text) for run in para.runs)
-    if not has_dots:
-        return
+    has_dots = _DOT_RE.search(para.text)
+    has_tab = "\t" in para.text
+    if not has_dots and not has_tab:
+        return para.text  # nothing to fill; pass text as hint to next paragraph
 
-    # Prefer text in the same paragraph (label before the dots);
-    # fall back to the hint from the previous paragraph.
-    same_para_label = _normalize(_DOT_RE.sub("", para_text))
-    label = same_para_label if same_para_label else _normalize(label_hint)
+    _merge_dot_runs(para)
 
-    field_id = _find_field_id(label, fields)
-    if not field_id:
-        return
-    value = field_values.get(field_id)
-    if not value:
-        return
+    label_acc = label_hint  # accumulates label text as we scan runs left→right
 
     for run in para.runs:
-        if _DOT_RE.search(run.text):
-            run.text = _DOT_RE.sub(value, run.text)
+        text = run.text
+        if not text:
+            continue
+        if _is_signing_section(text):
+            break
+
+        if _DOT_RE.search(text):
+            parts = _DOT_RE.split(text)       # text segments between dot groups
+            dot_groups = _DOT_RE.findall(text) # the dot groups themselves
+            new_text = ""
+
+            for i, dot_group in enumerate(dot_groups):
+                before = parts[i]
+                label = (label_acc + before).strip()
+                field_id = _find_field_id(label, fields, consumed) if label else None
+                value = field_values.get(field_id) if field_id else None
+                if field_id and value:
+                    consumed.add(field_id)
+                    # Add a space before the value when the accumulated label ends
+                    # without one (e.g. "Giới tính:" → "Giới tính: Nam").
+                    # When before="" the value is at the start of this run but may
+                    # directly follow text from the previous run — always add a space.
+                    prefix = " " if not before or not before[-1].isspace() else ""
+                    new_text += before + prefix + value
+                else:
+                    new_text += before + dot_group
+                label_acc = ""  # reset after each dot group
+
+            # Text after the last dot group — may contain a tab for another field.
+            # Add a space if the filled value runs directly into the next label text.
+            last = parts[-1]
+            if new_text and not new_text[-1].isspace() and last and not last[0].isspace():
+                new_text += " "
+
+            # When this run ends with a filled value and the *next* non-empty run
+            # starts with a non-space character, append a trailing space so runs
+            # from different XML elements don't collide (e.g. "1992Dân tộc:").
+            if new_text and not new_text[-1].isspace() and not last:
+                found = False
+                for nr in para.runs:
+                    if not found:
+                        if nr._element is run._element:
+                            found = True
+                        continue
+                    if nr.text:
+                        if not nr.text[0].isspace():
+                            new_text += " "
+                        break
+            if "\t" in last:
+                tab_i = last.index("\t")
+                label = (label_acc + last[:tab_i]).strip()
+                field_id = _find_field_id(label, fields, consumed) if label else None
+                value = field_values.get(field_id) if field_id else None
+                if field_id and value:
+                    consumed.add(field_id)
+                    # Replace the tab with a space so tab-leader dots don't appear.
+                    new_text += last[:tab_i].rstrip() + " " + value
+                    label_acc = ""
+                else:
+                    new_text += last
+                    label_acc = last[tab_i:]
+            else:
+                new_text += last
+                label_acc = last
+
+            run.text = new_text
+
+        elif "\t" in text:
+            tab_i = text.index("\t")
+            label = (label_acc + text[:tab_i]).strip()
+            field_id = _find_field_id(label, fields, consumed) if label else None
+            value = field_values.get(field_id) if field_id else None
+            if field_id and value:
+                consumed.add(field_id)
+                # Replace the tab with a space so tab-leader dots don't appear.
+                run.text = text[:tab_i].rstrip() + " " + value
+                label_acc = ""
+            else:
+                label_acc = text[tab_i:]
+
+        else:
+            label_acc += text
+
+    return label_acc
 
 
 # ---------------------------------------------------------------------------
@@ -294,28 +406,20 @@ def _apply_family_table_rule(
             _set_cell_value(data_cells[i], value)
 
 
-# ---------------------------------------------------------------------------
-# Rule 1 applied to a table (cell-level dot replacement)
-# ---------------------------------------------------------------------------
-
-def _apply_dot_rule_to_table(
+def _apply_table_cells(
     table,
     fields: list[FormField],
     field_values: dict[str, str],
+    consumed: set[str],
 ) -> None:
-    """Apply dot-sequence replacement to every non-signing cell in *table*."""
-    prev_cell_text = ""
+    """Apply paragraph-level field filling to every non-signing cell in *table*."""
     for row in table.rows:
         for cell in row.cells:
-            cell_text = cell.text
-            if _is_signing_section(cell_text):
-                prev_cell_text = cell_text
+            if _is_signing_section(cell.text):
                 continue
-            prev_para_text = prev_cell_text
+            hint = ""
             for para in cell.paragraphs:
-                _apply_dot_rule_to_paragraph(para, prev_para_text, fields, field_values)
-                prev_para_text = para.text
-            prev_cell_text = cell_text
+                hint = _apply_paragraph_fields(para, hint, fields, field_values, consumed)
 
 
 # ---------------------------------------------------------------------------
@@ -324,6 +428,22 @@ def _apply_dot_rule_to_table(
 
 # Matches the path used in ingest_full_documents.py
 _LIBREOFFICE_EXE = Path(r"C:\Program Files\LibreOffice\program\soffice.exe")
+
+
+def _run_libreoffice(docx_path: Path, tmp_dir_path: Path) -> subprocess.CompletedProcess:
+    """Synchronous LibreOffice subprocess call — run via executor to avoid blocking."""
+    return subprocess.run(
+        [
+            str(_LIBREOFFICE_EXE),
+            "--headless",
+            "--convert-to", "pdf",
+            "--outdir", str(tmp_dir_path),
+            str(docx_path),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
 
 
 async def _convert_docx_to_pdf(docx_bytes: bytes) -> bytes:
@@ -345,17 +465,9 @@ async def _convert_docx_to_pdf(docx_bytes: bytes) -> bytes:
         docx_path = tmp_dir_path / "input.docx"
         docx_path.write_bytes(docx_bytes)
 
-        result = subprocess.run(
-            [
-                str(_LIBREOFFICE_EXE),
-                "--headless",
-                "--convert-to", "pdf",
-                "--outdir", str(tmp_dir_path),
-                str(docx_path),
-            ],
-            capture_output=True,
-            text=True,
-            timeout=30,
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None, _run_libreoffice, docx_path, tmp_dir_path
         )
 
         if result.returncode != 0:
@@ -388,14 +500,23 @@ async def fill_doc(
     Fill operations are best-effort — missing values leave the document unchanged.
     The source file on disk is never modified.
     """
-    if form_file not in FORM_FILE_CONFIGS:
+    # Normalise: always prefer the .docx version (python-docx can't open binary .doc).
+    # This bridges stale in-memory configs that still reference .doc filenames.
+    if form_file.endswith(".doc") and not form_file.endswith(".docx"):
+        docx_candidate = form_file + "x"
+        if (FORM_SOURCES_DIR / docx_candidate).exists():
+            form_file = docx_candidate
+
+    config = FORM_FILE_CONFIGS.get(form_file) or FORM_FILE_CONFIGS.get(
+        form_file[:-1] if form_file.endswith(".docx") else form_file + "x"
+    )
+    if config is None:
         raise ValueError(f"form_file not in FORM_FILE_CONFIGS: {form_file!r}")
 
     source_path = FORM_SOURCES_DIR / form_file
     if not source_path.exists():
         raise FileNotFoundError(f"Form source file not found: {form_file!r}")
 
-    config = FORM_FILE_CONFIGS[form_file]
     fields: list[FormField] = config["fields"]
 
     # Load into memory — Document() never modifies the source file on disk.
@@ -404,28 +525,21 @@ async def fill_doc(
 
     doc = Document(io.BytesIO(file_bytes))
 
-    # ── Rule 1: paragraphs ──────────────────────────────────────────────────
-    prev_para_text = ""
-    for para in doc.paragraphs:
-        _apply_dot_rule_to_paragraph(para, prev_para_text, fields, field_values)
-        prev_para_text = para.text
+    consumed: set[str] = set()
 
-    # ── Tables: Rules 2, 3, then 1 ────────────────────────────────────────
+    # ── Paragraphs ──────────────────────────────────────────────────────────
+    hint = ""
+    for para in doc.paragraphs:
+        hint = _apply_paragraph_fields(para, hint, fields, field_values, consumed)
+
+    # ── Tables ────────────────────────────────────────────────────────────
     for table in doc.tables:
-        # Rule 2 — CCCD character grid (takes priority; skip other rules)
         if _is_cccd_grid(table):
             _apply_cccd_grid_rule(table, field_values)
             continue
-
-        # Rule 3 — family member table (pre-fill row 1)
         if _is_family_table(table):
             _apply_family_table_rule(table, fields, field_values)
-            # Still apply dot-replacement to other rows after row 1
-            _apply_dot_rule_to_table(table, fields, field_values)
-            continue
-
-        # Default: dot replacement only (Rule 1)
-        _apply_dot_rule_to_table(table, fields, field_values)
+        _apply_table_cells(table, fields, field_values, consumed)
 
     # Save the modified document to bytes, convert to PDF, and return.
     buf = io.BytesIO()

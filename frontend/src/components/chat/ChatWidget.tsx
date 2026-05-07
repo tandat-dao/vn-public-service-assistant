@@ -4,112 +4,8 @@ import { MessageCircle, X, Send, Paperclip, ChevronDown, Maximize2, RotateCcw } 
 import Link from 'next/link'
 import { useChatStore } from '@/lib/stores/chatStore'
 import { streamChat, api } from '@/lib/api/client'
+import { renderWithCitations } from '@/lib/renderCitations'
 import type { Citation, FeedbackType, RetrievedSource } from '@/lib/types'
-
-/* ─── helpers ─────────────────────────────────────────────── */
-
-function stripMarkdownForHover(text: string): string {
-  return text
-    .replace(/#{1,6}\s+/gm, '')
-    .replace(/\*{3}(.+?)\*{3}/g, '$1')
-    .replace(/\*{2}(.+?)\*{2}/g, '$1')
-    .replace(/\*(.+?)\*/g, '$1')
-    .replace(/^[\-\*]\s+/gm, '')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-}
-
-/**
- * Render chat message content with legal citations highlighted.
- * Verified citations with a matching source → orange chip with structured hover tooltip
- *   showing article label, document number, and stripped chunk content (≤300 chars).
- * Verified citations with no matching source → orange chip with amber warning tooltip.
- * [unverified:...] markers → grey italic span with amber warning tooltip.
- * MUST only be called on completed messages (isStreaming=false).
- */
-function renderWithCitations(
-  content: string,
-  retrievedSources: RetrievedSource[] = []
-): React.ReactNode {
-  // Matches any citation bracket containing a Vietnamese legal document identifier
-  // (covers Điều/Khoản, Mục/số, and Phụ lục formats) plus the [unverified:...] marker.
-  const pattern = /(\[unverified:\s*[^\]]+\]|\[[^\]]*(?:\/NQ-|\/TT-|\/NĐ-|\/QH|\/VBHN)[^\]]*\])/g
-  const parts = content.split(pattern)
-
-  const unverifiedTooltip = (
-    <>
-      <div className="absolute top-full left-0 w-full h-1" />
-      <span className="absolute top-full mt-1 left-0 z-50 hidden group-hover:block hover:block w-64 bg-gray-900 rounded-lg shadow-lg p-3 text-left font-normal not-italic">
-        <div className="text-amber-500 text-xs font-semibold">⚠️ Trích dẫn chưa xác minh</div>
-        <p className="text-gray-400 text-xs mt-1">Không tìm thấy đoạn văn bản khớp trong kết quả truy xuất.</p>
-      </span>
-    </>
-  )
-
-  return (
-    <span className="whitespace-pre-wrap">
-      {parts.map((part, i) => {
-        if (/^\[unverified:/i.test(part)) {
-          return (
-            <span
-              key={i}
-              className="relative group inline-flex items-center gap-0.5 italic text-gray-400 text-[0.85em] cursor-default"
-            >
-              ⚠️ {part}
-              {unverifiedTooltip}
-            </span>
-          )
-        }
-        // Render any legal citation (Điều, Mục, số, Phụ lục) as an orange chip.
-        // For Điều citations: match hover content by both article_number + document_number.
-        // For alternative formats (Mục/số/Phụ lục): permissive match by document_number only.
-        if (/\/(?:NQ-|TT-|NĐ-|QH|VBHN)/.test(part)) {
-          const lowerPart = part.toLowerCase()
-          const isDieuCitation = /^\[điều/i.test(part)
-          const matchingSource = retrievedSources.find((source) =>
-            isDieuCitation
-              ? lowerPart.includes(source.article_number.toLowerCase()) &&
-                lowerPart.includes(source.document_number.toLowerCase())
-              : lowerPart.includes(source.document_number.toLowerCase())
-          )
-          if (matchingSource) {
-            return (
-              <span
-                key={i}
-                className="relative group inline-flex items-center gap-0.5 font-semibold text-[var(--terracotta-dk)] bg-[var(--terracotta-faint)] rounded px-1 text-[0.85em] cursor-help"
-              >
-                ⚖️ {part}
-                <div className="absolute top-full left-0 w-full h-1" />
-                <span className="absolute top-full mt-1 left-0 z-50 hidden group-hover:block hover:block w-72 max-w-sm bg-gray-900 rounded-lg shadow-lg p-3 text-left font-normal not-italic">
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="font-semibold text-[var(--terracotta)] text-xs leading-tight">{matchingSource.article_number}</span>
-                    <span className="text-gray-400 text-[0.7em] whitespace-nowrap">{matchingSource.document_number}</span>
-                  </div>
-                  <hr className="border-gray-700 mb-1.5" />
-                  <p className="citation-content text-xs text-gray-300 leading-relaxed max-h-48 overflow-y-auto">
-                    {stripMarkdownForHover(matchingSource.content ?? '')}
-                  </p>
-                </span>
-              </span>
-            )
-          }
-          // No matching source — amber warning tooltip
-          return (
-            <span
-              key={i}
-              className="relative group inline-flex items-center gap-0.5 font-semibold text-[var(--terracotta-dk)] bg-[var(--terracotta-faint)] rounded px-1 text-[0.85em] cursor-default"
-            >
-              ⚖️ {part}
-              {unverifiedTooltip}
-            </span>
-          )
-        }
-        return <span key={i}>{part}</span>
-      })}
-    </span>
-  )
-}
 
 function AnimatedDots() {
   return (
@@ -240,7 +136,6 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
   } = useChatStore()
 
   const [input, setInput] = useState('')
-  const [isGenerating, setIsGenerating] = useState(false)
   const [lastUploadedPath, setLastUploadedPath] = useState<string | null>(null)
   const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null)
   const fileRef            = useRef<HTMLInputElement>(null)
@@ -314,7 +209,6 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
       isStreaming: true,
     })
 
-    setIsGenerating(true)
     setStreaming(true)
 
     // Start warmup timer — if no SSE content arrives within 5 seconds,
@@ -374,8 +268,6 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
               clearTimeout(warmupTimerRef.current)
               warmupTimerRef.current = null
             }
-            // Hide typing indicator on first content chunk.
-            setIsGenerating(false)
             // Chunks are 1–3 Unicode code points. Vietnamese diacritics are single
             // code points — no broken characters possible at this chunk size.
             accumulated += parsed.content
@@ -432,7 +324,6 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
             clearTimeout(warmupTimerRef.current)
             warmupTimerRef.current = null
           }
-          setIsGenerating(false)
           accumulated += chunk
           updateMessage(assistantId, { content: accumulated })
         }
@@ -479,7 +370,6 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
         clearTimeout(warmupTimerRef.current)
         warmupTimerRef.current = null
       }
-      setIsGenerating(false)
       updateMessage(assistantId, { isStreaming: false })
       setStreaming(false)
     }

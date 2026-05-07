@@ -27,7 +27,7 @@ export interface FormFileConfig {
 // ---------------------------------------------------------------------------
 
 const _TKNGKKHAISINH: FormFileConfig = {
-  form_file: '1.TKngkkhaisinh.doc',
+  form_file: '1.TKngkkhaisinh.docx',
   tab_label: 'Tờ khai đăng ký khai sinh',
   procedure_ids: ['TTHC-CR-001'],
   fields: [
@@ -278,7 +278,7 @@ const _TKNGKKHAISINH: FormFileConfig = {
 // ---------------------------------------------------------------------------
 
 const _TTT_NGKKHAISINH: FormFileConfig = {
-  form_file: '1.TTT-ngkkhaisinh.doc',
+  form_file: '1.TTT-ngkkhaisinh.docx',
   tab_label: 'Tờ thông tin bổ sung đăng ký khai sinh',
   procedure_ids: ['TTHC-CR-001'],
   fields: [
@@ -353,7 +353,7 @@ const _TTT_NGKKHAISINH: FormFileConfig = {
 // ---------------------------------------------------------------------------
 
 const _TK_YEUCAU_BANSAO: FormFileConfig = {
-  form_file: '18.TKyeucaubansaotrichluchotich.doc',
+  form_file: '18.TKyeucaubansaotrichluchotich.docx',
   tab_label: 'Tờ khai yêu cầu cấp bản sao trích lục',
   procedure_ids: ['TTHC-CR-002'],
   fields: [
@@ -538,7 +538,7 @@ const _TK_YEUCAU_BANSAO: FormFileConfig = {
 // ---------------------------------------------------------------------------
 
 const _DTTT_CPBS: FormFileConfig = {
-  form_file: '18.DTTT-CpBSkhaisinhTrchlcHT.doc',
+  form_file: '18.DTTT-CpBSkhaisinhTrchlcHT.docx',
   tab_label: 'Đơn tờ thông tin cấp bản sao',
   procedure_ids: ['TTHC-CR-002'],
   fields: [
@@ -690,7 +690,7 @@ const _DTTT_CPBS: FormFileConfig = {
 // ---------------------------------------------------------------------------
 
 const _DON_XIN_NHAN_NUOI: FormFileConfig = {
-  form_file: '1.nxinnhnconnui.doc',
+  form_file: '1.nxinnhnconnui.docx',
   tab_label: 'Đơn xin nhận nuôi con nuôi',
   procedure_ids: ['TTHC-AD-001'],
   fields: [
@@ -895,7 +895,7 @@ const _DON_XIN_NHAN_NUOI: FormFileConfig = {
 // ---------------------------------------------------------------------------
 
 const _VB_XAC_NHAN_HOANCANH: FormFileConfig = {
-  form_file: '2.Vnbnxcnhnhoncnhgianhchiukinkinht.doc',
+  form_file: '2.Vnbnxcnhnhoncnhgianhchiukinkinht.docx',
   tab_label: 'Văn bản xác nhận hoàn cảnh gia đình',
   procedure_ids: ['TTHC-AD-001'],
   fields: [
@@ -1117,7 +1117,7 @@ const _VB_XAC_NHAN_HOANCANH: FormFileConfig = {
 // ---------------------------------------------------------------------------
 
 const _TK_DKLAI_NUOICONNUOI: FormFileConfig = {
-  form_file: '7.Tkhaingklivicnuiconnui.doc',
+  form_file: '7.Tkhaingklivicnuiconnui.docx',
   tab_label: 'Tờ khai đăng ký lại việc nuôi con nuôi',
   procedure_ids: ['TTHC-AD-002'],
   fields: [
@@ -1359,7 +1359,7 @@ const _TK_DKLAI_NUOICONNUOI: FormFileConfig = {
 // ---------------------------------------------------------------------------
 
 const _CT01: FormFileConfig = {
-  form_file: '1.MuCT01banhnhkmtheoThngts53.doc',
+  form_file: '1.MuCT01banhnhkmtheoThngts53.docx',
   tab_label: 'Tờ khai thay đổi thông tin cư trú (CT01)',
   procedure_ids: ['TTHC-002', 'TTHC-003'],
   fields: [
@@ -1470,31 +1470,31 @@ const _CT01: FormFileConfig = {
 // ---------------------------------------------------------------------------
 
 export const FORM_FILE_CONFIGS: Record<string, FormFileConfig> = {
-  '1.TKngkkhaisinh.doc': _TKNGKKHAISINH,
-  '1.TTT-ngkkhaisinh.doc': _TTT_NGKKHAISINH,
-  '18.TKyeucaubansaotrichluchotich.doc': _TK_YEUCAU_BANSAO,
-  '18.DTTT-CpBSkhaisinhTrchlcHT.doc': _DTTT_CPBS,
-  '1.nxinnhnconnui.doc': _DON_XIN_NHAN_NUOI,
-  '2.Vnbnxcnhnhoncnhgianhchiukinkinht.doc': _VB_XAC_NHAN_HOANCANH,
-  '7.Tkhaingklivicnuiconnui.doc': _TK_DKLAI_NUOICONNUOI,
-  '1.MuCT01banhnhkmtheoThngts53.doc': _CT01,
+  '1.TKngkkhaisinh.docx': _TKNGKKHAISINH,
+  '1.TTT-ngkkhaisinh.docx': _TTT_NGKKHAISINH,
+  '18.TKyeucaubansaotrichluchotich.docx': _TK_YEUCAU_BANSAO,
+  '18.DTTT-CpBSkhaisinhTrchlcHT.docx': _DTTT_CPBS,
+  '1.nxinnhnconnui.docx': _DON_XIN_NHAN_NUOI,
+  '2.Vnbnxcnhnhoncnhgianhchiukinkinht.docx': _VB_XAC_NHAN_HOANCANH,
+  '7.Tkhaingklivicnuiconnui.docx': _TK_DKLAI_NUOICONNUOI,
+  '1.MuCT01banhnhkmtheoThngts53.docx': _CT01,
 }
 
 export const PROCEDURE_FORM_FILES: Record<string, string[]> = {
   'TTHC-001': [],
-  'TTHC-002': ['1.MuCT01banhnhkmtheoThngts53.doc'],
-  'TTHC-003': ['1.MuCT01banhnhkmtheoThngts53.doc'],
+  'TTHC-002': ['1.MuCT01banhnhkmtheoThngts53.docx'],
+  'TTHC-003': ['1.MuCT01banhnhkmtheoThngts53.docx'],
   'TTHC-CR-001': [
-    '1.TKngkkhaisinh.doc',
-    '1.TTT-ngkkhaisinh.doc',
+    '1.TKngkkhaisinh.docx',
+    '1.TTT-ngkkhaisinh.docx',
   ],
   'TTHC-CR-002': [
-    '18.TKyeucaubansaotrichluchotich.doc',
-    '18.DTTT-CpBSkhaisinhTrchlcHT.doc',
+    '18.TKyeucaubansaotrichluchotich.docx',
+    '18.DTTT-CpBSkhaisinhTrchlcHT.docx',
   ],
   'TTHC-AD-001': [
-    '1.nxinnhnconnui.doc',
-    '2.Vnbnxcnhnhoncnhgianhchiukinkinht.doc',
+    '1.nxinnhnconnui.docx',
+    '2.Vnbnxcnhnhoncnhgianhchiukinkinht.docx',
   ],
-  'TTHC-AD-002': ['7.Tkhaingklivicnuiconnui.doc'],
+  'TTHC-AD-002': ['7.Tkhaingklivicnuiconnui.docx'],
 }

@@ -4,9 +4,14 @@ const BASE = process.env.NEXT_PUBLIC_API_URL_PUBLIC
   || process.env.NEXT_PUBLIC_API_URL
   || 'http://localhost:8000'
 
+// Ngrok free tier intercepts preflight OPTIONS with a browser warning page unless this header is set.
+const NGROK_HEADER: Record<string, string> = BASE.includes('ngrok')
+  ? { 'ngrok-skip-browser-warning': 'true' }
+  : {}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: { 'Content-Type': 'application/json', ...NGROK_HEADER, ...init?.headers },
     ...init,
   })
   if (!res.ok) throw Object.assign(new Error(`API ${path} → ${res.status}`), { status: res.status })
@@ -25,7 +30,7 @@ export async function* streamChat(
   if (citizenId) body.citizen_id = citizenId
   const res = await fetch(`${BASE}/api/v1/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...NGROK_HEADER },
     body: JSON.stringify(body),
   })
   if (!res.ok || !res.body) {

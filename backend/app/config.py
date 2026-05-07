@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     # LLM
     ANTHROPIC_API_KEY: str = ""
-    LLM_MODEL: str = "claude-haiku-4-5-20251001"
+    LLM_MODEL: str = "claude-sonnet-4-20250514"
     LLM_BACKEND: str = "anthropic"  # "anthropic" | "gemini"
     GOOGLE_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash-lite"

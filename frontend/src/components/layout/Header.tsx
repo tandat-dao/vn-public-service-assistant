@@ -91,27 +91,6 @@ export function Header() {
             </div>
           </Link>
 
-          {/* Auth buttons */}
-          <div className="hidden sm:flex items-center gap-3">
-            <Link href="/dang-ky"
-                  className="bg-white text-[var(--terracotta)] hover:bg-white/90 text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
-              Đăng ký
-            </Link>
-            <Link href="/dang-nhap"
-                  className="text-white/80 hover:text-white text-sm transition-colors">
-              Đăng nhập
-            </Link>
-            <button
-              onClick={() => {
-                sessionStorage.removeItem('dvc_pin_auth')
-                window.location.reload()
-              }}
-              className="text-white/60 hover:text-white/90 text-sm transition-colors cursor-pointer"
-            >
-              Đăng xuất
-            </button>
-          </div>
-
           {/* Mobile hamburger */}
           <button className="sm:hidden text-white" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}

@@ -148,6 +148,10 @@ async def fill_form(request: FillFormRequest) -> Response:
         raise HTTPException(status_code=404, detail="Form source file not found")
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}")
 
     from pathlib import Path as _Path
     pdf_filename = _Path(request.form_file).stem + ".pdf"
