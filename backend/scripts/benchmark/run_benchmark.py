@@ -134,9 +134,58 @@ async def call_chat(
 # Metric 1: Router Accuracy
 # ---------------------------------------------------------------------------
 
+async def call_classify(
+    client: httpx.AsyncClient,
+    message: str,
+    session_id: str,
+) -> dict:
+    """POST /api/v1/chat/classify — router only, zero downstream LLM calls.
+
+    Returns:
+        {
+            "metadata":   dict with mode/domain/procedure_id/location_scope,
+            "elapsed_ms": wall-clock time in milliseconds,
+            "error":      error string if request failed,
+        }
+    """
+    start = time.perf_counter()
+    try:
+        response = await client.post(
+            f"{BASE_URL}/api/v1/chat/classify",
+            json={"message": message, "session_id": session_id},
+            timeout=120.0,  # Qwen on CPU can take 30-60s per inference for the long router prompt
+        )
+        elapsed_ms = round((time.perf_counter() - start) * 1000)
+
+        if response.status_code != 200:
+            return {
+                "metadata": {},
+                "elapsed_ms": elapsed_ms,
+                "error": f"HTTP {response.status_code}: {response.text[:200]}",
+            }
+
+        data = response.json()
+        metadata = {
+            "mode": data.get("mode"),
+            "domain": data.get("domain"),
+            "target_procedure_id": data.get("procedure_id"),
+            "location_scope": data.get("location_scope"),
+        }
+        return {"metadata": metadata, "elapsed_ms": elapsed_ms, "error": None}
+
+    except Exception as exc:
+        elapsed_ms = round((time.perf_counter() - start) * 1000)
+        # Use repr() — str(httpx.ReadTimeout) can be empty string (falsy), masking the error
+        return {"metadata": {}, "elapsed_ms": elapsed_ms, "error": repr(exc) or type(exc).__name__}
+
+
 async def run_router_accuracy(client: httpx.AsyncClient) -> dict:
-    """Measure router classification accuracy against labeled test cases (Tier 1)."""
-    print("\n=== METRIC 1: Router Accuracy ===")
+    """Measure router classification accuracy against labeled test cases (Tier 1).
+
+    Calls POST /api/v1/chat/classify instead of /api/v1/chat — zero RAG or
+    generation LLM calls, ~10x faster per case.
+    """
+    print("\n=== METRIC 1: Router Accuracy  [0 generation LLM calls — router only] ===")
 
     dataset_path = DATASET_DIR / "router_accuracy.json"
     if not dataset_path.exists():
@@ -157,19 +206,19 @@ async def run_router_accuracy(client: httpx.AsyncClient) -> dict:
         expected = case["expected"]
         print(f"  [{qid}] {query[:55]}...", end=" ", flush=True)
 
-        result = await call_chat(client, query, f"bench-{uuid.uuid4().hex[:8]}")
+        result = await call_classify(client, query, f"bench-{uuid.uuid4().hex[:8]}")
 
-        if result.get("error"):
-            print(f"ERR: {result['error'][:60]}")
+        if result.get("error") is not None:
+            print(f"ERR: {result['error'][:80]}")
             results.append({"id": qid, "error": result["error"]})
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.2)
             continue
 
         meta = result.get("metadata", {})
         actual = {
             "mode": meta.get("mode"),
             "domain": meta.get("domain"),
-            "procedure_id": meta.get("target_procedure_id") or meta.get("procedure_id"),
+            "procedure_id": meta.get("target_procedure_id"),
             "location_scope": meta.get("location_scope"),
         }
 
@@ -201,7 +250,7 @@ async def run_router_accuracy(client: httpx.AsyncClient) -> dict:
             "scope_correct": scope_ok,
         })
 
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
 
     metrics = {
         "mode_accuracy": round(correct_mode / total, 3),
@@ -229,11 +278,61 @@ async def run_router_accuracy(client: httpx.AsyncClient) -> dict:
 # Metric 2: Citation Recall
 # ---------------------------------------------------------------------------
 
-async def run_citation_recall(client: httpx.AsyncClient) -> dict:
-    """Measure citation recall against ground truth (verified pairs only, Tier 2)."""
-    print("\n=== METRIC 2: Citation Recall ===")
+async def call_search(
+    client: httpx.AsyncClient,
+    query: str,
+    procedure_id: str | None = None,
+) -> dict:
+    """GET /api/v1/legal/search — pure Qdrant retrieval, zero LLM calls.
 
-    dataset_path = DATASET_DIR / "citation_recall.json"
+    Returns:
+        {
+            "chunks":     list of {article_number, document_number, score},
+            "elapsed_ms": wall-clock time in milliseconds,
+            "error":      error string if request failed,
+        }
+    """
+    start = time.perf_counter()
+    params: dict = {"q": query}
+    if procedure_id:
+        params["procedure_id"] = procedure_id
+
+    try:
+        response = await client.get(
+            f"{BASE_URL}/api/v1/legal/search",
+            params=params,
+            timeout=30.0,
+        )
+        elapsed_ms = round((time.perf_counter() - start) * 1000)
+
+        if response.status_code != 200:
+            return {
+                "chunks": [],
+                "elapsed_ms": elapsed_ms,
+                "error": f"HTTP {response.status_code}: {response.text[:200]}",
+            }
+
+        return {
+            "chunks": response.json(),
+            "elapsed_ms": elapsed_ms,
+            "error": None,
+        }
+
+    except Exception as exc:
+        elapsed_ms = round((time.perf_counter() - start) * 1000)
+        return {"chunks": [], "elapsed_ms": elapsed_ms, "error": str(exc)}
+
+
+async def run_retrieval_recall(client: httpx.AsyncClient) -> dict:
+    """Measure Document Retrieval Recall@k against ground truth (verified pairs only, Tier 2).
+
+    Calls GET /api/v1/legal/search instead of POST /api/v1/chat — zero LLM
+    calls per case. Evaluates source_found only: the expected document_number
+    must appear in the retrieved chunks within top_k results.
+    """
+    print("\n=== METRIC 2: Document Retrieval Recall@k  [0 LLM calls — pure Qdrant] ===")
+
+    dataset_path = DATASET_DIR / "retrieval_recall.json"
     if not dataset_path.exists():
         print(f"  ERROR: dataset not found at {dataset_path}")
         return {"metrics": {}, "results": []}
@@ -247,79 +346,64 @@ async def run_citation_recall(client: httpx.AsyncClient) -> dict:
           f"({len(all_cases) - len(verified_cases)} unverified skipped)")
 
     total_expected = total_found = 0
-    unverified_rates: list[float] = []
     results = []
 
     for case in verified_cases:
         print(f"  [{case['id']}] {case['query'][:55]}...", end=" ", flush=True)
 
-        result = await call_chat(client, case["query"], f"bench-{uuid.uuid4().hex[:8]}")
+        result = await call_search(
+            client,
+            case["query"],
+            procedure_id=case.get("procedure_id"),
+        )
 
         if result.get("error"):
             print(f"ERR: {result['error'][:60]}")
-            await asyncio.sleep(0.5)
+            results.append({"id": case["id"], "error": result["error"]})
             continue
 
-        response_text = result.get("response", "")
-        metadata = result.get("metadata", {})
+        chunks: list[dict] = result["chunks"]
+        retrieved_docs = {c["document_number"].lower() for c in chunks}
 
-        # Unverified citation rate
-        n_unverified = response_text.count("[unverified:")
-        n_total_cites = response_text.count("[Điều") + n_unverified
-        uv_rate = n_unverified / n_total_cites if n_total_cites > 0 else 0.0
-        unverified_rates.append(uv_rate)
-
-        # Check each expected citation
-        sources: list[dict] = metadata.get("retrieved_sources", [])
         found: list[str] = []
         missing: list[str] = []
 
         for expected_art, expected_doc in case["expected_citations"]:
             total_expected += 1
-            source_found = any(
-                expected_doc.lower() in (s.get("document_number", "")).lower()
-                for s in sources
-            )
-            text_found = (
-                expected_doc in response_text
-                and expected_art.split(" ")[0].lstrip("Điều ") in response_text
-            )
-            if source_found or text_found:
+            if expected_doc.lower() in retrieved_docs:
                 total_found += 1
                 found.append(f"{expected_art}, {expected_doc}")
             else:
                 missing.append(f"{expected_art}, {expected_doc}")
 
         status = "✓" if not missing else "✗"
-        print(f"{status} {'OK' if not missing else f'missing: {missing[:1]}'}")
+        print(f"{status} ({result['elapsed_ms']}ms) "
+              f"{'OK' if not missing else f'missing: {missing[:1]}'}")
 
         results.append({
             "id": case["id"],
             "query": case["query"],
             "found": found,
             "missing": missing,
-            "unverified_rate": round(uv_rate, 3),
+            "retrieved_count": len(chunks),
         })
 
-        await asyncio.sleep(0.5)
-
     recall = total_found / total_expected if total_expected > 0 else 0.0
-    avg_unverified = sum(unverified_rates) / len(unverified_rates) if unverified_rates else 0.0
 
     metrics = {
-        "citation_recall": round(recall, 3),
+        "retrieval_recall": round(recall, 3),
         "total_expected_citations": total_expected,
         "total_found_citations": total_found,
-        "avg_unverified_citation_rate": round(avg_unverified, 3),
         "verified_cases_run": len(verified_cases),
         "threshold": threshold,
         "recall_pass": recall >= threshold,
+        "llm_calls": 0,
     }
 
-    print(f"\n  Citation recall:      {metrics['citation_recall']:.1%}"
+    print(f"\n  Retrieval Recall@k: {metrics['retrieval_recall']:.1%}"
           f" ({'PASS' if metrics['recall_pass'] else 'FAIL'},"
           f" threshold {threshold:.0%})")
-    print(f"  Unverified cite rate: {metrics['avg_unverified_citation_rate']:.1%}")
+    print(f"  LLM calls: 0  (pure Qdrant retrieval)")
 
     return {"metrics": metrics, "results": results}
 
@@ -397,7 +481,7 @@ async def run_latency_baseline(client: httpx.AsyncClient) -> dict:
 def generate_report(all_results: dict, timestamp: str) -> str:
     """Generate a human-readable Markdown benchmark report."""
     router = all_results.get("router_accuracy", {}).get("metrics", {})
-    citations = all_results.get("citation_recall", {}).get("metrics", {})
+    citations = all_results.get("retrieval_recall", {}).get("metrics", {})
     latency = all_results.get("latency", {}).get("metrics", {})
 
     lines = [
@@ -431,7 +515,7 @@ def generate_report(all_results: dict, timestamp: str) -> str:
         "",
         "---",
         "",
-        "## 2. Citation Recall  *(Tier 2 — document-verifiable)*",
+        "## 2. Document Retrieval Recall@k  *(Tier 2 — document-verifiable, 0 LLM calls)*",
         "",
         "| Metric | Value | Threshold | Status |",
         "|---|---|---|---|",
@@ -440,18 +524,21 @@ def generate_report(all_results: dict, timestamp: str) -> str:
     if citations:
         thresh = citations.get("threshold", 0.8)
         lines += [
-            f"| Citation recall | {citations.get('citation_recall', 0):.1%} | {thresh:.0%} | "
+            f"| Retrieval Recall@k | {citations.get('retrieval_recall', 0):.1%} | {thresh:.0%} | "
             f"{'✅ PASS' if citations.get('recall_pass') else '❌ FAIL'} |",
-            f"| Avg unverified citation rate | {citations.get('avg_unverified_citation_rate', 0):.1%} | — | — |",
+            f"| Expected citations | {citations.get('total_expected_citations', 0)} | | |",
+            f"| Found citations | {citations.get('total_found_citations', 0)} | | |",
             f"| Verified cases run | {citations.get('verified_cases_run', 0)} | | |",
+            f"| LLM calls | {citations.get('llm_calls', 0)} | | |",
         ]
     else:
         lines.append("*Not measured*")
 
     lines += [
         "",
-        "> **Note:** Citation recall covers only Tier 2 (document-verified) ground truth pairs.",
-        "> Tier 3 (legal correctness of guidance) is explicitly outside research prototype scope.",
+        "> **Note:** Retrieval Recall@k checks whether the expected source document appears in top-k",
+        "> Qdrant results. Covers only Tier 2 (document-verified) ground truth pairs.",
+        "> LLM faithfulness (Tier 3) is outside research prototype scope.",
         "",
         "---",
         "",
@@ -516,7 +603,7 @@ async def main():
     print(f"Backend: {BASE_URL}")
     print(f"Datasets: {DATASET_DIR}")
 
-    async with httpx.AsyncClient(timeout=90.0) as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         # Health check
         try:
             r = await client.get(f"{BASE_URL}/health")
@@ -532,7 +619,7 @@ async def main():
             all_results["router_accuracy"] = await run_router_accuracy(client)
 
         if args.metric in ("citations", "all"):
-            all_results["citation_recall"] = await run_citation_recall(client)
+            all_results["retrieval_recall"] = await run_retrieval_recall(client)
 
         if args.metric in ("latency", "all"):
             all_results["latency"] = await run_latency_baseline(client)

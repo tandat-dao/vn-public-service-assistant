@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useChatStore } from '@/lib/stores/chatStore'
 import { streamChat, api } from '@/lib/api/client'
 import { renderWithCitations } from '@/lib/renderCitations'
-import type { Citation, FeedbackType, RetrievedSource } from '@/lib/types'
+import { AgentActivityPanel } from '@/components/chat/AgentActivityPanel'
+import type { Citation, FeedbackType, PipelineEvent, RetrievedSource } from '@/lib/types'
 
 function AnimatedDots() {
   return (
@@ -133,6 +134,7 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
     guidedProcedureId, setGuidedProcedureId,
     guidedStep, setGuidedStep,
     injectWelcomeMessage,
+    activityByMessageId, appendActivityEvent,
   } = useChatStore()
 
   const [input, setInput] = useState('')
@@ -258,7 +260,12 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
       // the connection dropped mid-stream.
       let receivedFinalMetadata = false
 
-      for await (const chunk of streamChat(sessionId, text, imagePath ?? undefined, citizenId || undefined)) {
+      // Pipeline event handler — appends events to activityByMessageId[assistantId]
+      const handlePipelineEvent = (pipelineEvent: PipelineEvent) => {
+        appendActivityEvent(assistantId, pipelineEvent)
+      }
+
+      for await (const chunk of streamChat(sessionId, text, imagePath ?? undefined, citizenId || undefined, handlePipelineEvent)) {
         try {
           const parsed = JSON.parse(chunk)
           if ('content' in parsed && typeof parsed.content === 'string') {
@@ -373,7 +380,7 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
       updateMessage(assistantId, { isStreaming: false })
       setStreaming(false)
     }
-  }, [input, isStreaming, sessionId, uploadedFile, addMessage, updateMessage, setStreaming, setUploadedFile, setLastFailedMessage])
+  }, [input, isStreaming, sessionId, uploadedFile, addMessage, updateMessage, setStreaming, setUploadedFile, setLastFailedMessage, appendActivityEvent])
 
   const handleRetry = useCallback(async () => {
     if (!lastFailedMessage) return
@@ -457,6 +464,15 @@ export function ChatWidget({ variant = 'floating', initialContext }: ChatWidgetP
               key={msg.id}
               className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
             >
+              {/* Agent activity panel — above assistant bubbles only */}
+              {msg.role === 'assistant' && (
+                <AgentActivityPanel
+                  messageId={msg.id}
+                  events={activityByMessageId[msg.id] ?? []}
+                  isMessageStreaming={msg.isStreaming ?? false}
+                />
+              )}
+
               <div
                 className={`max-w-[80%] px-3 py-2 rounded-[6px] text-sm leading-relaxed
                   ${msg.role === 'user'

@@ -99,6 +99,9 @@ Nếu câu hỏi tiếp theo không đề cập thành phố cụ thể (ví d�
 - Đặt location_scope = null (không giữ thành phố từ lượt trước).
 - Vẫn giữ procedure_id nếu câu hỏi liên quan đến thủ tục đã xác định.
 
+**Khi có trường "Tin nhắn trước đó của người dùng":**
+Trường này chỉ xuất hiện khi tin nhắn hiện tại quá ngắn để tự xác định ngữ cảnh. Dùng nó để giải quyết đại từ và tham chiếu mơ hồ trong tin nhắn hiện tại: "nó", "thủ tục này", "đó", "việc đó", "cái đó" đều chỉ đến chủ đề của tin nhắn trước. Không bao giờ được phân loại là "out_of_scope" chỉ vì tin nhắn hiện tại ngắn và chứa đại từ — hãy dùng tin nhắn trước để xác định lĩnh vực.
+
 ## Phạm vi hỗ trợ
 
 Hệ thống chỉ hỗ trợ ba lĩnh vực: đăng ký cư trú (thường trú, tạm trú, xác nhận),
@@ -318,19 +321,47 @@ Người dùng: "Còn Hà Nội thì sao?"
 Người dùng vừa hỏi về thủ tục tại Hà Nội. Bây giờ hỏi chung không đề cập thành phố:
 Người dùng: "Thủ tục này mất bao lâu?"
 Ảnh: không có
-{{"execution_plan": ["rag_fn"], "entities": {{}}, "intent": "rag_query", "procedure_id": "TTHC-CR-001", "document_type": null, "location_scope": null}}"""
+{{"execution_plan": ["rag_fn"], "entities": {{}}, "intent": "rag_query", "procedure_id": "TTHC-CR-001", "document_type": null, "location_scope": null}}
+
+### Ví dụ 37 — Tin nhắn trước là hỏi về khai sinh; bây giờ muốn hướng dẫn (đại từ "nó")
+Tin nhắn trước đó của người dùng: "Thủ tục cho đăng ký khai sinh là gì?"
+Người dùng: "Tôi muốn hướng dẫn cho nó"
+Ảnh: không có
+{{"execution_plan": [], "entities": {{"procedure": "đăng ký khai sinh", "domain": "civil_registration"}}, "intent": "start_guided", "procedure_id": "TTHC-CR-001", "location_scope": null}}
+
+### Ví dụ 38 — Tin nhắn trước là hỏi về tạm trú; bây giờ hỏi thêm bằng "thủ tục này" (rag_query)
+Tin nhắn trước đó của người dùng: "Đăng ký tạm trú cần giấy tờ gì?"
+Người dùng: "Thủ tục này mất bao lâu?"
+Ảnh: không có
+{{"execution_plan": ["rag_fn"], "entities": {{}}, "intent": "rag_query", "procedure_id": "TTHC-002", "location_scope": null}}"""
 
 # ---------------------------------------------------------------------------
 # Message builder
 # ---------------------------------------------------------------------------
 
 
-def build_router_messages(user_message: str, has_image: bool) -> list[dict]:
+# Mirrors rag.py _AUGMENT_WORD_THRESHOLD — queries below this word count receive
+# a proportional excerpt of the previous user turn to resolve pronoun references.
+_ROUTER_CONTEXT_WORD_THRESHOLD = 10
+_ROUTER_CONTEXT_MAX_CHARS = 200  # chars prepended for a ~0-word query
+_ROUTER_CONTEXT_MIN_CHARS = 30   # chars prepended for a (threshold-1)-word query
+
+
+def build_router_messages(
+    user_message: str,
+    has_image: bool,
+    prev_user_message: str | None = None,
+) -> list[dict]:
     """Build the messages list for the router LLM call.
 
     Args:
-        user_message: The raw user input string.
-        has_image:    True when ``uploaded_image_path`` is set in AgentState.
+        user_message:      The raw user input string.
+        has_image:         True when ``uploaded_image_path`` is set in AgentState.
+        prev_user_message: Last user turn from conversation_history, or None.
+                           Short queries receive a proportionally larger excerpt
+                           (up to _ROUTER_CONTEXT_MAX_CHARS chars) so the LLM
+                           can resolve pronoun references ("nó", "thủ tục này").
+                           Long queries (>= threshold) receive no context.
 
     Returns:
         A list of message dicts suitable for passing to
@@ -341,5 +372,17 @@ def build_router_messages(user_message: str, has_image: bool) -> list[dict]:
         if has_image
         else "Không có ảnh nào được tải lên."
     )
-    content = f"{image_context}\n\nTin nhắn của người dùng: {user_message}"
+
+    context_line = ""
+    if prev_user_message:
+        word_count = len(user_message.split())
+        if word_count < _ROUTER_CONTEXT_WORD_THRESHOLD:
+            ratio = word_count / _ROUTER_CONTEXT_WORD_THRESHOLD
+            context_chars = int(
+                _ROUTER_CONTEXT_MAX_CHARS * (1 - ratio) + _ROUTER_CONTEXT_MIN_CHARS * ratio
+            )
+            context = prev_user_message[:context_chars]
+            context_line = f"Tin nhắn trước đó của người dùng: {context}\n\n"
+
+    content = f"{image_context}\n\n{context_line}Tin nhắn của người dùng: {user_message}"
     return [{"role": "user", "content": content}]

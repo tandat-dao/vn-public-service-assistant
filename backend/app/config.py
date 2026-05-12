@@ -18,6 +18,19 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-2.5-flash-lite"
     CLAUDE_MODEL: str = ""  # reserved for future Claude-direct integration
 
+    # Router-specific LLM backend — can differ from LLM_BACKEND to reduce API cost.
+    # Default "anthropic" keeps existing behavior. Set to "local" to route the router
+    # node through Ollama (LOCAL_LLM_MODEL must be pulled: ollama pull <model>).
+    ROUTER_LLM_BACKEND: str = "anthropic"  # "anthropic" | "local"
+    LOCAL_LLM_URL: str = "http://localhost:11434/v1"   # Ollama OpenAI-compat endpoint
+    LOCAL_LLM_MODEL: str = "qwen2.5:3b-instruct"      # Ollama model tag for router
+
+    # RAG-specific LLM backend — can use a larger local model for generation quality.
+    # Default "anthropic" keeps existing behavior. Set to "local" to use Ollama for
+    # RAG cited generation (RAG_LOCAL_MODEL must be pulled: ollama pull <model>).
+    RAG_LLM_BACKEND: str = "anthropic"               # "anthropic" | "local"
+    RAG_LOCAL_MODEL: str = "qwen2.5:7b-instruct"     # Ollama model tag for RAG generation
+
     # Databases
     POSTGRES_URL: str = "postgresql+asyncpg://dichvucong:dichvucong@localhost:5432/dichvucong"
     REDIS_URL: str = "redis://localhost:6379/0"

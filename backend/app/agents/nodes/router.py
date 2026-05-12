@@ -32,6 +32,18 @@ logger = logging.getLogger(__name__)
 
 _FALLBACK: dict = {"execution_plan": ["rag_fn"], "entities": {}, "plan_cursor": 0}
 
+# Lazy singleton — reads ROUTER_LLM_BACKEND at first call so the backend
+# can be changed via env var without restarting the interpreter in tests.
+_router_llm: LLMService | None = None
+
+
+def _get_router_llm() -> LLMService:
+    global _router_llm
+    if _router_llm is None:
+        from app.config import settings
+        _router_llm = LLMService(backend=settings.ROUTER_LLM_BACKEND)
+    return _router_llm
+
 # Only these three city scope codes are accepted from the LLM.  Any other value
 # (misspelling, hallucination, etc.) is silently coerced to None.
 VALID_CITY_SCOPES: frozenset[str] = frozenset({"VN-HCM", "VN-HN", "VN-DN"})
@@ -144,13 +156,24 @@ async def router_node(state: AgentState) -> dict:
     # ------------------------------------------------------------------ #
     has_image: bool = state.get("uploaded_image_path") is not None
 
-    messages = build_router_messages(user_message, has_image)
+    # Extract the last user turn from history to resolve short-query pronouns
+    # ("nó", "thủ tục này") via proportional context augmentation in
+    # build_router_messages(). Mirrors the pattern in rag.py _build_search_query().
+    history: list[dict] = state.get("conversation_history") or []
+    prev_user_message: str | None = None
+    for turn in reversed(history):
+        if turn.get("role") == "user":
+            prev_user_message = turn.get("content")
+            break
+
+    messages = build_router_messages(user_message, has_image, prev_user_message)
 
     try:
-        raw = await LLMService().async_invoke(
+        raw = await _get_router_llm().async_invoke(
             system=ROUTER_SYSTEM_PROMPT,
             messages=messages,
             max_tokens=512,
+            json_mode=True,
         )
     except Exception:
         # Network / API errors propagate — do not swallow infrastructure failures.

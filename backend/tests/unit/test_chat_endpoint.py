@@ -6,6 +6,9 @@ Covers TASK-11 DoD items 9–11:
   9.  test_chat_endpoint_returns_sse_stream
   10. test_chat_endpoint_handles_graph_recursion_error
   11. test_chat_endpoint_redis_save_failure_does_not_fail_request
+
+Updated for TASK-SHOWCASE: agent_graph.astream_events() replaces ainvoke().
+GraphRecursionError is now emitted as an SSE error chunk (HTTP 200), not HTTP 500.
 """
 
 from __future__ import annotations
@@ -30,16 +33,56 @@ def client():
     return TestClient(app, raise_server_exceptions=False)
 
 
+# ---------------------------------------------------------------------------
+# Mock helpers
+# ---------------------------------------------------------------------------
+
+def _default_events(final_response: str = "Xin chào bạn"):
+    """Minimal valid event sequence for a successful pipeline run."""
+    return [
+        {"event": "on_chain_start", "name": "router_node", "data": {"input": {}}},
+        {
+            "event": "on_chain_end",
+            "name": "router_node",
+            "data": {"output": {"execution_plan": [], "plan_cursor": 0}},
+        },
+        {"event": "on_chain_end", "name": "enrichment_node", "data": {"output": {}}},
+        {
+            "event": "on_chain_end",
+            "name": "synthesizer_node",
+            "data": {
+                "output": {
+                    "final_response": final_response,
+                    "response_metadata": {"mode": "fallback"},
+                }
+            },
+        },
+    ]
+
+
 def _mock_graph(final_response: str = "Xin chào", raise_exc: Exception | None = None):
-    """Build a mock agent_graph with ainvoke returning a minimal state dict."""
+    """Build a mock agent_graph with astream_events() as an async generator.
+
+    If raise_exc is given, the generator raises it on first iteration —
+    simulating a mid-pipeline exception (e.g. GraphRecursionError).
+    """
     mock = MagicMock()
+
     if raise_exc is not None:
-        mock.ainvoke = AsyncMock(side_effect=raise_exc)
+        async def _stream(*args, **kwargs):
+            raise raise_exc
+            yield  # unreachable — presence of yield makes this an async generator
+
+        mock.astream_events = _stream
     else:
-        mock.ainvoke = AsyncMock(return_value={
-            "final_response": final_response,
-            "response_metadata": {"mode": "fallback"},
-        })
+        _events = _default_events(final_response)
+
+        async def _stream(*args, **kwargs):
+            for ev in _events:
+                yield ev
+
+        mock.astream_events = _stream
+
     return mock
 
 
@@ -51,6 +94,7 @@ def _mock_redis(session: SessionData | None = None, save_raises: Exception | Non
         svc.save_session = AsyncMock(side_effect=save_raises)
     else:
         svc.save_session = AsyncMock(return_value=None)
+    svc.get_citizen_personal_data = AsyncMock(return_value=None)
     return svc
 
 
@@ -82,11 +126,19 @@ def test_chat_endpoint_returns_sse_stream(client):
 
 
 # ---------------------------------------------------------------------------
-# Test 10 — GraphRecursionError returns HTTP 500
+# Test 10 — GraphRecursionError is handled in the SSE stream (HTTP 200)
+#
+# With astream_events(), GraphRecursionError is caught inside the SSE generator
+# and emitted as a data chunk. The response is always HTTP 200 for streaming.
+# (Previously HTTP 500 was returned by ainvoke() before the stream started.)
 # ---------------------------------------------------------------------------
 
 def test_chat_endpoint_handles_graph_recursion_error(client):
-    """GraphRecursionError from agent_graph.ainvoke → HTTP 500 JSON."""
+    """GraphRecursionError → HTTP 200 SSE stream with error content + [DONE].
+
+    With astream_events() the HTTP headers (200) are sent before the graph
+    executes. The error is surfaced as a data chunk inside the SSE stream.
+    """
     try:
         from langgraph.errors import GraphRecursionError
     except ImportError:
@@ -103,9 +155,13 @@ def test_chat_endpoint_handles_graph_recursion_error(client):
             json={"message": "phức tạp", "session_id": "sess-test-002"},
         )
 
-    assert response.status_code == 500
-    body = response.json()
-    assert "error" in body
+    # SSE streams always return 200 — the error appears in the stream body
+    assert response.status_code == 200
+    body = response.text
+    # Must still terminate properly
+    assert "[DONE]" in body
+    # Error message must appear in the streamed content
+    assert "phức tạp" in body or "lỗi" in body or "Vui lòng thử lại" in body
 
 
 # ---------------------------------------------------------------------------
@@ -129,10 +185,6 @@ def test_chat_endpoint_redis_save_failure_does_not_fail_request(client):
     assert response.status_code == 200
     assert "[DONE]" in response.text
 
-
-# ---------------------------------------------------------------------------
-# Test — 3-char group SSE streaming (TASK-APP-04)
-# ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # Input validation — Fix A

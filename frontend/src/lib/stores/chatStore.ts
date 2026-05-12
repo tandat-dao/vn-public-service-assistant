@@ -2,7 +2,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { v4 as uuidv4 } from 'uuid'
-import type { ChatMessage, PersonalData, ProcedureStep, UploadedFile } from '@/lib/types'
+import type { ChatMessage, PersonalData, PipelineEvent, ProcedureStep, UploadedFile } from '@/lib/types'
 
 // Stable cross-session identifier stored in localStorage (distinct from sessionId
 // which lives in sessionStorage and is tab-scoped). Initialised once per browser
@@ -27,6 +27,8 @@ interface ChatStore {
   guidedProcedureId: string | null
   guidedStep: number | null
   personalData: PersonalData | null
+  /** Pipeline activity events keyed by message ID — TASK-SHOWCASE */
+  activityByMessageId: Record<string, PipelineEvent[]>
   open: () => void
   close: () => void
   toggle: () => void
@@ -41,6 +43,8 @@ interface ChatStore {
   setGuidedStep: (step: number | null) => void
   injectWelcomeMessage: () => void
   clearSession: () => void
+  /** Append a pipeline event for a specific message — TASK-SHOWCASE */
+  appendActivityEvent: (messageId: string, event: PipelineEvent) => void
 }
 
 export const useChatStore = create<ChatStore>()(
@@ -56,6 +60,7 @@ export const useChatStore = create<ChatStore>()(
       guidedProcedureId: null,
       guidedStep: null,
       personalData: null,
+      activityByMessageId: {},
 
       open:   () => set({ isOpen: true }),
       close:  () => set({ isOpen: false }),
@@ -107,7 +112,16 @@ export const useChatStore = create<ChatStore>()(
           uploadedFile: null,
           guidedProcedureId: null,
           guidedStep: null,
+          activityByMessageId: {},
         }),
+
+      appendActivityEvent: (messageId, event) =>
+        set((s) => ({
+          activityByMessageId: {
+            ...s.activityByMessageId,
+            [messageId]: [...(s.activityByMessageId[messageId] ?? []), event],
+          },
+        })),
     }),
     {
       name: 'dvc-chat-session',

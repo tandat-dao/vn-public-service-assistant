@@ -1,4 +1,4 @@
-import type { DocumentUploadResponse } from '@/lib/types'
+import type { DocumentUploadResponse, PipelineEvent } from '@/lib/types'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL_PUBLIC
   || process.env.NEXT_PUBLIC_API_URL
@@ -18,12 +18,23 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   return res.json()
 }
 
-/** Stream chat response as SSE. Yields raw data strings from each `data: …` line. */
+/**
+ * Stream chat response as SSE.
+ *
+ * Yields raw data strings from each `data: …` line that does NOT carry a
+ * `event: pipeline_event` type. Pipeline events are passed to the optional
+ * `onPipelineEvent` callback instead of being yielded.
+ *
+ * Backward-compat: existing callers that don't pass `onPipelineEvent` receive
+ * exactly the same text/metadata data strings as before. Pipeline event data
+ * is silently discarded (never yielded) — it won't corrupt old parsers.
+ */
 export async function* streamChat(
   sessionId: string,
   message: string,
   imagePath?: string,
   citizenId?: string,
+  onPipelineEvent?: (event: PipelineEvent) => void,
 ): AsyncGenerator<string> {
   const body: Record<string, string> = { session_id: sessionId, message }
   if (imagePath) body.image_path = imagePath
@@ -44,17 +55,38 @@ export async function* streamChat(
   const decoder = new TextDecoder()
   let buffer = ''
 
+  // Tracks the `event:` field of the SSE event currently being assembled.
+  // Resets to null on each blank line (event boundary).
+  let currentEventType: string | null = null
+
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
     buffer = lines.pop() ?? ''
+
     for (const line of lines) {
-      if (line.startsWith('data: ')) {
+      if (line === '') {
+        // Blank line = SSE event boundary: reset current event type
+        currentEventType = null
+      } else if (line.startsWith('event: ')) {
+        currentEventType = line.slice(7).trim()
+      } else if (line.startsWith('data: ')) {
         const data = line.slice(6).trim()
         if (data === '[DONE]') return
-        yield data
+
+        if (currentEventType === 'pipeline_event') {
+          // Route to callback — never yield pipeline events as raw data
+          if (onPipelineEvent) {
+            try {
+              onPipelineEvent(JSON.parse(data) as PipelineEvent)
+            } catch { /* ignore malformed pipeline event */ }
+          }
+        } else {
+          // Default SSE data (text chunk or metadata) — yield as before
+          yield data
+        }
       }
     }
   }

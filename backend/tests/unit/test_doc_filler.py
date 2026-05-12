@@ -355,10 +355,10 @@ async def test_configs_endpoint_returns_fields_for_valid_procedure():
 
 async def test_fill_endpoint_returns_pdf_bytes(form_dir, monkeypatch):
     """POST /api/v1/forms/fill returns a PDF file with correct Content-Type."""
-    # Create a real .docx at the expected path
+    # Create a real .docx at the expected path (PROCEDURE_FORM_FILES uses .docx extension)
     doc = Document()
     doc.add_paragraph("Họ, chữ đệm và tên: ...................")
-    path = form_dir / "1.MuCT01banhnhkmtheoThngts53.doc"
+    path = form_dir / "1.MuCT01banhnhkmtheoThngts53.docx"
     _save_doc(doc, path)
 
     # Monkeypatch FORM_SOURCES_DIR inside the running app module
@@ -377,7 +377,7 @@ async def test_fill_endpoint_returns_pdf_bytes(form_dir, monkeypatch):
                 "/api/v1/forms/fill",
                 json={
                     "procedure_id": "TTHC-002",
-                    "form_file": "1.MuCT01banhnhkmtheoThngts53.doc",
+                    "form_file": "1.MuCT01banhnhkmtheoThngts53.docx",
                     "field_values": {"ho_chu_dem_va_ten": "Nguyễn Văn A"},
                 },
             )

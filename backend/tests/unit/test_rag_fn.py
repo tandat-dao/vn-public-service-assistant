@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+import app.agents.nodes.rag as _rag_module
 from app.schemas.rag import DocumentChunk
 
 
@@ -55,6 +56,20 @@ def _base_state(**overrides) -> dict:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+@pytest.fixture(autouse=True)
+def _reset_rag_llm_singleton():
+    """Reset the _rag_llm_svc singleton before and after each test.
+
+    Without this, the first test that triggers _get_rag_llm() caches a real
+    LLMService instance. Subsequent tests' mock_llm patches are then ignored
+    because _get_rag_llm() returns the cached instance without calling
+    LLMService() again.
+    """
+    _rag_module._rag_llm_svc = None
+    yield
+    _rag_module._rag_llm_svc = None
+
+
 @pytest.fixture
 def mock_qdrant():
     """Patch _get_qdrant to return an AsyncMock QdrantService."""
@@ -66,7 +81,7 @@ def mock_qdrant():
 
 @pytest.fixture
 def mock_llm():
-    """Patch _get_llm to return an AsyncMock LLMService."""
+    """Patch _get_rag_llm to return an AsyncMock LLMService."""
     svc = AsyncMock()
     svc.async_invoke = AsyncMock(
         return_value=(
@@ -74,7 +89,7 @@ def mock_llm():
             "hồ sơ đăng ký thường trú cần có các giấy tờ sau..."
         )
     )
-    with patch("app.agents.nodes.rag._get_llm", return_value=svc):
+    with patch("app.agents.nodes.rag._get_rag_llm", return_value=svc):
         yield svc
 
 

@@ -75,11 +75,13 @@ def _build_search_query(state: AgentState) -> str:
 
 # ---------------------------------------------------------------------------
 # Lazy singletons — created on first call.
-# Replace in tests: patch("app.agents.nodes.rag._get_qdrant", return_value=mock)
+# Replace in tests:
+#   patch("app.agents.nodes.rag._get_qdrant", return_value=mock)
+#   patch("app.agents.nodes.rag._get_rag_llm", return_value=mock)
 # ---------------------------------------------------------------------------
 
 _qdrant_svc = None
-_llm_svc = None
+_rag_llm_svc = None
 
 
 def _get_qdrant():
@@ -90,12 +92,14 @@ def _get_qdrant():
     return _qdrant_svc
 
 
-def _get_llm():
-    global _llm_svc
-    if _llm_svc is None:
+def _get_rag_llm():
+    global _rag_llm_svc
+    if _rag_llm_svc is None:
         from app.services.llm import LLMService
-        _llm_svc = LLMService()
-    return _llm_svc
+        from app.config import settings
+        model_override = settings.RAG_LOCAL_MODEL if settings.RAG_LLM_BACKEND == "local" else None
+        _rag_llm_svc = LLMService(backend=settings.RAG_LLM_BACKEND, model=model_override)
+    return _rag_llm_svc
 
 
 def _min_score_threshold() -> float:
@@ -122,7 +126,7 @@ async def rag_fn(state: AgentState) -> dict:
     Never raises — exceptions are caught and appended to state["errors"].
     """
     qdrant = _get_qdrant()
-    llm = _get_llm()
+    llm = _get_rag_llm()
 
     user_message: str = state["user_message"]
     target_procedure_id: str | None = state.get("target_procedure_id")

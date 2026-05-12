@@ -86,18 +86,25 @@ def _has_image_content(messages: list[dict]) -> bool:
 # ---------------------------------------------------------------------------
 
 class LLMService:
-    """Unified async LLM wrapper supporting Anthropic and Gemini backends.
+    """Unified async LLM wrapper supporting Anthropic, Gemini, and local (Ollama) backends.
 
-    Constructor is zero-arg so existing callers (``LLMService()``) keep working.
-    An optional ``settings`` parameter is accepted for explicit injection in tests.
+    Constructor accepts an optional ``backend`` override so individual callers
+    (e.g. the router singleton) can target a different backend than the rest of
+    the system without modifying ``LLM_BACKEND`` globally.
+
+    Args:
+        backend: Override the backend for this instance.  If None, reads
+                 ``settings.LLM_BACKEND``.  Valid: ``"anthropic"``,
+                 ``"gemini"``, ``"local"``.
+        settings: Injected settings for testing.  Defaults to global settings.
     """
 
-    def __init__(self, settings=None) -> None:
+    def __init__(self, backend: str | None = None, model: str | None = None, settings=None) -> None:
         if settings is None:
             from app.config import settings as _s
             settings = _s
 
-        self.backend: str = settings.LLM_BACKEND
+        self.backend: str = backend or settings.LLM_BACKEND
 
         if self.backend == "anthropic":
             import anthropic as _anthropic
@@ -124,10 +131,24 @@ class LLMService:
                 model=self._model,
             )
 
+        elif self.backend == "local":
+            import openai as _openai
+            self._local_client = _openai.AsyncOpenAI(
+                base_url=settings.LOCAL_LLM_URL,
+                api_key="ollama",  # Ollama ignores the key; SDK requires non-empty
+            )
+            self._model: str = model or settings.LOCAL_LLM_MODEL
+            log.info(
+                "llm_backend_local",
+                model=self._model,
+                base_url=settings.LOCAL_LLM_URL,
+                note="LangSmith tracing not active for local backend",
+            )
+
         else:
             raise ValueError(
                 f"Unknown LLM_BACKEND: {self.backend!r}. "
-                f"Valid values: 'anthropic', 'gemini'"
+                f"Valid values: 'anthropic', 'gemini', 'local'"
             )
 
     # ------------------------------------------------------------------
@@ -139,8 +160,14 @@ class LLMService:
         system: str | None = None,
         messages: list[dict] | None = None,
         max_tokens: int = 1024,
+        json_mode: bool = False,
     ) -> str:
-        """Send a non-streaming request and return the full response text."""
+        """Send a non-streaming request and return the full response text.
+
+        json_mode is only honoured by the local (Ollama) backend — it activates
+        response_format={"type": "json_object"}.  The Anthropic and Gemini paths
+        are completely unchanged by this parameter.
+        """
         if messages is None:
             messages = []
 
@@ -156,6 +183,9 @@ class LLMService:
 
         elif self.backend == "gemini":
             return await self._gemini_invoke(system, messages, max_tokens)
+
+        elif self.backend == "local":
+            return await self._local_invoke(system, messages, max_tokens, json_mode)
 
         raise ValueError(f"Unknown backend: {self.backend!r}")
 
@@ -183,8 +213,50 @@ class LLMService:
             async for chunk in self._gemini_stream(system, messages, max_tokens):
                 yield chunk
 
+        elif self.backend == "local":
+            raise NotImplementedError(
+                "Local (Ollama) backend does not support streaming. "
+                "Use async_invoke() for local-backend callers (router, RAG)."
+            )
+
         else:
             raise ValueError(f"Unknown backend: {self.backend!r}")
+
+    # ------------------------------------------------------------------
+    # Local (Ollama) private helper
+    # ------------------------------------------------------------------
+
+    async def _local_invoke(
+        self,
+        system: str | None,
+        messages: list[dict],
+        max_tokens: int,
+        json_mode: bool = False,
+    ) -> str:
+        """Non-streaming call to Ollama via the OpenAI-compatible endpoint."""
+        import openai as _openai
+
+        openai_messages: list[dict] = []
+        if system:
+            openai_messages.append({"role": "system", "content": system})
+        openai_messages.extend(messages)
+
+        create_kwargs: dict = {
+            "model": self._model,
+            "messages": openai_messages,
+            "max_tokens": max_tokens,
+        }
+        if json_mode:
+            create_kwargs["response_format"] = {"type": "json_object"}
+
+        try:
+            response = await self._local_client.chat.completions.create(**create_kwargs)
+            return response.choices[0].message.content or ""
+        except _openai.APIConnectionError as exc:
+            raise RuntimeError(
+                f"Ollama is not running or not reachable at {self._local_client.base_url}. "
+                "Start it with: ollama serve"
+            ) from exc
 
     # ------------------------------------------------------------------
     # Gemini private helpers (google.genai SDK)

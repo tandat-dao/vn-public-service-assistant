@@ -17,6 +17,20 @@ export interface RetrievedSource {
 
 export type FeedbackType = 'helpful' | 'unhelpful'
 
+// ── Pipeline Event Types (TASK-SHOWCASE) ─────────────────────────────────────
+
+export type PipelineEvent =
+  | { type: 'pipeline_start' }
+  | { type: 'plan_decided'; execution_plan: string[]; domain: string | null; location_scope: string | null; procedure_id: string | null }
+  | { type: 'enrichment_result'; step_count: number }
+  | { type: 'parallel_wave_start'; workers: string[]; wave_index: number }
+  | { type: 'worker_start'; worker: string }
+  | { type: 'worker_complete'; worker: string; duration_ms: number }
+  | { type: 'rag_result'; chunk_count: number; scope_used: string; confidence_tier: string; top_article: string | null }
+  | { type: 'ocr_result'; document_type: string; field_count: number; confidence: number }
+  | { type: 'form_result'; filled_count: number; unfilled_required: string[] }
+  | { type: 'pipeline_complete'; total_ms: number; synthesizer_mode: string }
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -30,6 +44,8 @@ export interface ChatMessage {
   /** Response mode from synthesizer — used to select the render path */
   messageMode?: string
   feedback?: FeedbackType
+  /** Pipeline activity events for AgentActivityPanel — TASK-SHOWCASE */
+  activityEvents?: PipelineEvent[]
 }
 
 /** Metadata carried in the SSE metadata event from the backend. */

@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import app.agents.nodes.router as _router_module
 from app.agents.nodes.router import _enforce_ordering, router_node
 from app.agents.prompts.router_prompt import RouterOutput, build_router_messages
 from app.agents.state import AgentState
@@ -31,10 +32,18 @@ def _state(message: str, image: str | None = None) -> AgentState:
 
 
 def _mock_llm(response_dict: dict):
-    """Patch LLMService so async_invoke returns json.dumps(response_dict)."""
+    """Patch _get_router_llm so async_invoke returns json.dumps(response_dict)."""
     mock = MagicMock()
     mock.async_invoke = AsyncMock(return_value=json.dumps(response_dict))
-    return patch("app.agents.nodes.router.LLMService", return_value=mock)
+    return patch("app.agents.nodes.router._get_router_llm", return_value=mock)
+
+
+@pytest.fixture(autouse=True)
+def _reset_router_llm_singleton():
+    """Reset the _router_llm module-level singleton before each test to prevent contamination."""
+    _router_module._router_llm = None
+    yield
+    _router_module._router_llm = None
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +114,110 @@ class TestBuildRouterMessages:
         msgs = build_router_messages("Điền form", has_image=True)
         assert "tải lên" in msgs[0]["content"].lower() or "ảnh" in msgs[0]["content"]
         assert "Điền form" in msgs[0]["content"]
+
+    def test_short_query_with_prev_includes_context(self):
+        """A short query (<10 words) with a previous user message gets context prepended."""
+        prev = "Thủ tục cho đăng ký khai sinh là gì?"
+        msgs = build_router_messages("Tôi muốn hướng dẫn cho nó", has_image=False, prev_user_message=prev)
+        content = msgs[0]["content"]
+        assert "Tin nhắn trước đó" in content
+        assert "khai sinh" in content
+        assert "Tôi muốn hướng dẫn cho nó" in content
+
+    def test_long_query_with_prev_omits_context(self):
+        """A long query (>= 10 words) never receives context even when prev is provided."""
+        prev = "Thủ tục cho đăng ký khai sinh là gì?"
+        long_msg = "Điều kiện để đăng ký khai sinh cho trẻ em sinh ra ở nước ngoài là gì theo quy định hiện hành?"
+        msgs = build_router_messages(long_msg, has_image=False, prev_user_message=prev)
+        assert "Tin nhắn trước đó" not in msgs[0]["content"]
+
+    def test_no_prev_message_omits_context(self):
+        """No previous message → context line absent regardless of query length."""
+        msgs = build_router_messages("Tôi muốn hướng dẫn cho nó", has_image=False, prev_user_message=None)
+        assert "Tin nhắn trước đó" not in msgs[0]["content"]
+
+    def test_proportional_scaling_very_short(self):
+        """A 1-word query gets more chars than a 8-word query."""
+        prev = "x" * 300
+        msgs_short = build_router_messages("Hướng dẫn", has_image=False, prev_user_message=prev)
+        msgs_medium = build_router_messages("Tôi muốn hướng dẫn thêm về thủ tục đó cho tôi", has_image=False, prev_user_message=prev)
+        short_context = msgs_short[0]["content"]
+        medium_context = msgs_medium[0]["content"]
+        # Short query should carry more context chars from prev
+        assert len(short_context) > len(medium_context)
+
+
+# ---------------------------------------------------------------------------
+# router_node — context augmentation via conversation_history
+# ---------------------------------------------------------------------------
+
+class TestRouterNodeContextAugmentation:
+    def _state_with_history(self, message: str, history: list[dict]) -> AgentState:
+        return AgentState(
+            user_message=message,
+            session_id="test-session",
+            iteration_count=0,
+            conversation_history=history,
+        )
+
+    async def test_prev_user_message_passed_to_llm(self):
+        """router_node extracts prev user turn and includes it in the LLM call."""
+        history = [
+            {"role": "user", "content": "Thủ tục cho đăng ký khai sinh là gì?"},
+            {"role": "assistant", "content": "Đây là thông tin về đăng ký khai sinh..."},
+        ]
+        captured_args = {}
+
+        async def _fake_invoke(system, messages, **kwargs):
+            captured_args["messages"] = messages
+            return json.dumps({"execution_plan": [], "entities": {}, "intent": "start_guided", "procedure_id": "TTHC-CR-001"})
+
+        mock_llm = MagicMock()
+        mock_llm.async_invoke = _fake_invoke
+
+        with patch("app.agents.nodes.router._get_router_llm", return_value=mock_llm):
+            await router_node(self._state_with_history("Tôi muốn hướng dẫn cho nó", history))
+
+        content = captured_args["messages"][0]["content"]
+        assert "khai sinh" in content
+        assert "Tin nhắn trước đó" in content
+
+    async def test_no_history_omits_context(self):
+        """router_node with empty history sends no context prefix."""
+        captured_args = {}
+
+        async def _fake_invoke(system, messages, **kwargs):
+            captured_args["messages"] = messages
+            return json.dumps({"execution_plan": ["rag_fn"], "entities": {}})
+
+        mock_llm = MagicMock()
+        mock_llm.async_invoke = _fake_invoke
+
+        with patch("app.agents.nodes.router._get_router_llm", return_value=mock_llm):
+            await router_node(_state("Tôi muốn hướng dẫn cho nó"))
+
+        assert "Tin nhắn trước đó" not in captured_args["messages"][0]["content"]
+
+    async def test_long_message_ignores_history(self):
+        """A message >= 10 words does not get context even when history exists."""
+        history = [
+            {"role": "user", "content": "Thủ tục cho đăng ký khai sinh là gì?"},
+            {"role": "assistant", "content": "Đây là thông tin..."},
+        ]
+        captured_args = {}
+
+        async def _fake_invoke(system, messages, **kwargs):
+            captured_args["messages"] = messages
+            return json.dumps({"execution_plan": ["rag_fn"], "entities": {}})
+
+        mock_llm = MagicMock()
+        mock_llm.async_invoke = _fake_invoke
+
+        long_msg = "Điều kiện để đăng ký khai sinh cho trẻ em sinh ra ở nước ngoài là gì theo quy định hiện hành?"
+        with patch("app.agents.nodes.router._get_router_llm", return_value=mock_llm):
+            await router_node(self._state_with_history(long_msg, history))
+
+        assert "Tin nhắn trước đó" not in captured_args["messages"][0]["content"]
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +292,7 @@ class TestRouterNode:
     async def test_malformed_json_returns_fallback(self):
         mock = MagicMock()
         mock.async_invoke = AsyncMock(return_value="not valid json {{{{")
-        with patch("app.agents.nodes.router.LLMService", return_value=mock):
+        with patch("app.agents.nodes.router._get_router_llm", return_value=mock):
             result = await router_node(_state("Điều gì đó"))
         assert result["execution_plan"] == ["rag_fn"]
         assert result["entities"] == {}
@@ -188,7 +301,7 @@ class TestRouterNode:
     async def test_invalid_json_structure_returns_fallback(self):
         mock = MagicMock()
         mock.async_invoke = AsyncMock(return_value=json.dumps({"wrong_key": "value"}))
-        with patch("app.agents.nodes.router.LLMService", return_value=mock):
+        with patch("app.agents.nodes.router._get_router_llm", return_value=mock):
             result = await router_node(_state("Điều gì đó"))
         # Missing execution_plan key → Pydantic sets default [] which is valid, not a fallback
         # But if pydantic raises, we get fallback. Either way plan_cursor must be 0.
@@ -200,7 +313,7 @@ class TestRouterNode:
         mock.async_invoke = AsyncMock(
             return_value=json.dumps({"execution_plan": ["unknown_step_fn"], "entities": {}})
         )
-        with patch("app.agents.nodes.router.LLMService", return_value=mock):
+        with patch("app.agents.nodes.router._get_router_llm", return_value=mock):
             with pytest.raises(ValueError, match="invalid plan steps"):
                 await router_node(_state("test"))
 
@@ -212,7 +325,7 @@ class TestRouterNode:
                 {"execution_plan": ["procedure_planner_fn"], "entities": {}}
             )
         )
-        with patch("app.agents.nodes.router.LLMService", return_value=mock):
+        with patch("app.agents.nodes.router._get_router_llm", return_value=mock):
             with pytest.raises(ValueError, match="invalid plan steps"):
                 await router_node(_state("Đăng ký thường trú"))
 
@@ -220,7 +333,7 @@ class TestRouterNode:
         """Infrastructure errors must propagate — not be swallowed."""
         mock = MagicMock()
         mock.async_invoke = AsyncMock(side_effect=ConnectionError("network down"))
-        with patch("app.agents.nodes.router.LLMService", return_value=mock):
+        with patch("app.agents.nodes.router._get_router_llm", return_value=mock):
             with pytest.raises(ConnectionError):
                 await router_node(_state("test"))
 
@@ -277,19 +390,17 @@ class TestRouterGuidedMode:
 
     async def test_guided_step2_bypasses_llm(self):
         """When guided_step==2, router returns form fill plan WITHOUT calling the LLM."""
-        mock_llm_cls = MagicMock()
         mock_instance = MagicMock()
         mock_instance.async_invoke = AsyncMock(return_value="{}")
-        mock_llm_cls.return_value = mock_instance
 
         state = _state("ảnh CCCD của tôi đây", image="/tmp/cccd.jpg")
         state["guided_procedure_id"] = "TTHC-001"
         state["guided_step"] = 2
 
-        with patch("app.agents.nodes.router.LLMService", mock_llm_cls):
+        with patch("app.agents.nodes.router._get_router_llm", return_value=mock_instance):
             result = await router_node(state)
 
-        # LLM must NOT have been called
+        # LLM must NOT have been called — guided_step 2 is a zero-LLM-token bypass
         mock_instance.async_invoke.assert_not_called()
         assert result["execution_plan"] == ["ocr_fn", "form_filler_fn"]
         assert result["guided_step"] == 2

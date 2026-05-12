@@ -1,0 +1,246 @@
+{
+  "description": "Ground truth document-retrieval pairs for Document Retrieval Recall@k evaluation. Tier 2 (document-verifiable). Each expected_citations entry is [article_reference, document_number]. Evaluation checks only document_number presence in top-k retrieved chunks — zero LLM calls per case.",
+  "recall_threshold": 0.80,
+  "test_cases": [
+    {
+      "id": "R01",
+      "query": "Điều kiện đăng ký thường trú theo quy định hiện hành là gì?",
+      "domain": "housing",
+      "expected_citations": [["20", "68/2020/QH14"]],
+      "verified": true,
+      "notes": "Điều 20 Luật Cư trú 2020 — conditions for permanent residence registration"
+    },
+    {
+      "id": "R02",
+      "query": "Hồ sơ đăng ký thường trú bao gồm những giấy tờ gì?",
+      "domain": "housing",
+      "expected_citations": [["21", "68/2020/QH14"]],
+      "verified": true,
+      "notes": "Điều 21 Luật Cư trú 2020 — required documents for permanent residence"
+    },
+    {
+      "id": "R03",
+      "query": "Thời hạn giải quyết hồ sơ đăng ký thường trú là bao lâu?",
+      "domain": "housing",
+      "expected_citations": [["22", "68/2020/QH14"]],
+      "verified": true,
+      "notes": "Điều 22 Luật Cư trú 2020 — 7 working days processing time"
+    },
+    {
+      "id": "R04",
+      "query": "Điều kiện đăng ký tạm trú theo pháp luật là gì?",
+      "domain": "housing",
+      "expected_citations": [["27", "68/2020/QH14"]],
+      "verified": true,
+      "notes": "Điều 27 Luật Cư trú 2020 — conditions for temporary residence registration"
+    },
+    {
+      "id": "R05",
+      "query": "Hồ sơ đăng ký tạm trú bao gồm những giấy tờ gì?",
+      "domain": "housing",
+      "expected_citations": [["28", "68/2020/QH14"]],
+      "verified": true,
+      "notes": "Điều 28 Luật Cư trú 2020 — required documents for temporary residence"
+    },
+    {
+      "id": "R06",
+      "query": "Trường hợp nào bị xóa đăng ký thường trú theo Luật Cư trú?",
+      "domain": "housing",
+      "expected_citations": [["24", "68/2020/QH14"]],
+      "verified": true,
+      "notes": "Điều 24 Luật Cư trú 2020 — grounds for deregistration of permanent residence"
+    },
+    {
+      "id": "R07",
+      "query": "Xác nhận thông tin cư trú cần những điều kiện và hồ sơ gì?",
+      "domain": "housing",
+      "expected_citations": [["20", "68/2020/QH14"]],
+      "verified": true,
+      "notes": "Paraphrase — confirmation of residence info requires same Điều 20 conditions"
+    },
+    {
+      "id": "R08",
+      "query": "Quy định về nơi thường trú trong pháp luật cư trú Việt Nam?",
+      "domain": "housing",
+      "expected_citations": [["2", "68/2020/QH14"]],
+      "verified": false,
+      "notes": "Điều 2 Luật Cư trú 2020 — definition of permanent residence (nơi thường trú)"
+    },
+    {
+      "id": "R09",
+      "query": "Cơ quan nào có thẩm quyền đăng ký và quản lý cư trú?",
+      "domain": "housing",
+      "expected_citations": [["5", "68/2020/QH14"]],
+      "verified": false,
+      "notes": "Điều 5 or 6 Luật Cư trú 2020 — competent authority for residence management"
+    },
+    {
+      "id": "R10",
+      "query": "Biểu mẫu và hướng dẫn thực hiện đăng ký cư trú theo Nghị định?",
+      "domain": "housing",
+      "expected_citations": [["1", "62/2021/NĐ-CP"]],
+      "verified": false,
+      "notes": "Nghị định 62/2021/NĐ-CP — implementing decree for Luật Cư trú 2020"
+    },
+    {
+      "id": "R11",
+      "query": "Lệ phí đăng ký khai sinh tại TP.HCM là bao nhiêu?",
+      "domain": "civil_registration",
+      "expected_citations": [["Mục A số 1", "124/2016/NQ-HĐND"]],
+      "verified": true,
+      "notes": "Mục A số 1 NQ HĐND TP.HCM — 5,000 đồng xã cấp, 50,000 đồng huyện cấp"
+    },
+    {
+      "id": "R12",
+      "query": "Lệ phí đăng ký hộ tịch tại Hà Nội là bao nhiêu?",
+      "domain": "civil_registration",
+      "expected_citations": [["Điều 3 Khoản 6", "06/2020/NQ-HĐND"]],
+      "verified": true,
+      "notes": "Khoản 6 Điều 3 NQ HĐND Hà Nội — civil registration fees"
+    },
+    {
+      "id": "R13",
+      "query": "Lệ phí đăng ký khai sinh tại Đà Nẵng là bao nhiêu?",
+      "domain": "civil_registration",
+      "expected_citations": [["Phụ lục", "05/2025/NQ-HĐND"]],
+      "verified": true,
+      "notes": "Phụ lục NQ HĐND Đà Nẵng — 5,000 đồng khai sinh không đúng hạn"
+    },
+    {
+      "id": "R14",
+      "query": "Thời hạn đăng ký khai sinh tính từ ngày trẻ chào đời là bao lâu?",
+      "domain": "civil_registration",
+      "expected_citations": [["14", "60/2014/QH13"]],
+      "verified": true,
+      "notes": "Điều 14 Luật Hộ tịch 2014 — 60-day deadline for birth registration"
+    },
+    {
+      "id": "R15",
+      "query": "Hồ sơ đăng ký khai sinh cần những giấy tờ gì?",
+      "domain": "civil_registration",
+      "expected_citations": [["16", "60/2014/QH13"]],
+      "verified": true,
+      "notes": "Điều 16 Luật Hộ tịch 2014 — required documents for birth registration"
+    },
+    {
+      "id": "R16",
+      "query": "Điều kiện và hồ sơ cấp bản sao trích lục hộ tịch?",
+      "domain": "civil_registration",
+      "expected_citations": [["63", "60/2014/QH13"]],
+      "verified": false,
+      "notes": "Điều 63 Luật Hộ tịch 2014 — issuance of civil status extract copies"
+    },
+    {
+      "id": "R17",
+      "query": "Thủ tục đăng ký khai tử tại ủy ban nhân dân cấp xã?",
+      "domain": "civil_registration",
+      "expected_citations": [["32", "60/2014/QH13"]],
+      "verified": false,
+      "notes": "Điều 32 Luật Hộ tịch 2014 — death registration procedures"
+    },
+    {
+      "id": "R18",
+      "query": "Điều kiện đăng ký kết hôn theo quy định Luật Hộ tịch?",
+      "domain": "civil_registration",
+      "expected_citations": [["38", "60/2014/QH13"]],
+      "verified": false,
+      "notes": "Điều 38 Luật Hộ tịch 2014 — marriage registration requirements"
+    },
+    {
+      "id": "R19",
+      "query": "Lệ phí đăng ký kết hôn tại TP.HCM theo quy định hiện hành?",
+      "domain": "civil_registration",
+      "expected_citations": [["Mục A số 2", "124/2016/NQ-HĐND"]],
+      "verified": false,
+      "notes": "Mục A số 2 NQ HĐND TP.HCM — marriage registration fees"
+    },
+    {
+      "id": "R20",
+      "query": "Nguyên tắc đăng ký hộ tịch theo Luật Hộ tịch 2014?",
+      "domain": "civil_registration",
+      "expected_citations": [["6", "60/2014/QH13"]],
+      "verified": false,
+      "notes": "Điều 6 Luật Hộ tịch 2014 — principles of civil status registration"
+    },
+    {
+      "id": "R21",
+      "query": "Điều kiện của người nhận con nuôi trong nước là gì?",
+      "domain": "adoption",
+      "expected_citations": [["14", "52/2010/QH12"]],
+      "verified": true,
+      "notes": "Điều 14 Luật Nuôi con nuôi 2010 — conditions for domestic adopter"
+    },
+    {
+      "id": "R22",
+      "query": "Người được nhận làm con nuôi phải đáp ứng điều kiện gì?",
+      "domain": "adoption",
+      "expected_citations": [["8", "52/2010/QH12"]],
+      "verified": false,
+      "notes": "Điều 8 Luật Nuôi con nuôi 2010 — conditions for the adoptee"
+    },
+    {
+      "id": "R23",
+      "query": "Những hành vi nào bị nghiêm cấm trong nuôi con nuôi?",
+      "domain": "adoption",
+      "expected_citations": [["13", "52/2010/QH12"]],
+      "verified": true,
+      "notes": "Điều 13 Luật Nuôi con nuôi 2010 — prohibited acts in adoption"
+    },
+    {
+      "id": "R24",
+      "query": "Sự đồng ý cho nhận con nuôi được thể hiện như thế nào theo luật?",
+      "domain": "adoption",
+      "expected_citations": [["21", "52/2010/QH12"]],
+      "verified": false,
+      "notes": "Điều 21 Luật Nuôi con nuôi 2010 — consent requirements for adoption"
+    },
+    {
+      "id": "R25",
+      "query": "Thẩm quyền giải quyết đăng ký nuôi con nuôi trong nước thuộc về cơ quan nào?",
+      "domain": "adoption",
+      "expected_citations": [["22", "52/2010/QH12"]],
+      "verified": false,
+      "notes": "Điều 22 Luật Nuôi con nuôi 2010 — competent authority for domestic adoption"
+    },
+    {
+      "id": "R26",
+      "query": "Hồ sơ đăng ký nuôi con nuôi trong nước theo Nghị định hướng dẫn?",
+      "domain": "adoption",
+      "expected_citations": [["15", "19/2011/NĐ-CP"]],
+      "verified": false,
+      "notes": "Điều 15 Nghị định 19/2011/NĐ-CP — required documents for domestic adoption registration"
+    },
+    {
+      "id": "R27",
+      "query": "Cách tính thời hạn và hồ sơ đăng ký tạm trú theo quy định mới nhất?",
+      "domain": "housing",
+      "expected_citations": [["27", "68/2020/QH14"], ["1", "62/2021/NĐ-CP"]],
+      "verified": false,
+      "notes": "Multi-doc: tạm trú conditions in main law + implementing decree procedures"
+    },
+    {
+      "id": "R28",
+      "query": "Đăng ký khai sinh tại TP.HCM cần hồ sơ gì và tốn bao nhiêu lệ phí?",
+      "domain": "civil_registration",
+      "expected_citations": [["16", "60/2014/QH13"], ["Mục A số 1", "124/2016/NQ-HĐND"]],
+      "verified": false,
+      "notes": "Multi-doc: birth registration docs (Luật Hộ tịch) + TP.HCM fee schedule"
+    },
+    {
+      "id": "R29",
+      "query": "Quy trình đăng ký nuôi con nuôi trong nước từ điều kiện đến hồ sơ nộp?",
+      "domain": "adoption",
+      "expected_citations": [["14", "52/2010/QH12"], ["15", "19/2011/NĐ-CP"]],
+      "verified": false,
+      "notes": "Multi-doc: adopter conditions (Luật Nuôi con nuôi) + required documents (Nghị định 19)"
+    },
+    {
+      "id": "R30",
+      "query": "So sánh lệ phí đăng ký khai sinh giữa TP.HCM và Đà Nẵng?",
+      "domain": "civil_registration",
+      "expected_citations": [["Mục A số 1", "124/2016/NQ-HĐND"], ["Phụ lục", "05/2025/NQ-HĐND"]],
+      "verified": false,
+      "notes": "Multi-doc: fee comparison between TP.HCM and Đà Nẵng city regulations"
+    }
+  ]
+}
