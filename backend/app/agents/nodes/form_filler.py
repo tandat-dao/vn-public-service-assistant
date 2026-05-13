@@ -38,8 +38,9 @@ _pdf_svc = None
 def _get_llm_svc():
     global _llm_svc
     if _llm_svc is None:
+        from app.config import settings as _s
         from app.services.llm import LLMService
-        _llm_svc = LLMService()
+        _llm_svc = LLMService(backend=_s.LLM_BACKEND)
     return _llm_svc
 
 

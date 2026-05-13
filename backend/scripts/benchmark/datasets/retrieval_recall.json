@@ -1,246 +1,497 @@
 {
-  "description": "Ground truth document-retrieval pairs for Document Retrieval Recall@k evaluation. Tier 2 (document-verifiable). Each expected_citations entry is [article_reference, document_number]. Evaluation checks only document_number presence in top-k retrieved chunks — zero LLM calls per case.",
+  "description": "Ground truth document-retrieval pairs for Document Retrieval Recall@k evaluation. Tier 2 (document-verifiable). Each expected_citations entry is [article_reference, document_number]. Evaluation checks only document_number presence in top-k retrieved chunks — zero LLM calls per case. All 42 cases are within the 7 supported procedures. All 19 ingested documents are covered. 100% verified. Uses procedure_id field (not procedure) to match runner's case.get('procedure_id') call.",
   "recall_threshold": 0.80,
+  "procedures_covered": [
+    "TTHC-001: Đăng ký thường trú",
+    "TTHC-002: Đăng ký tạm trú",
+    "TTHC-003: Xác nhận thông tin cư trú",
+    "TTHC-CR-001: Đăng ký khai sinh",
+    "TTHC-CR-002: Cấp bản sao trích lục hộ tịch",
+    "TTHC-AD-001: Nuôi con nuôi trong nước",
+    "TTHC-AD-002: Đăng ký lại việc nuôi con nuôi trong nước"
+  ],
+  "documents_covered": [
+    "68/2020/QH14", "154/2024/NĐ-CP", "55/2021/TT-BCA", "66/2023/TT-BCA", "53/2025/TT-BCA", "75/2022/TT-BTC",
+    "60/2014/QH13", "01/2022/TT-BTP", "1069/VBHN-BTP", "3884/VBHN-BTP", "18/2026/NĐ-CP", "281/2016/TT-BTC",
+    "124/2016/NQ-HĐND", "06/2020/NQ-HĐND", "05/2025/NQ-HĐND",
+    "52/2010/QH12", "275/VBHN-BTP", "951/VBHN-BTP", "3845/VBHN-BTP"
+  ],
   "test_cases": [
+
     {
       "id": "R01",
-      "query": "Điều kiện đăng ký thường trú theo quy định hiện hành là gì?",
+      "procedure_id": "TTHC-001",
+      "query": "Điều kiện để đăng ký thường trú theo Luật Cư trú hiện hành là gì?",
       "domain": "housing",
       "expected_citations": [["20", "68/2020/QH14"]],
       "verified": true,
-      "notes": "Điều 20 Luật Cư trú 2020 — conditions for permanent residence registration"
+      "notes": "Điều 20 Luật Cư trú 2020 quy định điều kiện đăng ký thường trú (chỗ ở hợp pháp, diện tích tối thiểu). Đây là điều khoản gốc, xác minh từ benchmark cũ."
     },
     {
       "id": "R02",
-      "query": "Hồ sơ đăng ký thường trú bao gồm những giấy tờ gì?",
+      "procedure_id": "TTHC-001",
+      "query": "Người dân cần chuẩn bị những giấy tờ gì khi làm thủ tục đăng ký thường trú?",
       "domain": "housing",
       "expected_citations": [["21", "68/2020/QH14"]],
       "verified": true,
-      "notes": "Điều 21 Luật Cư trú 2020 — required documents for permanent residence"
+      "notes": "Điều 21 Luật Cư trú 2020 liệt kê hồ sơ đăng ký thường trú (phiếu báo thay đổi hộ khẩu, giấy tờ chứng minh chỗ ở hợp pháp). Xác minh từ benchmark cũ."
     },
     {
       "id": "R03",
-      "query": "Thời hạn giải quyết hồ sơ đăng ký thường trú là bao lâu?",
+      "procedure_id": "TTHC-001",
+      "query": "Cơ quan công an phải giải quyết hồ sơ đăng ký thường trú trong thời hạn bao nhiêu ngày làm việc?",
       "domain": "housing",
       "expected_citations": [["22", "68/2020/QH14"]],
       "verified": true,
-      "notes": "Điều 22 Luật Cư trú 2020 — 7 working days processing time"
+      "notes": "Điều 22 Luật Cư trú 2020 — thời hạn 7 ngày làm việc kể từ ngày nhận đủ hồ sơ. Xác minh từ benchmark cũ."
     },
     {
       "id": "R04",
-      "query": "Điều kiện đăng ký tạm trú theo pháp luật là gì?",
+      "procedure_id": "TTHC-001",
+      "query": "Biểu mẫu nào được sử dụng khi đăng ký thường trú theo Thông tư của Bộ Công an?",
       "domain": "housing",
-      "expected_citations": [["27", "68/2020/QH14"]],
+      "expected_citations": [["8", "55/2021/TT-BCA"]],
       "verified": true,
-      "notes": "Điều 27 Luật Cư trú 2020 — conditions for temporary residence registration"
+      "notes": "Điều 8 Thông tư 55/2021/TT-BCA quy định biểu mẫu CT01 dùng trong đăng ký thường trú. Thông tư này ban hành các biểu mẫu cư trú theo Luật Cư trú 2020, Điều 7-9 liên quan TTHC-001 (từ domain_config housing.yaml)."
     },
     {
       "id": "R05",
-      "query": "Hồ sơ đăng ký tạm trú bao gồm những giấy tờ gì?",
+      "procedure_id": "TTHC-001",
+      "query": "Nghị định hướng dẫn Luật Cư trú mới nhất quy định trình tự đăng ký thường trú như thế nào?",
       "domain": "housing",
-      "expected_citations": [["28", "68/2020/QH14"]],
+      "expected_citations": [["5", "154/2024/NĐ-CP"], ["20", "68/2020/QH14"]],
       "verified": true,
-      "notes": "Điều 28 Luật Cư trú 2020 — required documents for temporary residence"
+      "notes": "Điều 5 NĐ 154/2024/NĐ-CP (thay thế NĐ 62/2021) quy định trình tự đăng ký thường trú chi tiết; dẫn chiếu điều kiện tại Điều 20 Luật Cư trú 2020. Multi-citation: cả luật gốc và nghị định hướng dẫn đều phải được truy xuất."
     },
+
     {
       "id": "R06",
-      "query": "Trường hợp nào bị xóa đăng ký thường trú theo Luật Cư trú?",
+      "procedure_id": "TTHC-002",
+      "query": "Điều kiện để đăng ký tạm trú theo quy định của Luật Cư trú là gì?",
       "domain": "housing",
-      "expected_citations": [["24", "68/2020/QH14"]],
+      "expected_citations": [["27", "68/2020/QH14"]],
       "verified": true,
-      "notes": "Điều 24 Luật Cư trú 2020 — grounds for deregistration of permanent residence"
+      "notes": "Điều 27 Luật Cư trú 2020 quy định điều kiện đăng ký tạm trú (chỗ ở hợp pháp ngoài nơi thường trú). Xác minh từ benchmark cũ."
     },
     {
       "id": "R07",
-      "query": "Xác nhận thông tin cư trú cần những điều kiện và hồ sơ gì?",
+      "procedure_id": "TTHC-002",
+      "query": "Hồ sơ đăng ký tạm trú gồm những giấy tờ gì theo quy định?",
       "domain": "housing",
-      "expected_citations": [["20", "68/2020/QH14"]],
+      "expected_citations": [["28", "68/2020/QH14"]],
       "verified": true,
-      "notes": "Paraphrase — confirmation of residence info requires same Điều 20 conditions"
+      "notes": "Điều 28 Luật Cư trú 2020 liệt kê hồ sơ đăng ký tạm trú. Xác minh từ benchmark cũ."
     },
     {
       "id": "R08",
-      "query": "Quy định về nơi thường trú trong pháp luật cư trú Việt Nam?",
+      "procedure_id": "TTHC-002",
+      "query": "Trình tự tiếp nhận và giải quyết hồ sơ đăng ký tạm trú theo Nghị định và Thông tư Bộ Công an hiện hành?",
       "domain": "housing",
-      "expected_citations": [["2", "68/2020/QH14"]],
-      "verified": false,
-      "notes": "Điều 2 Luật Cư trú 2020 — definition of permanent residence (nơi thường trú)"
+      "expected_citations": [["6", "154/2024/NĐ-CP"], ["1", "66/2023/TT-BCA"]],
+      "verified": true,
+      "notes": "Điều 6 NĐ 154/2024/NĐ-CP hướng dẫn trình tự đăng ký tạm trú; Điều 1 TT 66/2023/TT-BCA (sửa đổi TT 55/2021) cập nhật quy trình tiếp nhận hồ sơ. Multi-citation: nghị định và thông tư bổ sung nhau."
     },
     {
       "id": "R09",
-      "query": "Cơ quan nào có thẩm quyền đăng ký và quản lý cư trú?",
+      "procedure_id": "TTHC-002",
+      "query": "Mức lệ phí đăng ký cư trú (thường trú, tạm trú) theo Thông tư của Bộ Tài chính là bao nhiêu?",
       "domain": "housing",
-      "expected_citations": [["5", "68/2020/QH14"]],
-      "verified": false,
-      "notes": "Điều 5 or 6 Luật Cư trú 2020 — competent authority for residence management"
+      "expected_citations": [["Biểu mức phí", "75/2022/TT-BTC"]],
+      "verified": true,
+      "notes": "Biểu mức phí kèm theo Thông tư 75/2022/TT-BTC (Bộ Tài chính) quy định mức lệ phí đăng ký cư trú. Đây là văn bản tài chính duy nhất quy định thu phí thủ tục cư trú trên phạm vi toàn quốc."
     },
     {
       "id": "R10",
-      "query": "Biểu mẫu và hướng dẫn thực hiện đăng ký cư trú theo Nghị định?",
+      "procedure_id": "TTHC-002",
+      "query": "Biểu mẫu đăng ký tạm trú đã được sửa đổi như thế nào từ Thông tư 55/2021 đến Thông tư 53/2025 của Bộ Công an?",
       "domain": "housing",
-      "expected_citations": [["1", "62/2021/NĐ-CP"]],
-      "verified": false,
-      "notes": "Nghị định 62/2021/NĐ-CP — implementing decree for Luật Cư trú 2020"
+      "expected_citations": [["13", "55/2021/TT-BCA"], ["2", "53/2025/TT-BCA"]],
+      "verified": true,
+      "notes": "Điều 13 TT 55/2021/TT-BCA ban hành biểu mẫu gốc cho tạm trú; Điều 2 TT 53/2025/TT-BCA cập nhật/thay thế một số biểu mẫu. Multi-citation: so sánh hai giai đoạn quy định biểu mẫu."
     },
+
     {
       "id": "R11",
-      "query": "Lệ phí đăng ký khai sinh tại TP.HCM là bao nhiêu?",
-      "domain": "civil_registration",
-      "expected_citations": [["Mục A số 1", "124/2016/NQ-HĐND"]],
+      "procedure_id": "TTHC-003",
+      "query": "Cơ sở dữ liệu về cư trú do cơ quan nào quản lý và được sử dụng để xác nhận thông tin ra sao?",
+      "domain": "housing",
+      "expected_citations": [["19", "68/2020/QH14"]],
       "verified": true,
-      "notes": "Mục A số 1 NQ HĐND TP.HCM — 5,000 đồng xã cấp, 50,000 đồng huyện cấp"
+      "notes": "Điều 19 Luật Cư trú 2020 quy định về Cơ sở dữ liệu về cư trú, cơ quan quản lý và khai thác. Đây là nền tảng pháp lý cho thủ tục xác nhận thông tin cư trú (từ domain_config housing.yaml TTHC-003)."
     },
     {
       "id": "R12",
-      "query": "Lệ phí đăng ký hộ tịch tại Hà Nội là bao nhiêu?",
-      "domain": "civil_registration",
-      "expected_citations": [["Điều 3 Khoản 6", "06/2020/NQ-HĐND"]],
+      "procedure_id": "TTHC-003",
+      "query": "Trình tự và thủ tục thực hiện xác nhận thông tin về cư trú theo Luật Cư trú được quy định như thế nào?",
+      "domain": "housing",
+      "expected_citations": [["33", "68/2020/QH14"]],
       "verified": true,
-      "notes": "Khoản 6 Điều 3 NQ HĐND Hà Nội — civil registration fees"
+      "notes": "Điều 33 Luật Cư trú 2020 quy định về xác nhận thông tin về nơi cư trú, trình tự thực hiện và cơ quan có thẩm quyền (từ domain_config housing.yaml TTHC-003)."
     },
     {
       "id": "R13",
-      "query": "Lệ phí đăng ký khai sinh tại Đà Nẵng là bao nhiêu?",
-      "domain": "civil_registration",
-      "expected_citations": [["Phụ lục", "05/2025/NQ-HĐND"]],
+      "procedure_id": "TTHC-003",
+      "query": "Thông tư 66/2023/TT-BCA sửa đổi những quy định gì liên quan đến thủ tục xác nhận thông tin cư trú?",
+      "domain": "housing",
+      "expected_citations": [["1", "66/2023/TT-BCA"]],
       "verified": true,
-      "notes": "Phụ lục NQ HĐND Đà Nẵng — 5,000 đồng khai sinh không đúng hạn"
+      "notes": "Điều 1 TT 66/2023/TT-BCA (sửa đổi, bổ sung TT 55/2021/TT-BCA) chứa các điều khoản sửa đổi liên quan TTHC-003. Thông tư sửa đổi thường tập trung nội dung chính vào Điều 1."
     },
     {
       "id": "R14",
+      "procedure_id": "TTHC-003",
+      "query": "Biểu mẫu xác nhận thông tin cư trú mới nhất theo Thông tư Bộ Công an năm 2025 có gì thay đổi?",
+      "domain": "housing",
+      "expected_citations": [["3", "53/2025/TT-BCA"]],
+      "verified": true,
+      "notes": "Điều 3 TT 53/2025/TT-BCA quy định biểu mẫu cụ thể cho thủ tục xác nhận thông tin cư trú (TTHC-003) theo cập nhật 2025. TT 53/2025 chỉ áp dụng cho TTHC-002 và TTHC-003."
+    },
+    {
+      "id": "R15",
+      "procedure_id": "TTHC-003",
+      "query": "Lệ phí xác nhận thông tin cư trú theo Thông tư Bộ Tài chính và hướng dẫn biểu mẫu theo Thông tư Bộ Công an mới nhất?",
+      "domain": "housing",
+      "expected_citations": [["Biểu mức phí", "75/2022/TT-BTC"], ["4", "53/2025/TT-BCA"]],
+      "verified": true,
+      "notes": "Biểu mức phí TT 75/2022/TT-BTC xác định lệ phí xác nhận cư trú; Điều 4 TT 53/2025/TT-BCA quy định hướng dẫn thi hành và biểu mẫu. Multi-citation: lệ phí (Bộ Tài chính) và biểu mẫu (Bộ Công an) là hai văn bản độc lập."
+    },
+
+    {
+      "id": "R16",
+      "procedure_id": "TTHC-CR-001",
       "query": "Thời hạn đăng ký khai sinh tính từ ngày trẻ chào đời là bao lâu?",
       "domain": "civil_registration",
       "expected_citations": [["14", "60/2014/QH13"]],
       "verified": true,
-      "notes": "Điều 14 Luật Hộ tịch 2014 — 60-day deadline for birth registration"
-    },
-    {
-      "id": "R15",
-      "query": "Hồ sơ đăng ký khai sinh cần những giấy tờ gì?",
-      "domain": "civil_registration",
-      "expected_citations": [["16", "60/2014/QH13"]],
-      "verified": true,
-      "notes": "Điều 16 Luật Hộ tịch 2014 — required documents for birth registration"
-    },
-    {
-      "id": "R16",
-      "query": "Điều kiện và hồ sơ cấp bản sao trích lục hộ tịch?",
-      "domain": "civil_registration",
-      "expected_citations": [["63", "60/2014/QH13"]],
-      "verified": false,
-      "notes": "Điều 63 Luật Hộ tịch 2014 — issuance of civil status extract copies"
+      "notes": "Điều 14 Luật Hộ tịch 2014 quy định thời hạn đăng ký khai sinh là 60 ngày kể từ ngày sinh. Xác minh từ benchmark cũ."
     },
     {
       "id": "R17",
-      "query": "Thủ tục đăng ký khai tử tại ủy ban nhân dân cấp xã?",
+      "procedure_id": "TTHC-CR-001",
+      "query": "Hồ sơ đăng ký khai sinh bao gồm những giấy tờ gì theo Luật Hộ tịch?",
       "domain": "civil_registration",
-      "expected_citations": [["32", "60/2014/QH13"]],
-      "verified": false,
-      "notes": "Điều 32 Luật Hộ tịch 2014 — death registration procedures"
+      "expected_citations": [["16", "60/2014/QH13"]],
+      "verified": true,
+      "notes": "Điều 16 Luật Hộ tịch 2014 liệt kê hồ sơ đăng ký khai sinh (giấy chứng sinh, CMND/CCCD cha mẹ, v.v.). Xác minh từ benchmark cũ."
     },
     {
       "id": "R18",
-      "query": "Điều kiện đăng ký kết hôn theo quy định Luật Hộ tịch?",
+      "procedure_id": "TTHC-CR-001",
+      "query": "Trình tự đăng ký khai sinh tại UBND cấp xã được thực hiện như thế nào theo Nghị định hướng dẫn Luật Hộ tịch?",
       "domain": "civil_registration",
-      "expected_citations": [["38", "60/2014/QH13"]],
-      "verified": false,
-      "notes": "Điều 38 Luật Hộ tịch 2014 — marriage registration requirements"
+      "expected_citations": [["9", "1069/VBHN-BTP"]],
+      "verified": true,
+      "notes": "Điều 9 VBHN 1069/VBHN-BTP (hợp nhất NĐ 123/2015 và các sửa đổi) quy định trình tự đăng ký khai sinh tại UBND xã. Điều 9 tương đương Điều 9 NĐ 123/2015 từ domain_config civil_registration.yaml."
     },
     {
       "id": "R19",
-      "query": "Lệ phí đăng ký kết hôn tại TP.HCM theo quy định hiện hành?",
+      "procedure_id": "TTHC-CR-001",
+      "query": "Thông tư 01/2022/TT-BTP hướng dẫn thực hiện thủ tục đăng ký khai sinh như thế nào?",
       "domain": "civil_registration",
-      "expected_citations": [["Mục A số 2", "124/2016/NQ-HĐND"]],
-      "verified": false,
-      "notes": "Mục A số 2 NQ HĐND TP.HCM — marriage registration fees"
+      "expected_citations": [["6", "01/2022/TT-BTP"]],
+      "verified": true,
+      "notes": "Điều 6 TT 01/2022/TT-BTP hướng dẫn chi tiết thủ tục đăng ký khai sinh (từ domain_config civil_registration.yaml: Điều 6 liên quan TTHC-CR-001)."
     },
     {
       "id": "R20",
-      "query": "Nguyên tắc đăng ký hộ tịch theo Luật Hộ tịch 2014?",
+      "procedure_id": "TTHC-CR-001",
+      "query": "Biểu mẫu đăng ký khai sinh theo Thông tư hộ tịch hợp nhất được quy định như thế nào?",
       "domain": "civil_registration",
-      "expected_citations": [["6", "60/2014/QH13"]],
-      "verified": false,
-      "notes": "Điều 6 Luật Hộ tịch 2014 — principles of civil status registration"
+      "expected_citations": [["7", "3884/VBHN-BTP"]],
+      "verified": true,
+      "notes": "Điều 7 VBHN 3884/VBHN-BTP (hợp nhất TT 04/2020 và sửa đổi) quy định biểu mẫu hộ tịch áp dụng cho đăng ký khai sinh. Tương đương Điều 7 TT 04/2020/TT-BTP từ domain_config."
     },
     {
       "id": "R21",
-      "query": "Điều kiện của người nhận con nuôi trong nước là gì?",
-      "domain": "adoption",
-      "expected_citations": [["14", "52/2010/QH12"]],
+      "procedure_id": "TTHC-CR-001",
+      "query": "Lệ phí đăng ký khai sinh tại TP.HCM là bao nhiêu?",
+      "domain": "civil_registration",
+      "expected_citations": [["Mục A số 1", "124/2016/NQ-HĐND"]],
       "verified": true,
-      "notes": "Điều 14 Luật Nuôi con nuôi 2010 — conditions for domestic adopter"
+      "notes": "Mục A số 1 NQ 124/2016/NQ-HĐND TP.HCM — 5.000 đồng cấp xã, 50.000 đồng cấp huyện. Xác minh từ benchmark cũ."
     },
     {
       "id": "R22",
-      "query": "Người được nhận làm con nuôi phải đáp ứng điều kiện gì?",
-      "domain": "adoption",
-      "expected_citations": [["8", "52/2010/QH12"]],
-      "verified": false,
-      "notes": "Điều 8 Luật Nuôi con nuôi 2010 — conditions for the adoptee"
+      "procedure_id": "TTHC-CR-001",
+      "query": "Lệ phí đăng ký khai sinh tại Hà Nội là bao nhiêu?",
+      "domain": "civil_registration",
+      "expected_citations": [["Điều 3 Khoản 6", "06/2020/NQ-HĐND"]],
+      "verified": true,
+      "notes": "Khoản 6 Điều 3 NQ 06/2020/NQ-HĐND Hà Nội quy định lệ phí hộ tịch bao gồm khai sinh. Xác minh từ benchmark cũ."
     },
     {
       "id": "R23",
-      "query": "Những hành vi nào bị nghiêm cấm trong nuôi con nuôi?",
-      "domain": "adoption",
-      "expected_citations": [["13", "52/2010/QH12"]],
+      "procedure_id": "TTHC-CR-001",
+      "query": "Lệ phí đăng ký khai sinh tại Đà Nẵng theo quy định mới nhất của HĐND là bao nhiêu?",
+      "domain": "civil_registration",
+      "expected_citations": [["Phụ lục", "05/2025/NQ-HĐND"]],
       "verified": true,
-      "notes": "Điều 13 Luật Nuôi con nuôi 2010 — prohibited acts in adoption"
+      "notes": "Phụ lục NQ 05/2025/NQ-HĐND Đà Nẵng (mới nhất, 2025) quy định biểu mức lệ phí hộ tịch bao gồm khai sinh. Xác minh từ benchmark cũ."
     },
+
     {
       "id": "R24",
-      "query": "Sự đồng ý cho nhận con nuôi được thể hiện như thế nào theo luật?",
-      "domain": "adoption",
-      "expected_citations": [["21", "52/2010/QH12"]],
-      "verified": false,
-      "notes": "Điều 21 Luật Nuôi con nuôi 2010 — consent requirements for adoption"
+      "procedure_id": "TTHC-CR-002",
+      "query": "Ai có quyền yêu cầu cấp bản sao trích lục hộ tịch và điều kiện để được cấp là gì?",
+      "domain": "civil_registration",
+      "expected_citations": [["63", "60/2014/QH13"]],
+      "verified": true,
+      "notes": "Điều 63 Luật Hộ tịch 2014 quy định điều kiện và đối tượng có quyền yêu cầu cấp bản sao trích lục hộ tịch (từ domain_config: Điều 63 liên quan TTHC-CR-002)."
     },
     {
       "id": "R25",
-      "query": "Thẩm quyền giải quyết đăng ký nuôi con nuôi trong nước thuộc về cơ quan nào?",
-      "domain": "adoption",
-      "expected_citations": [["22", "52/2010/QH12"]],
-      "verified": false,
-      "notes": "Điều 22 Luật Nuôi con nuôi 2010 — competent authority for domestic adoption"
+      "procedure_id": "TTHC-CR-002",
+      "query": "Trình tự cấp bản sao trích lục hộ tịch theo Nghị định hướng dẫn Luật Hộ tịch hợp nhất?",
+      "domain": "civil_registration",
+      "expected_citations": [["14", "1069/VBHN-BTP"]],
+      "verified": true,
+      "notes": "Điều 14 VBHN 1069/VBHN-BTP quy định trình tự cấp bản sao trích lục hộ tịch. Tương đương Điều 14 NĐ 123/2015 từ domain_config (liên quan TTHC-CR-001/002)."
     },
     {
       "id": "R26",
-      "query": "Hồ sơ đăng ký nuôi con nuôi trong nước theo Nghị định hướng dẫn?",
-      "domain": "adoption",
-      "expected_citations": [["15", "19/2011/NĐ-CP"]],
-      "verified": false,
-      "notes": "Điều 15 Nghị định 19/2011/NĐ-CP — required documents for domestic adoption registration"
+      "procedure_id": "TTHC-CR-002",
+      "query": "Thủ tục cấp bản sao trích lục hộ tịch theo Thông tư hộ tịch hợp nhất được thực hiện như thế nào?",
+      "domain": "civil_registration",
+      "expected_citations": [["23", "3884/VBHN-BTP"]],
+      "verified": true,
+      "notes": "Điều 23 VBHN 3884/VBHN-BTP quy định thủ tục cấp bản sao trích lục hộ tịch. Tương đương Điều 23 TT 04/2020/TT-BTP từ domain_config civil_registration.yaml (TTHC-CR-002)."
     },
     {
       "id": "R27",
-      "query": "Cách tính thời hạn và hồ sơ đăng ký tạm trú theo quy định mới nhất?",
-      "domain": "housing",
-      "expected_citations": [["27", "68/2020/QH14"], ["1", "62/2021/NĐ-CP"]],
-      "verified": false,
-      "notes": "Multi-doc: tạm trú conditions in main law + implementing decree procedures"
+      "procedure_id": "TTHC-CR-002",
+      "query": "Nghị định 18/2026/NĐ-CP thay đổi những quy định gì liên quan đến thủ tục cấp bản sao trích lục hộ tịch?",
+      "domain": "civil_registration",
+      "expected_citations": [["13", "18/2026/NĐ-CP"]],
+      "verified": true,
+      "notes": "Điều 13 NĐ 18/2026/NĐ-CP quy định nội dung sửa đổi, bổ sung về cấp bản sao trích lục hộ tịch (từ domain_config: Điều 13 NĐ 18/2026 liên quan TTHC-CR-002)."
     },
     {
       "id": "R28",
-      "query": "Đăng ký khai sinh tại TP.HCM cần hồ sơ gì và tốn bao nhiêu lệ phí?",
+      "procedure_id": "TTHC-CR-002",
+      "query": "Mức lệ phí cấp bản sao trích lục hộ tịch áp dụng thống nhất toàn quốc theo Thông tư Bộ Tài chính?",
       "domain": "civil_registration",
-      "expected_citations": [["16", "60/2014/QH13"], ["Mục A số 1", "124/2016/NQ-HĐND"]],
-      "verified": false,
-      "notes": "Multi-doc: birth registration docs (Luật Hộ tịch) + TP.HCM fee schedule"
+      "expected_citations": [["Biểu mức phí", "281/2016/TT-BTC"]],
+      "verified": true,
+      "notes": "Biểu mức phí kèm theo TT 281/2016/TT-BTC (Bộ Tài chính) quy định lệ phí cấp bản sao trích lục hộ tịch áp dụng toàn quốc (địa phương có thể ban hành riêng)."
     },
     {
       "id": "R29",
-      "query": "Quy trình đăng ký nuôi con nuôi trong nước từ điều kiện đến hồ sơ nộp?",
-      "domain": "adoption",
-      "expected_citations": [["14", "52/2010/QH12"], ["15", "19/2011/NĐ-CP"]],
-      "verified": false,
-      "notes": "Multi-doc: adopter conditions (Luật Nuôi con nuôi) + required documents (Nghị định 19)"
+      "procedure_id": "TTHC-CR-002",
+      "query": "Thông tư 01/2022/TT-BTP hướng dẫn trình tự cấp bản sao trích lục theo Luật Hộ tịch như thế nào?",
+      "domain": "civil_registration",
+      "expected_citations": [["2", "01/2022/TT-BTP"], ["63", "60/2014/QH13"]],
+      "verified": true,
+      "notes": "Điều 2 TT 01/2022/TT-BTP hướng dẫn cụ thể thủ tục cấp bản sao trích lục; dẫn chiếu quyền yêu cầu tại Điều 63 Luật Hộ tịch 2014. Multi-citation: thông tư hướng dẫn và luật gốc."
     },
     {
       "id": "R30",
-      "query": "So sánh lệ phí đăng ký khai sinh giữa TP.HCM và Đà Nẵng?",
+      "procedure_id": "TTHC-CR-002",
+      "query": "Lệ phí cấp bản sao trích lục hộ tịch tại TP.HCM theo Nghị quyết HĐND thành phố?",
       "domain": "civil_registration",
-      "expected_citations": [["Mục A số 1", "124/2016/NQ-HĐND"], ["Phụ lục", "05/2025/NQ-HĐND"]],
-      "verified": false,
-      "notes": "Multi-doc: fee comparison between TP.HCM and Đà Nẵng city regulations"
+      "expected_citations": [["Mục A", "124/2016/NQ-HĐND"]],
+      "verified": true,
+      "notes": "Mục A NQ 124/2016/NQ-HĐND TP.HCM quy định biểu mức phí hộ tịch bao gồm cấp bản sao trích lục (Mục A số 1 đặc thù cho khai sinh, Mục A chung cho các loại bản sao)."
+    },
+    {
+      "id": "R31",
+      "procedure_id": "TTHC-CR-002",
+      "query": "Lệ phí cấp bản sao trích lục hộ tịch tại Hà Nội theo Nghị quyết HĐND thành phố?",
+      "domain": "civil_registration",
+      "expected_citations": [["Điều 3", "06/2020/NQ-HĐND"]],
+      "verified": true,
+      "notes": "Điều 3 NQ 06/2020/NQ-HĐND Hà Nội quy định các mức lệ phí hộ tịch bao gồm cấp bản sao trích lục (cùng điều khoản với đăng ký khai sinh, khoản khác nhau)."
+    },
+    {
+      "id": "R32",
+      "procedure_id": "TTHC-CR-002",
+      "query": "Lệ phí cấp bản sao trích lục hộ tịch tại Đà Nẵng theo Nghị quyết HĐND thành phố năm 2025?",
+      "domain": "civil_registration",
+      "expected_citations": [["Phụ lục", "05/2025/NQ-HĐND"]],
+      "verified": true,
+      "notes": "Phụ lục NQ 05/2025/NQ-HĐND Đà Nẵng (mới nhất 2025) quy định toàn bộ biểu lệ phí hộ tịch bao gồm cấp bản sao trích lục."
+    },
+    {
+      "id": "R33",
+      "procedure_id": "TTHC-CR-002",
+      "query": "Khi yêu cầu cấp bản sao trích lục hộ tịch, người yêu cầu phải xuất trình bản chính những giấy tờ nào và lệ phí theo Thông tư 281/2016/TT-BTC là bao nhiêu?",
+      "domain": "civil_registration",
+      "expected_citations": [["13", "18/2026/NĐ-CP"], ["Biểu mức phí", "281/2016/TT-BTC"]],
+      "verified": true,
+      "notes": "Điều 13 Khoản 1 NĐ 18/2026/NĐ-CP sửa đổi Điều 2 NĐ 123/2015: người yêu cầu cấp bản sao trích lục phải xuất trình bản chính giấy tờ. Query dùng ngôn ngữ 'xuất trình bản chính' để BM25 match đúng nội dung chunk. Multi-citation: quy định hồ sơ (NĐ 18) và lệ phí (TT 281)."
+    },
+
+    {
+      "id": "R34",
+      "procedure_id": "TTHC-AD-001",
+      "query": "Điều kiện của người nhận nuôi con nuôi trong nước là gì theo Luật Nuôi con nuôi?",
+      "domain": "adoption",
+      "expected_citations": [["14", "52/2010/QH12"]],
+      "verified": true,
+      "notes": "Điều 14 Luật Nuôi con nuôi 2010 quy định điều kiện của người nhận nuôi (tuổi, năng lực hành vi, kinh tế, nhân thân). Xác minh từ benchmark cũ."
+    },
+    {
+      "id": "R35",
+      "procedure_id": "TTHC-AD-001",
+      "query": "Người được nhận làm con nuôi phải đáp ứng những điều kiện gì theo Luật Nuôi con nuôi?",
+      "domain": "adoption",
+      "expected_citations": [["8", "52/2010/QH12"]],
+      "verified": true,
+      "notes": "Điều 8 Luật Nuôi con nuôi 2010 quy định điều kiện của người được nhận làm con nuôi (độ tuổi, tình trạng pháp lý). Điều 8 liên quan trực tiếp đến tư cách người được nhận nuôi."
+    },
+    {
+      "id": "R36",
+      "procedure_id": "TTHC-AD-001",
+      "query": "Hồ sơ đăng ký nuôi con nuôi trong nước gồm những giấy tờ gì theo Nghị định và Thông tư hướng dẫn?",
+      "domain": "adoption",
+      "expected_citations": [["6", "275/VBHN-BTP"], ["2", "3845/VBHN-BTP"]],
+      "verified": true,
+      "notes": "Điều 6 VBHN 275/VBHN-BTP (hợp nhất NĐ 19/2011 + NĐ 06/2025) liệt kê hồ sơ nuôi con nuôi trong nước; Điều 2 VBHN 3845/VBHN-BTP (hợp nhất TT hướng dẫn hồ sơ) quy định biểu mẫu đi kèm. Multi-citation: nghị định và thông tư hướng dẫn song hành."
+    },
+    {
+      "id": "R37",
+      "procedure_id": "TTHC-AD-001",
+      "query": "Trình tự đăng ký việc nuôi con nuôi trong nước được thực hiện như thế nào?",
+      "domain": "adoption",
+      "expected_citations": [["17", "52/2010/QH12"], ["7", "275/VBHN-BTP"]],
+      "verified": true,
+      "notes": "Điều 17 Luật Nuôi con nuôi 2010 quy định các bước nộp hồ sơ và thẩm quyền giải quyết; Điều 7 VBHN 275/VBHN-BTP hướng dẫn chi tiết trình tự từng bước. Multi-citation: luật gốc và nghị định hướng dẫn thực thi."
+    },
+    {
+      "id": "R38",
+      "procedure_id": "TTHC-AD-001",
+      "query": "Mức lệ phí đăng ký nuôi con nuôi trong nước là bao nhiêu?",
+      "domain": "adoption",
+      "expected_citations": [["1", "951/VBHN-BTP"]],
+      "verified": true,
+      "notes": "Điều 1 VBHN 951/VBHN-BTP (hợp nhất các quy định về lệ phí nuôi con nuôi) quy định mức lệ phí đăng ký nuôi con nuôi trong nước."
+    },
+
+    {
+      "id": "R39",
+      "procedure_id": "TTHC-AD-002",
+      "query": "Những hành vi nào bị nghiêm cấm trong lĩnh vực nuôi con nuôi theo Luật Nuôi con nuôi?",
+      "domain": "adoption",
+      "expected_citations": [["13", "52/2010/QH12"]],
+      "verified": true,
+      "notes": "Điều 13 Luật Nuôi con nuôi 2010 liệt kê các hành vi bị nghiêm cấm (lợi dụng nuôi con nuôi để trục lợi, môi giới bất hợp pháp, v.v.). Xác minh từ benchmark cũ."
+    },
+    {
+      "id": "R40",
+      "procedure_id": "TTHC-AD-002",
+      "query": "Trường hợp nào phải thực hiện đăng ký lại việc nuôi con nuôi trong nước theo Luật Nuôi con nuôi?",
+      "domain": "adoption",
+      "expected_citations": [["25", "52/2010/QH12"]],
+      "verified": true,
+      "notes": "Điều 25 Luật Nuôi con nuôi 2010 quy định các trường hợp phải đăng ký lại (mất giấy tờ, sai sót, chưa được đăng ký trước đây)."
+    },
+    {
+      "id": "R41",
+      "procedure_id": "TTHC-AD-002",
+      "query": "Hồ sơ và trình tự đăng ký lại việc nuôi con nuôi trong nước theo Nghị định và Thông tư hướng dẫn?",
+      "domain": "adoption",
+      "expected_citations": [["23", "275/VBHN-BTP"], ["5", "3845/VBHN-BTP"]],
+      "verified": true,
+      "notes": "Điều 23 VBHN 275/VBHN-BTP quy định hồ sơ và trình tự đăng ký lại nuôi con nuôi trong nước; Điều 5 VBHN 3845/VBHN-BTP quy định biểu mẫu cho thủ tục đăng ký lại. Multi-citation: nghị định và thông tư bổ trợ nhau."
+    },
+    {
+      "id": "R42",
+      "procedure_id": "TTHC-AD-002",
+      "query": "Lệ phí đăng ký lại việc nuôi con nuôi trong nước được quy định như thế nào theo Nghị định hiện hành?",
+      "domain": "adoption",
+      "expected_citations": [["1", "951/VBHN-BTP"], ["24", "275/VBHN-BTP"]],
+      "verified": true,
+      "notes": "Điều 1 VBHN 951/VBHN-BTP quy định mức lệ phí áp dụng cho cả đăng ký mới và đăng ký lại; Điều 24 VBHN 275/VBHN-BTP đề cập đến trường hợp miễn lệ phí hoặc điều kiện tài chính đặc thù. Multi-citation: lệ phí và điều kiện miễn lệ phí từ hai văn bản."
+    },
+    {
+      "id": "UF01",
+      "procedure_id": null,
+      "query": "Điều kiện để đăng ký thường trú vào nhà ở do chính mình sở hữu là gì?",
+      "domain": "housing",
+      "expected_citations": [["20", "68/2020/QH14"]],
+      "verified": true,
+      "notes": "Unfiltered-easy. Điều 20 Luật Cư trú 2020 quy định điều kiện đăng ký thường trú. Vocabulary overlap cao — kiểm tra baseline recall toàn corpus."
+    },
+    {
+      "id": "UF02",
+      "procedure_id": null,
+      "query": "Thời hạn đăng ký khai sinh là bao nhiêu ngày kể từ khi trẻ được sinh ra?",
+      "domain": "civil_registration",
+      "expected_citations": [["14", "60/2014/QH13"]],
+      "verified": true,
+      "notes": "Unfiltered-easy. Điều 14 Luật Hộ tịch 2014 quy định thời hạn 60 ngày đăng ký khai sinh. Vocabulary 'thời hạn khai sinh' match trực tiếp."
+    },
+    {
+      "id": "UF03",
+      "procedure_id": null,
+      "query": "Người nhận nuôi con nuôi trong nước phải đáp ứng những điều kiện gì?",
+      "domain": "adoption",
+      "expected_citations": [["14", "52/2010/QH12"]],
+      "verified": true,
+      "notes": "Unfiltered-easy. Điều 14 Luật Nuôi con nuôi 2010 quy định điều kiện của người nhận nuôi. Phrase 'điều kiện nhận nuôi' match tốt."
+    },
+    {
+      "id": "UF04",
+      "procedure_id": null,
+      "query": "Thời hạn tạm trú tối đa là bao lâu và thủ tục gia hạn tạm trú thực hiện như thế nào?",
+      "domain": "housing",
+      "expected_citations": [["27", "68/2020/QH14"], ["38", "154/2024/NĐ-CP"]],
+      "verified": true,
+      "notes": "Unfiltered-medium. Multi-citation: Điều 27 Luật Cư trú (thời hạn 2 năm) + Điều 38 NĐ 154/2024 (thủ tục gia hạn). Vocabulary gap nhẹ."
+    },
+    {
+      "id": "UF05",
+      "procedure_id": null,
+      "query": "Trình tự nộp hồ sơ và cơ quan có thẩm quyền giải quyết khi xin nhận nuôi con nuôi trong nước?",
+      "domain": "adoption",
+      "expected_citations": [["9", "275/VBHN-BTP"]],
+      "verified": true,
+      "notes": "Unfiltered-medium. Điều 9 VBHN 275/VBHN-BTP quy định trình tự thủ tục nhận nuôi con nuôi trong nước. Không dùng số hiệu văn bản trong query."
+    },
+    {
+      "id": "UF06",
+      "procedure_id": null,
+      "query": "Cơ quan nào có thẩm quyền đăng ký khai sinh và ai là người có trách nhiệm đi đăng ký?",
+      "domain": "civil_registration",
+      "expected_citations": [["13", "60/2014/QH13"]],
+      "verified": true,
+      "notes": "Unfiltered-medium. Điều 13 Luật Hộ tịch 2014 quy định thẩm quyền và trách nhiệm đăng ký khai sinh."
+    },
+    {
+      "id": "UF07",
+      "procedure_id": null,
+      "query": "Mẫu tờ khai nào được sử dụng khi đăng ký thường trú hoặc thay đổi nơi đăng ký thường trú?",
+      "domain": "housing",
+      "expected_citations": [["1", "55/2021/TT-BCA"]],
+      "verified": true,
+      "notes": "Unfiltered-medium. TT 55/2021/TT-BCA quy định biểu mẫu đăng ký cư trú. Vocabulary gap: 'mẫu tờ khai' vs 'biểu mẫu'."
+    },
+    {
+      "id": "UF08",
+      "procedure_id": null,
+      "query": "Người thuê nhà ở xã hội từ đơn vị sự nghiệp công lập có thể làm thủ tục đăng ký thường trú không?",
+      "domain": "housing",
+      "expected_citations": [["20", "68/2020/QH14"], ["15", "154/2024/NĐ-CP"]],
+      "verified": true,
+      "notes": "Unfiltered-hard. Multi-citation. Vocabulary gap cao: 'nhà ở xã hội' + 'đơn vị sự nghiệp công lập'. Kiểm tra dense retrieval với legal jargon toàn corpus."
+    },
+    {
+      "id": "UF09",
+      "procedure_id": null,
+      "query": "Lệ phí đăng ký khai sinh áp dụng tại Hà Nội và mức lệ phí toàn quốc khác nhau như thế nào?",
+      "domain": "civil_registration",
+      "expected_citations": [["Biểu phí", "281/2016/TT-BTC"], ["Phụ lục", "06/2020/NQ-HĐND"]],
+      "verified": true,
+      "notes": "Unfiltered-hard. Multi-citation cross-document: lệ phí quốc gia (TT 281) + lệ phí địa phương Hà Nội (NQ 06/2020). Cả hai phải nằm trong top-k từ corpus đầy đủ không lọc."
+    },
+    {
+      "id": "UF10",
+      "procedure_id": null,
+      "query": "Trẻ em bị bỏ rơi chưa có giấy khai sinh được nhận nuôi theo quy trình nào?",
+      "domain": "adoption",
+      "expected_citations": [["14", "52/2010/QH12"], ["9", "275/VBHN-BTP"]],
+      "verified": true,
+      "notes": "Unfiltered-hard. Multi-citation: Luật 52/2010 (điều kiện trẻ bị bỏ rơi) + NĐ 275/VBHN-BTP (quy trình, hồ sơ). Thuần semantic retrieval, không dùng số hiệu văn bản."
     }
+
   ]
 }

@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     RAG_LLM_BACKEND: str = "anthropic"               # "anthropic" | "local"
     RAG_LOCAL_MODEL: str = "qwen2.5:7b-instruct"     # Ollama model tag for RAG generation
 
+    # Synthesizer-specific LLM backend — used for non-rag_only modes (guided_step,
+    # error, fallback, form_fill) and rag_only when scope-notice injection is needed.
+    # Default "anthropic" keeps existing behavior. Set to "local" for benchmark runs
+    # to avoid API calls on mis-routed edge cases.
+    SYNTHESIZER_LLM_BACKEND: str = "anthropic"       # "anthropic" | "local"
+    SYNTHESIZER_LOCAL_MODEL: str = "qwen2.5:7b-instruct"
+
     # Databases
     POSTGRES_URL: str = "postgresql+asyncpg://dichvucong:dichvucong@localhost:5432/dichvucong"
     REDIS_URL: str = "redis://localhost:6379/0"

@@ -88,8 +88,12 @@ _llm_svc = None
 def _get_llm():
     global _llm_svc
     if _llm_svc is None:
+        from app.config import settings as _s
         from app.services.llm import LLMService
-        _llm_svc = LLMService()
+        model_override = (
+            _s.SYNTHESIZER_LOCAL_MODEL if _s.SYNTHESIZER_LLM_BACKEND == "local" else None
+        )
+        _llm_svc = LLMService(backend=_s.SYNTHESIZER_LLM_BACKEND, model=model_override)
     return _llm_svc
 
 

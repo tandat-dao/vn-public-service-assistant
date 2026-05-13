@@ -69,7 +69,7 @@ DOCUMENT_REGISTRY: dict[str, dict] = {
         "location_scope": "VN",
         "procedure_ids": ["TTHC-CR-001", "TTHC-CR-002"],
     },
-    "civil_registration/3884.VBHN.BTP.pdf": {
+    "civil_registration/3884.VBHN.BTP.doc": {
         "document_number": "3884/VBHN-BTP",
         "document_name": "VBHN TT hộ tịch",
         "domain": "civil_registration",
@@ -120,7 +120,7 @@ DOCUMENT_REGISTRY: dict[str, dict] = {
         "location_scope": "VN",
         "procedure_ids": ["TTHC-AD-001", "TTHC-AD-002"],
     },
-    "adoption/275.VBHN.BTP.pdf": {
+    "adoption/275.VBHN.BTP.doc": {
         "document_number": "275/VBHN-BTP",
         "document_name": "VBHN NĐ nuôi con nuôi (19/2011, 06/2025)",
         "domain": "adoption",
@@ -134,7 +134,7 @@ DOCUMENT_REGISTRY: dict[str, dict] = {
         "location_scope": "VN",
         "procedure_ids": ["TTHC-AD-001", "TTHC-AD-002"],
     },
-    "adoption/3845.VBHN.BTP.pdf": {
+    "adoption/3845.VBHN.BTP.doc": {
         "document_number": "3845/VBHN-BTP",
         "document_name": "VBHN TT hồ sơ nuôi con nuôi",
         "domain": "adoption",
@@ -157,7 +157,7 @@ DOCUMENT_REGISTRY: dict[str, dict] = {
         "location_scope": "VN",
         "procedure_ids": ["TTHC-001", "TTHC-002", "TTHC-003"],
     },
-    "housing/53.2025.TT.BCA.pdf": {
+    "housing/53.2025.TT.BCA.doc": {
         "document_number": "53/2025/TT-BCA",
         "document_name": "Thông tư 53/2025/TT-BCA",
         "domain": "housing",
@@ -178,7 +178,7 @@ DOCUMENT_REGISTRY: dict[str, dict] = {
         "location_scope": "VN",
         "procedure_ids": ["TTHC-001", "TTHC-002", "TTHC-003"],
     },
-    "housing/75.2022.TT.BTC.pdf": {
+    "housing/75.2022.TT.BTC.doc": {
         "document_number": "75/2022/TT-BTC",
         "document_name": "Thông tư 75/2022/TT-BTC",
         "domain": "housing",

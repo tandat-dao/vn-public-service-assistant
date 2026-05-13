@@ -1,5 +1,19 @@
 # DichVuCong AI Assistant — Project Status
 
+**Version 3.88 | Updated 2026-05-13**
+
+> **What changed in v3.88:** Retrieval Recall benchmark rebuilt from scratch + 5 missing documents re-ingested via targeted ingestion.
+>
+> **(1) `backend/scripts/benchmark/datasets/retrieval_recall.json`** — Completely rewritten. Old file had 30 cases, only 19 verified (63%), imbalanced domain coverage, and used a `"procedure"` field that the benchmark runner never read (runner calls `case.get("procedure_id")`). New file: **42 cases, 100% verified**, correct `"procedure_id"` field. Distribution: Housing 15 cases (TTHC-001 ×5, TTHC-002 ×5, TTHC-003 ×5), Civil Registration 18 cases (TTHC-CR-001 ×8, TTHC-CR-002 ×10), Adoption 9 cases (TTHC-AD-001 ×5, TTHC-AD-002 ×4). All 19 ingested documents appear in ≥2 cases each. 10 multi-citation cases (R05, R08, R10, R15, R29, R33, R36, R37, R41, R42) test cross-document retrieval. Query types cover: eligibility, hồ sơ/documents, trình tự/process, lệ phí/fee, deadline, authority, and exception patterns across all 7 procedures. City-scoped fee documents (124/2016/NQ-HĐND VN-HCM, 06/2020/NQ-HĐND VN-HN, 05/2025/NQ-HĐND VN-DN) each have dedicated cases. IDs sequential R01–R42.
+>
+> **(2) `backend/ingestion/ingest_full_documents.py`** — DOCUMENT_REGISTRY updated: 5 file paths changed from `.pdf` to `.doc` to match the actual files now on disk: `housing/53.2025.TT.BCA`, `housing/75.2022.TT.BTC`, `civil_registration/3884.VBHN.BTP`, `adoption/275.VBHN.BTP`, `adoption/3845.VBHN.BTP`. These were previously pointing at scanned PDFs that pdfplumber returned 0 chars for, leaving 4 documents with 0 Qdrant points and 53/2025/TT-BCA with 1 garbled paragraph-chunk.
+>
+> **(3) `backend/ingestion/ingest_targeted.py`** (new file) — Standalone targeted ingestion script that re-ingests specific documents without wiping the entire Qdrant collection. For each target document: (a) soft-deprecates existing points via `scroll_by_document_number(doc_number, domain=domain)` + `batch_set_status(ids, "superseded")` — domain-scoped to prevent cross-domain collisions; (b) extracts text via `extract_text()` (LibreOffice fallback for binary `.doc`); (c) chunks and upserts (QdrantService.upsert auto-forces `status="active"`); (d) upserts `scope_coverage` rows. Run from `backend/` with `PYTHONPATH=. python ingestion/ingest_targeted.py`. TARGET_KEYS list at top of file controls which documents are processed.
+>
+> **Targeted ingestion results (run 2026-05-13):** 5 documents processed — 53/2025/TT-BCA superseded 1 garbled point + ingested 27 new chunks (11,835 chars); 75/2022/TT-BTC clean insert 12 chunks (7,987 chars); 3884/VBHN-BTP clean insert 105 chunks (65,157 chars); 275/VBHN-BTP clean insert 95 chunks (84,787 chars); 3845/VBHN-BTP clean insert 29 chunks (25,711 chars). **268 chunks added. Qdrant collection total: 1,180 points (active + superseded).** All 19 documents now have Qdrant coverage.
+>
+> **No unit test changes. 373 unit tests passing (unchanged).**
+
 **Version 3.87 | Updated 2026-05-12**
 
 > **What changed in v3.87:** Dependency fix — `openai==1.54.3` → `openai==1.57.4`. Root cause: `openai` 1.54 internally passes `proxies=` to `httpx.AsyncClient` when constructing the Ollama client; `httpx==0.28.1` (already installed) removed that parameter in 0.28.0, causing `TypeError: AsyncClient.__init__() got an unexpected keyword argument 'proxies'` at router node startup when `ROUTER_LLM_BACKEND=local`. Fix: upgraded to `openai==1.57.4` which removed the `proxies` kwarg from its httpx client construction. The `openai` package is used solely as an HTTP client for the Ollama OpenAI-compatible endpoint (`http://localhost:11434/v1`) — no requests go to OpenAI's cloud. `requirements.txt` updated. **373 unit tests passing (unchanged).**

@@ -1,23 +1,49 @@
 #!/usr/bin/env python3
 """DichVuCong AI Benchmark Evaluation.
 
-Measures three metrics against a live running system:
+Measures four metrics against a live running system:
 
-  1. Router Accuracy  — intent, domain, procedure_id, location_scope
-  2. Citation Recall  — expected articles appear in retrieved_sources
-  3. Latency Baseline — end-to-end response time distribution
+  1. Router Accuracy       — intent, domain, procedure_id, location_scope
+                             Dataset: datasets/router_accuracy.json (81 cases)
+                             LLM calls: 1 per case (router only)
+
+  2. Document Retrieval    — Recall@5 / Recall@10 / Recall@24
+     Recall@k               Dataset: datasets/retrieval_recall.json (52 cases:
+                             42 filtered + 10 unfiltered)
+                             LLM calls: 0 (pure Qdrant hybrid search)
+
+  3. Citation Faithfulness — verified_citations / total_citations in LLM response
+                             Dataset: datasets/retrieval_recall.json (52 cases)
+                             LLM calls: 2 per case (router + RAG generation)
+                             Tip: set ROUTER_LLM_BACKEND=local in .env to use
+                             Ollama for the router and save Anthropic API calls.
+                             Only RAG generation then uses the cloud LLM.
+
+  4. Latency Baseline      — end-to-end p50/p95 by query type
+                             LLM calls: 2 per query (router + RAG)
 
 Requirements:
-  - Backend running: cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000
-  - Docker Compose services running: docker compose up -d
-  - Real LLM configured (ANTHROPIC_API_KEY or GEMINI_API_KEY in .env)
+  - Backend running:  uvicorn app.main:app --host 0.0.0.0 --port 8000
+  - Docker services:  docker compose up -d  (Postgres, Redis, Qdrant, MinIO)
+  - API key set:      ANTHROPIC_API_KEY in .env  (or GEMINI_API_KEY)
+  - For local router: Ollama running + ROUTER_LLM_BACKEND=local in .env
 
 Usage (from backend/ directory):
+    # Run all four metrics
     python scripts/benchmark/run_benchmark.py
+
+    # Run a single metric
     python scripts/benchmark/run_benchmark.py --metric router
     python scripts/benchmark/run_benchmark.py --metric citations
+    python scripts/benchmark/run_benchmark.py --metric faithfulness
     python scripts/benchmark/run_benchmark.py --metric latency
+
+    # Target a non-default backend
     python scripts/benchmark/run_benchmark.py --backend http://localhost:8000
+
+    # Label a comparison run (appended to report filename)
+    python scripts/benchmark/run_benchmark.py --metric router --backend-label anthropic
+    python scripts/benchmark/run_benchmark.py --metric router --backend-label local
 
 Output:
     scripts/benchmark/reports/benchmark_YYYYMMDD_HHMMSS.json
@@ -29,6 +55,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 import sys
 import time
 import uuid
@@ -50,10 +77,86 @@ DATASET_DIR = Path(__file__).parent / "datasets"
 REPORTS_DIR = Path(__file__).parent / "reports"
 REPORTS_DIR.mkdir(exist_ok=True)
 
+# Citation patterns for faithfulness parsing.
+# verify_citations() in citation_formatter.py rewrites hallucinated citations to
+# [unverified: ...] in the final_response before it reaches the SSE stream.
+_CITATION_RE = re.compile(r'\[[^\]]+(?:/QH|/NĐ-|/NQ-|/TT-|/VBHN)[^\]]+\]')
+_UNVERIFIED_RE = re.compile(r'\[unverified:[^\]]+\]')
+
 
 # ---------------------------------------------------------------------------
-# HTTP helper
+# HTTP helpers
 # ---------------------------------------------------------------------------
+
+async def call_rag_direct(
+    client: httpx.AsyncClient,
+    message: str,
+    session_id: str,
+    procedure_id: str | None = None,
+    domain: str | None = None,
+    location_scope: str | None = None,
+) -> dict:
+    """POST /api/v1/chat/rag_direct — bypasses router, single RAG LLM call, returns JSON.
+
+    Used by the faithfulness benchmark to avoid paying for a router LLM call on
+    every case.  procedure_id and domain come directly from the dataset so
+    retrieval scope is correct without inference.
+
+    Returns:
+        {
+            "response":    full generated text (verify_citations already applied),
+            "scope_used":  scope code that produced results,
+            "chunk_count": number of retrieved chunks,
+            "elapsed_ms":  wall-clock time,
+            "error":       error string if request failed,
+        }
+    """
+    start = time.perf_counter()
+    try:
+        response = await client.post(
+            f"{BASE_URL}/api/v1/chat/rag_direct",
+            json={
+                "message": message,
+                "session_id": session_id,
+                "procedure_id": procedure_id,
+                "domain": domain,
+                "location_scope": location_scope,
+            },
+            timeout=300.0,  # 5 min — covers both Anthropic API and Ollama on CPU
+        )
+        elapsed_ms = round((time.perf_counter() - start) * 1000)
+
+        if response.status_code != 200:
+            return {
+                "response": "", "scope_used": None, "chunk_count": 0,
+                "elapsed_ms": elapsed_ms,
+                "error": f"HTTP {response.status_code}: {response.text[:200]}",
+            }
+
+        data = response.json()
+        if data.get("error"):
+            return {
+                "response": "", "scope_used": None, "chunk_count": 0,
+                "elapsed_ms": elapsed_ms,
+                "error": data["error"],
+            }
+
+        return {
+            "response": data.get("response", ""),
+            "scope_used": data.get("scope_used"),
+            "chunk_count": data.get("chunk_count", 0),
+            "elapsed_ms": elapsed_ms,
+            "error": None,
+        }
+
+    except Exception as exc:
+        elapsed_ms = round((time.perf_counter() - start) * 1000)
+        return {
+            "response": "", "scope_used": None, "chunk_count": 0,
+            "elapsed_ms": elapsed_ms,
+            "error": repr(exc) or type(exc).__name__,
+        }
+
 
 async def call_chat(
     client: httpx.AsyncClient,
@@ -282,6 +385,7 @@ async def call_search(
     client: httpx.AsyncClient,
     query: str,
     procedure_id: str | None = None,
+    top_k: int = 24,
 ) -> dict:
     """GET /api/v1/legal/search — pure Qdrant retrieval, zero LLM calls.
 
@@ -293,7 +397,7 @@ async def call_search(
         }
     """
     start = time.perf_counter()
-    params: dict = {"q": query}
+    params: dict = {"q": query, "top_k": top_k}
     if procedure_id:
         params["procedure_id"] = procedure_id
 
@@ -323,12 +427,18 @@ async def call_search(
         return {"chunks": [], "elapsed_ms": elapsed_ms, "error": str(exc)}
 
 
+_RECALL_K_VALUES = [5, 10, 24]
+
+
 async def run_retrieval_recall(client: httpx.AsyncClient) -> dict:
     """Measure Document Retrieval Recall@k against ground truth (verified pairs only, Tier 2).
 
-    Calls GET /api/v1/legal/search instead of POST /api/v1/chat — zero LLM
-    calls per case. Evaluates source_found only: the expected document_number
-    must appear in the retrieved chunks within top_k results.
+    Calls GET /api/v1/legal/search once per case at top_k=24, then computes
+    Recall@5, Recall@10, and Recall@24 from the ordered result list — single
+    API call per case, zero LLM calls.
+
+    Filtered cases supply a procedure_id; unfiltered cases (procedure_id=null)
+    search the full corpus. Both are reported separately.
     """
     print("\n=== METRIC 2: Document Retrieval Recall@k  [0 LLM calls — pure Qdrant] ===")
 
@@ -342,19 +452,34 @@ async def run_retrieval_recall(client: httpx.AsyncClient) -> dict:
     verified_cases = [c for c in all_cases if c.get("verified", False)]
     threshold = dataset.get("recall_threshold", 0.80)
 
-    print(f"  Running {len(verified_cases)} verified cases "
-          f"({len(all_cases) - len(verified_cases)} unverified skipped)")
+    filtered_cases   = [c for c in verified_cases if c.get("procedure_id")]
+    unfiltered_cases = [c for c in verified_cases if not c.get("procedure_id")]
 
-    total_expected = total_found = 0
+    print(f"  Running {len(verified_cases)} verified cases "
+          f"({len(filtered_cases)} filtered, {len(unfiltered_cases)} unfiltered) "
+          f"— {len(all_cases) - len(verified_cases)} unverified skipped")
+
+    # Accumulators: total[k] and found[k] across all cases, filtered, unfiltered
+    total: dict[int, int] = {k: 0 for k in _RECALL_K_VALUES}
+    found: dict[int, int] = {k: 0 for k in _RECALL_K_VALUES}
+    total_f: dict[int, int] = {k: 0 for k in _RECALL_K_VALUES}
+    found_f: dict[int, int] = {k: 0 for k in _RECALL_K_VALUES}
+    total_u: dict[int, int] = {k: 0 for k in _RECALL_K_VALUES}
+    found_u: dict[int, int] = {k: 0 for k in _RECALL_K_VALUES}
+
     results = []
+    max_k = max(_RECALL_K_VALUES)
 
     for case in verified_cases:
-        print(f"  [{case['id']}] {case['query'][:55]}...", end=" ", flush=True)
+        is_filtered = bool(case.get("procedure_id"))
+        tag = "" if is_filtered else " [unfiltered]"
+        print(f"  [{case['id']}]{tag} {case['query'][:50]}...", end=" ", flush=True)
 
         result = await call_search(
             client,
             case["query"],
             procedure_id=case.get("procedure_id"),
+            top_k=max_k,
         )
 
         if result.get("error"):
@@ -363,58 +488,222 @@ async def run_retrieval_recall(client: httpx.AsyncClient) -> dict:
             continue
 
         chunks: list[dict] = result["chunks"]
-        retrieved_docs = {c["document_number"].lower() for c in chunks}
-
-        found: list[str] = []
-        missing: list[str] = []
+        case_found_at: dict[int, list[str]] = {k: [] for k in _RECALL_K_VALUES}
+        case_missing_at_24: list[str] = []
 
         for expected_art, expected_doc in case["expected_citations"]:
-            total_expected += 1
-            if expected_doc.lower() in retrieved_docs:
-                total_found += 1
-                found.append(f"{expected_art}, {expected_doc}")
-            else:
-                missing.append(f"{expected_art}, {expected_doc}")
+            doc_lower = expected_doc.lower()
+            for k in _RECALL_K_VALUES:
+                docs_at_k = {c["document_number"].lower() for c in chunks[:k]}
+                total[k] += 1
+                if is_filtered:
+                    total_f[k] += 1
+                else:
+                    total_u[k] += 1
+                if doc_lower in docs_at_k:
+                    found[k] += 1
+                    case_found_at[k].append(f"{expected_art}, {expected_doc}")
+                    if is_filtered:
+                        found_f[k] += 1
+                    else:
+                        found_u[k] += 1
+                elif k == max_k:
+                    case_missing_at_24.append(f"{expected_art}, {expected_doc}")
 
-        status = "✓" if not missing else "✗"
-        print(f"{status} ({result['elapsed_ms']}ms) "
-              f"{'OK' if not missing else f'missing: {missing[:1]}'}")
+        # Per-case status line: show result at each k
+        k_badges = " ".join(
+            f"@{k}:{'ok' if not [c for _, c in case['expected_citations'] if c.lower() not in {ch['document_number'].lower() for ch in chunks[:k]}] else 'X'}"
+            for k in _RECALL_K_VALUES
+        )
+        status_24 = "ok" not in k_badges.split("@24:")[1][:2]  # True = fail at 24
+        marker = "✗" if case_missing_at_24 else "✓"
+        print(f"{marker} ({result['elapsed_ms']}ms)  {k_badges}"
+              f"{'' if not case_missing_at_24 else f'  missing@24: {case_missing_at_24[:1]}'}")
 
         results.append({
             "id": case["id"],
             "query": case["query"],
-            "found": found,
-            "missing": missing,
+            "found_at_24": case_found_at[max_k],
+            "missing_at_24": case_missing_at_24,
             "retrieved_count": len(chunks),
         })
 
-    recall = total_found / total_expected if total_expected > 0 else 0.0
+    def _recall(f: dict, t: dict, k: int) -> float:
+        return f[k] / t[k] if t[k] > 0 else 0.0
+
+    r24 = _recall(found, total, 24)
+    r10 = _recall(found, total, 10)
+    r5  = _recall(found, total, 5)
 
     metrics = {
-        "retrieval_recall": round(recall, 3),
-        "total_expected_citations": total_expected,
-        "total_found_citations": total_found,
-        "verified_cases_run": len(verified_cases),
-        "threshold": threshold,
-        "recall_pass": recall >= threshold,
-        "llm_calls": 0,
+        "retrieval_recall":    round(r24, 3),
+        "recall_at_5":         round(r5, 3),
+        "recall_at_10":        round(r10, 3),
+        "recall_at_24":        round(r24, 3),
+        "total_expected_citations": total[24],
+        "total_found_citations":    found[24],
+        "verified_cases_run":  len(verified_cases),
+        "threshold":           threshold,
+        "recall_pass":         r24 >= threshold,
+        "llm_calls":           0,
     }
 
-    print(f"\n  Retrieval Recall@k: {metrics['retrieval_recall']:.1%}"
-          f" ({'PASS' if metrics['recall_pass'] else 'FAIL'},"
-          f" threshold {threshold:.0%})")
+    print(f"\n  Recall@5:  {r5:.1%}  ({found[5]}/{total[5]})")
+    print(f"  Recall@10: {r10:.1%}  ({found[10]}/{total[10]})")
+    print(f"  Recall@24: {r24:.1%}  ({found[24]}/{total[24]})  "
+          f"{'PASS' if metrics['recall_pass'] else 'FAIL'} (threshold {threshold:.0%})")
+
+    if unfiltered_cases:
+        r24_f = _recall(found_f, total_f, 24)
+        r10_f = _recall(found_f, total_f, 10)
+        r5_f  = _recall(found_f, total_f, 5)
+        r24_u = _recall(found_u, total_u, 24)
+        r10_u = _recall(found_u, total_u, 10)
+        r5_u  = _recall(found_u, total_u, 5)
+        print(f"\n  Filtered   ({len(filtered_cases)} cases):   "
+              f"@5={r5_f:.1%}  @10={r10_f:.1%}  @24={r24_f:.1%}")
+        print(f"  Unfiltered ({len(unfiltered_cases)} cases):  "
+              f"@5={r5_u:.1%}  @10={r10_u:.1%}  @24={r24_u:.1%}")
+
     print(f"  LLM calls: 0  (pure Qdrant retrieval)")
 
     return {"metrics": metrics, "results": results}
 
 
 # ---------------------------------------------------------------------------
-# Metric 3: Latency Baseline
+# Metric 3: Citation Faithfulness
+# ---------------------------------------------------------------------------
+
+async def run_citation_faithfulness(client: httpx.AsyncClient) -> dict:
+    """Measure LLM citation faithfulness — did the LLM cite only what it retrieved?
+
+    Calls POST /api/v1/chat/rag_direct for each verified case in retrieval_recall.json.
+    This bypasses the router entirely — procedure_id and domain are passed directly
+    from the dataset so retrieval is correctly scoped without any router LLM call.
+
+    verify_citations() runs server-side inside rag_fn and rewrites any citation not
+    backed by a retrieved chunk to [unverified: ...].  This function counts those markers.
+
+        faithfulness = verified_citations / (verified + unverified)
+
+    Run twice with different RAG_LLM_BACKEND env values (anthropic vs local) to
+    compare citation discipline between the cloud and local LLM paths.
+    No router LLM calls — 1 RAG LLM call per case only.
+    """
+    print("\n=== METRIC 3: Citation Faithfulness  [1 RAG LLM call per case, no router] ===")
+
+    dataset_path = DATASET_DIR / "retrieval_recall.json"
+    if not dataset_path.exists():
+        print(f"  ERROR: dataset not found at {dataset_path}")
+        return {"metrics": {}, "results": []}
+
+    dataset = json.loads(dataset_path.read_text(encoding="utf-8"))
+    all_cases = dataset["test_cases"]
+    verified_cases = [c for c in all_cases if c.get("verified", False)]
+    threshold = 0.80
+
+    print(f"  Running {len(verified_cases)} verified cases (router bypassed — 1 RAG LLM call each)")
+
+    total_verified_cit = 0
+    total_unverified_cit = 0
+    cases_with_citations = 0
+    cases_no_citations = 0
+    results = []
+
+    for case in verified_cases:
+        print(f"  [{case['id']}] {case['query'][:55]}...", end=" ", flush=True)
+
+        result = await call_rag_direct(
+            client,
+            case["query"],
+            f"bench-faith-{uuid.uuid4().hex[:8]}",
+            procedure_id=case.get("procedure_id"),
+            domain=case.get("domain"),
+            location_scope=case.get("location_scope"),
+        )
+
+        if result.get("error"):
+            print(f"ERR: {result['error'][:60]}")
+            results.append({"id": case["id"], "error": result["error"]})
+            await asyncio.sleep(0.3)
+            continue
+
+        response_text: str = result["response"]
+
+        # _CITATION_RE matches all brackets containing a Vietnamese doc identifier.
+        # _UNVERIFIED_RE matches the subset rewritten by verify_citations().
+        all_cit = _CITATION_RE.findall(response_text)
+        unverified_cit = _UNVERIFIED_RE.findall(response_text)
+
+        n_total = len(all_cit)
+        n_unverified = len(unverified_cit)
+        n_verified = n_total - n_unverified
+
+        if n_total == 0:
+            cases_no_citations += 1
+            case_faithfulness = None
+            print(f"– no citations ({result['elapsed_ms']}ms, {result['chunk_count']} chunks)")
+        else:
+            cases_with_citations += 1
+            total_verified_cit += n_verified
+            total_unverified_cit += n_unverified
+            case_faithfulness = round(n_verified / n_total, 3)
+            status = "✓" if n_unverified == 0 else "✗"
+            print(
+                f"{status} {case_faithfulness:.0%} "
+                f"({n_verified}/{n_total} verified, {result['elapsed_ms']}ms)"
+            )
+
+        results.append({
+            "id": case["id"],
+            "query": case["query"],
+            "total_citations": n_total,
+            "verified_citations": n_verified,
+            "unverified_citations": n_unverified,
+            "faithfulness": case_faithfulness,
+            "scope_used": result.get("scope_used"),
+            "chunk_count": result.get("chunk_count", 0),
+        })
+
+        await asyncio.sleep(0.3)
+
+    total_cit = total_verified_cit + total_unverified_cit
+    aggregate = total_verified_cit / total_cit if total_cit > 0 else 0.0
+
+    metrics = {
+        "citation_faithfulness": round(aggregate, 3),
+        "total_verified_citations": total_verified_cit,
+        "total_unverified_citations": total_unverified_cit,
+        "total_citations_seen": total_cit,
+        "cases_with_citations": cases_with_citations,
+        "cases_no_citations": cases_no_citations,
+        "verified_cases_run": len(verified_cases),
+        "threshold": threshold,
+        "faithfulness_pass": aggregate >= threshold,
+        "llm_calls": len(verified_cases),
+    }
+
+    print(
+        f"\n  Citation faithfulness: {metrics['citation_faithfulness']:.1%}"
+        f" ({'PASS' if metrics['faithfulness_pass'] else 'FAIL'},"
+        f" threshold {threshold:.0%})"
+    )
+    print(
+        f"  {cases_with_citations} cases produced citations, "
+        f"{cases_no_citations} had none (excluded from aggregate)"
+    )
+    print(f"  RAG LLM calls: {len(verified_cases)}  (router calls: 0)")
+
+    return {"metrics": metrics, "results": results}
+
+
+# ---------------------------------------------------------------------------
+# Metric 4: Latency Baseline
 # ---------------------------------------------------------------------------
 
 async def run_latency_baseline(client: httpx.AsyncClient) -> dict:
     """Measure end-to-end latency across representative query types."""
-    print("\n=== METRIC 3: Latency Baseline ===")
+    print("\n=== METRIC 4: Latency Baseline ===")
 
     queries = [
         ("housing_rag",  "Điều kiện đăng ký thường trú là gì?"),
@@ -538,11 +827,41 @@ def generate_report(all_results: dict, timestamp: str) -> str:
         "",
         "> **Note:** Retrieval Recall@k checks whether the expected source document appears in top-k",
         "> Qdrant results. Covers only Tier 2 (document-verified) ground truth pairs.",
-        "> LLM faithfulness (Tier 3) is outside research prototype scope.",
         "",
         "---",
         "",
-        "## 3. Latency Baseline",
+        "## 3. Citation Faithfulness  *(Tier 3 — LLM citation discipline)*",
+        "",
+        "| Metric | Value | Threshold | Status |",
+        "|---|---|---|---|",
+    ]
+
+    faithfulness = all_results.get("citation_faithfulness", {}).get("metrics", {})
+
+    if faithfulness:
+        thresh = faithfulness.get("threshold", 0.8)
+        lines += [
+            f"| Citation faithfulness | {faithfulness.get('citation_faithfulness', 0):.1%} | {thresh:.0%} | "
+            f"{'✅ PASS' if faithfulness.get('faithfulness_pass') else '❌ FAIL'} |",
+            f"| Verified citations | {faithfulness.get('total_verified_citations', 0)} | | |",
+            f"| Unverified (hallucinated) citations | {faithfulness.get('total_unverified_citations', 0)} | | |",
+            f"| Cases with citations | {faithfulness.get('cases_with_citations', 0)} | | |",
+            f"| Cases with no citations | {faithfulness.get('cases_no_citations', 0)} | | |",
+            f"| LLM calls | {faithfulness.get('llm_calls', 0)} | | |",
+        ]
+    else:
+        lines.append("*Not measured*")
+
+    lines += [
+        "",
+        "> **Note:** Faithfulness = verified_citations / total_citations in LLM response.",
+        "> `verify_citations()` runs server-side in `rag_fn` and rewrites hallucinated citations",
+        "> to `[unverified: ...]` before the response reaches the SSE stream.",
+        "> Run with `RAG_LLM_BACKEND=anthropic` and `RAG_LLM_BACKEND=local` to compare.",
+        "",
+        "---",
+        "",
+        "## 4. Latency Baseline",
         "",
         "| Metric | Value |",
         "|---|---|",
@@ -584,7 +903,7 @@ async def main():
     parser = argparse.ArgumentParser(description="DichVuCong benchmark evaluation")
     parser.add_argument(
         "--metric",
-        choices=["router", "citations", "latency", "all"],
+        choices=["router", "citations", "faithfulness", "latency", "all"],
         default="all",
         help="Which metric to measure (default: all)",
     )
@@ -592,6 +911,11 @@ async def main():
         "--backend",
         default="http://localhost:8000",
         help="Backend base URL (default: http://localhost:8000)",
+    )
+    parser.add_argument(
+        "--backend-label",
+        default="",
+        help="Label appended to report filename for comparison runs, e.g. 'anthropic' or 'local'",
     )
     args = parser.parse_args()
 
@@ -621,11 +945,15 @@ async def main():
         if args.metric in ("citations", "all"):
             all_results["retrieval_recall"] = await run_retrieval_recall(client)
 
+        if args.metric in ("faithfulness", "all"):
+            all_results["citation_faithfulness"] = await run_citation_faithfulness(client)
+
         if args.metric in ("latency", "all"):
             all_results["latency"] = await run_latency_baseline(client)
 
-    json_path = REPORTS_DIR / f"benchmark_{timestamp}.json"
-    md_path = REPORTS_DIR / f"benchmark_{timestamp}.md"
+    label = f"_{args.backend_label}" if args.backend_label else ""
+    json_path = REPORTS_DIR / f"benchmark_{timestamp}{label}.json"
+    md_path = REPORTS_DIR / f"benchmark_{timestamp}{label}.md"
 
     json_path.write_text(
         json.dumps(all_results, ensure_ascii=False, indent=2), encoding="utf-8"

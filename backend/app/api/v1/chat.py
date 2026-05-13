@@ -469,6 +469,64 @@ def _derive_mode(result: dict) -> str:
     return "fallback"
 
 
+class _RagDirectRequest(BaseModel):
+    message: str
+    session_id: str | None = None
+    procedure_id: str | None = None
+    domain: str | None = None
+    location_scope: str | None = None
+
+
+@router.post("/rag_direct")
+async def rag_direct(body: _RagDirectRequest):
+    """Run rag_fn directly — bypasses router, no SSE, returns JSON.
+
+    For benchmark use only (citation faithfulness metric). Accepts the procedure_id
+    and domain from the benchmark dataset so retrieval is correctly scoped without
+    needing the router to infer them.
+    """
+    import time
+    from app.agents.nodes.rag import rag_fn
+
+    state: dict = {
+        "user_message": body.message,
+        "session_id": body.session_id or "benchmark",
+        "target_procedure_id": body.procedure_id,
+        "domain": body.domain,
+        "location_scope": body.location_scope,
+        "filing_jurisdiction": None,
+        "entities": {},
+        "retrieved_chunks": [],
+        "citations": [],
+        "conversation_history": [],
+        "scope_used": None,
+        "final_response": "",
+        "errors": [],
+    }
+
+    start = time.perf_counter()
+    try:
+        result = await rag_fn(state)
+    except Exception as exc:
+        logger.error("rag_direct: rag_fn failed: %s", exc, exc_info=True)
+        return {
+            "response": "",
+            "scope_used": None,
+            "chunk_count": 0,
+            "elapsed_ms": round((time.perf_counter() - start) * 1000),
+            "error": str(exc),
+        }
+
+    elapsed_ms = round((time.perf_counter() - start) * 1000)
+    return {
+        "response": result.get("final_response", ""),
+        "scope_used": result.get("scope_used"),
+        "chunk_count": len(result.get("retrieved_chunks") or []),
+        "elapsed_ms": elapsed_ms,
+        "error": None,
+    }
+
+
 @router.post("/classify")
 async def classify_intent(body: _ClassifyRequest):
     """Run router_node only — returns intent, domain, procedure_id, location_scope, mode.
